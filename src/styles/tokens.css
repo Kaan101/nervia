@@ -1,0 +1,126 @@
+/* ============================================================
+   Nervia — tasarım belirteçleri
+   Swiss modernism · kurumsal lacivert · yüksek beyaz alan oranı
+   ============================================================ */
+
+:root {
+  /* Marka */
+  --brand-900: #0a1b33;
+  --brand-800: #0e2647;
+  --brand-700: #14355f;
+  --brand-600: #1a4a86;
+  --brand-500: #1f5fb0;
+  --brand-400: #4884ce;
+  --brand-200: #b9d1ee;
+  --brand-100: #e4eefa;
+  --brand-050: #f2f7fd;
+
+  /* Nötrler */
+  --ink-900: #0c1420;
+  --ink-800: #16202f;
+  --ink-700: #2c3849;
+  --ink-600: #475467;
+  --ink-500: #667085;
+  --ink-400: #8b95a6;
+  --ink-300: #b3bbc7;
+  --ink-200: #d9dee5;
+  --ink-100: #e9ecf1;
+  --ink-050: #f4f6f9;
+
+  --canvas: #f6f7fa;
+  --surface: #ffffff;
+  --surface-sunken: #fafbfc;
+  --border: #e4e8ee;
+  --border-strong: #cfd6e0;
+
+  /* ------------------------------------------------------------------
+     Risk skalası — sıralı bir durum (status) paletidir, kategorik değil.
+     Yalnızca risk seviyesi için kullanılır ve her zaman bir metin
+     etiketiyle birlikte gösterilir; hiçbir yerde tek başına renk anlam
+     taşımaz.
+
+     İki katman vardır:
+       --risk-*        metin/kenarlık katmanı (WCAG AA: 5.3–9.2:1)
+       --risk-*-mark   grafik işaret katmanı (ısı haritası noktaları,
+                       çubuklar, çizgiler). Bu dört değer renk körlüğü
+                       ayrımı için doğrulanmıştır:
+                       en yakın komşu ΔE 15.9 (normal) / 9.6 (deutan).
+     ------------------------------------------------------------------ */
+  --risk-low: #0b6448;
+  --risk-low-mark: #107a57;
+  --risk-low-bg: #e7f4ef;
+  --risk-low-line: #a9dcc9;
+
+  --risk-medium: #7a5a06;
+  --risk-medium-mark: #d3a90b;
+  --risk-medium-bg: #fbf3df;
+  --risk-medium-line: #ecd79c;
+
+  --risk-high: #a04a0c;
+  --risk-high-mark: #e2661a;
+  --risk-high-bg: #fbeee2;
+  --risk-high-line: #f4c9a6;
+
+  --risk-critical: #8e1810;
+  --risk-critical-mark: #a01d12;
+  --risk-critical-bg: #fbeae8;
+  --risk-critical-line: #f0b6b0;
+
+  --positive: #0b6448;
+  --warning: #7a5a06;
+  --danger: #8e1810;
+  --info: #1a4a86;
+
+  /* Nicel grafiklerde tek hue’lu sıralı ramp (büyüklük gösterimi) */
+  --seq-1: #dce8f6;
+  --seq-2: #b9d1ee;
+  --seq-3: #7ba9db;
+  --seq-4: #3f7cc0;
+  --seq-5: #1a4a86;
+
+  /* Tipografi */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-2xs: 10.5px;
+  --text-xs: 11.5px;
+  --text-sm: 12.5px;
+  --text-base: 13.5px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+
+  /* Ölçek — 8px tabanlı */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px;
+  --s9: 48px; --s10: 64px;
+
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  --shadow-xs: 0 1px 2px rgba(12, 20, 32, 0.04);
+  --shadow-sm: 0 1px 3px rgba(12, 20, 32, 0.06), 0 1px 2px rgba(12, 20, 32, 0.04);
+  --shadow-md: 0 4px 16px rgba(12, 20, 32, 0.08), 0 1px 3px rgba(12, 20, 32, 0.04);
+  --shadow-lg: 0 12px 40px rgba(12, 20, 32, 0.12), 0 2px 8px rgba(12, 20, 32, 0.06);
+  --shadow-focus: 0 0 0 3px rgba(31, 95, 176, 0.18);
+
+  --sidebar-w: 252px;
+  --sidebar-w-collapsed: 64px;
+  --topbar-h: 56px;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 130ms;
+  --dur: 220ms;
+  --dur-slow: 380ms;
+}
+
+/* Risk seviyesi yardımcı sınıfları */
+.lvl-low      { --lvl: var(--risk-low);      --lvl-mark: var(--risk-low-mark);      --lvl-bg: var(--risk-low-bg);      --lvl-line: var(--risk-low-line); }
+.lvl-medium   { --lvl: var(--risk-medium);   --lvl-mark: var(--risk-medium-mark);   --lvl-bg: var(--risk-medium-bg);   --lvl-line: var(--risk-medium-line); }
+.lvl-high     { --lvl: var(--risk-high);     --lvl-mark: var(--risk-high-mark);     --lvl-bg: var(--risk-high-bg);     --lvl-line: var(--risk-high-line); }
+.lvl-critical { --lvl: var(--risk-critical); --lvl-mark: var(--risk-critical-mark); --lvl-bg: var(--risk-critical-bg); --lvl-line: var(--risk-critical-line); }

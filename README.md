@@ -1,0 +1,232 @@
+# Nervia
+
+**Kurumsal İç Kontrol, Risk Yönetimi ve Süreç Yönetim Platformu**
+
+Nervia; bir organizasyonun süreçlerini, alt süreçlerini, faaliyetlerini, iş adımlarını,
+kontrol noktalarını, risklerini, prosedürlerini ve sorumluluklarını tek bir *görsel yapı*
+üzerinden yönetmek için tasarlanmış bir GRC platformudur.
+
+Tasarımın temel düşüncesi şudur:
+
+> Bir organizasyonda herhangi bir işin nasıl yapıldığını, bu işte neyin yanlış gidebileceğini,
+> hangi kontrolün bunu önlediğini, kimin sorumlu olduğunu ve mevcut risk seviyesinin ne
+> olduğunu birkaç tıklamayla görebilmek.
+
+Sistem klasik tablo veya statik doküman mantığında değildir. Kullanıcı, organizasyonun
+işleyişini canlı bir süreç haritası üzerinde gezer; ihtiyaç duyduğu detayı açar, kapatır ve
+süreçler arasındaki ilişkileri görsel olarak izler (*progressive disclosure*).
+
+---
+
+## Hızlı başlangıç
+
+```bash
+npm install
+npm run dev        # geliştirme sunucusu
+npm run build      # tip kontrolü + üretim derlemesi
+npm run preview    # derlenmiş sürümü yerelde çalıştır
+```
+
+Uygulama tamamen istemci tarafında çalışır; arka uç gerektirmez. Demo veri kümesi
+`src/data/` altında tanımlıdır ve her yüklemede deterministik olarak üretilir.
+
+### Giriş
+
+Giriş ekranında bir persona seçilir. Rol bazlı yetkilendirme gerçekten uygulanır —
+gördüğünüz menüler ve yapabildiğiniz işlemler role göre değişir:
+
+| Persona | Rol | Ne yapabilir |
+|---|---|---|
+| Elif Karaca | Üst Yönetim | Kurumsal risk profilini ve audit trail'i izler |
+| Mert Aydın | Birim Yöneticisi · Süreç Sahibi | Kendi süreçlerini günceller, değişiklikleri ilk kademede onaylar |
+| Zeynep Aksoy | Süreç Sahibi | Ödeme süreçlerini yönetir |
+| Sinem Aktaş | İç Kontrol | Kontrol etkinliğini değerlendirir, tüm süreçleri görür |
+| Pelin Yavuz | Risk Yönetimi | Risk skorlarını revize eder |
+| Ceren Balcı | İç Denetim | Bağımsız güvence; tüm kayıtları ve audit trail'i görür |
+| Volkan Ateş | Sistem Yöneticisi | Kullanıcı ve yetki yönetimi |
+
+Oturum `localStorage`'da tutulur; profil ekranından persona değiştirilebilir.
+
+---
+
+## Bilgi mimarisi
+
+```
+ORGANİZASYON
+  └── ANA SÜREÇ            (Hasar Yönetimi, Mali İşler, Hukuk, BT, İK, …)
+        └── ALT SÜREÇ      (İhbar ve Dosya Açılışı, Tazminat ve Ödeme, …)
+              └── FAALİYET (Hasar İhbarı, Ödeme Onayı, Ödeme, …)
+                    └── İŞ ADIMI
+                          ├── KONTROL NOKTASI
+                          ├── RİSK
+                          └── AKSİYON
+```
+
+Her seviye `expand / collapse` mantığıyla açılır. Kullanıcı isterse yalnızca süreç
+isimlerini görür, isterse tüm detayı açar.
+
+## Görünümler
+
+Aynı süreç altı farklı görünümle incelenebilir (`Süreç Haritası` sayfası):
+
+| Görünüm | Ne gösterir |
+|---|---|
+| **Harita** | Ana süreç kartları; alt süreç, risk, kritik risk, kontrol, aksiyon ve olgunluk göstergeleriyle |
+| **Ağaç** | Tam hiyerarşi; expand/collapse ile katman katman |
+| **Akış** | Journey/flow görünümü — işin baştan sona yatay ilerleyişi |
+| **Risk** | Yalnızca riskler ve kritik noktalar |
+| **Kontrol** | Yalnızca kontroller; niteliğine göre gruplanmış |
+| **Yönetim** | Risk seviyesi, aksiyon ve performans göstergelerine odaklı sade tablo |
+
+## Modüller
+
+- **Dashboard** — toplam süreç/risk/kontrol/aksiyon göstergeleri, risk trendi, birim ve
+  süreç bazlı risk dağılımı, kontrol etkinliği, KRI’ler, gecikmiş aksiyonlar, süreç sağlık özeti.
+- **Süreç Haritası** — yukarıdaki altı görünüm + iş adımı detay paneli.
+- **Bağlantı Ağı** — Süreç → Risk → Kontrol → Sorumlu → Aksiyon katmanlı ağ grafiği.
+- **Risk Isı Haritası** — 5×5 olasılık × etki matrisi; birim, süreç, risk türü, sahip,
+  seviye, kontrol etkinliği ve değerlendirme tarihi filtreleriyle.
+- **Risk Kütüphanesi** — merkezî risk envanteri (ISO 31000 kategorileri).
+- **Kontrol Kütüphanesi** — merkezî kontrol envanteri; bir kontrol birden fazla süreç ve
+  riskle ilişkilendirilebilir.
+- **KRI Göstergeleri** — riske bağlı anahtar risk göstergeleri, yeşil/sarı/kırmızı bantlar.
+- **Aksiyon Yönetimi** — sorumlu, hedef tarih, öncelik, durum, tamamlanma yüzdesi, kanıt.
+- **Doküman Yönetimi** — prosedür, talimat, politika, form, kontrol listesi, mevzuat,
+  eğitim dokümanı; versiyon ve gözden geçirme takibi.
+- **Periyodik Gözden Geçirme** — tarihi gelen ve geçen süreçlerin otomatik işaretlenmesi.
+- **Değişiklik Yönetimi** — talep → birim yöneticisi → İç Kontrol / Risk Yönetimi → onay →
+  yeni versiyon akışı, alan bazlı eski/yeni değer karşılaştırmasıyla.
+- **Audit Trail** — kim, ne zaman, neyi değiştirdi, eski/yeni değer, gerekçe.
+- **Analiz Asistanı** — doğal dil sorgusu ve süreç analizi (aşağıya bakınız).
+- **Global Arama** — tek terimle süreç, risk, kontrol, prosedür, aksiyon ve KRI sonuçları.
+- **Standart Uyumu** — hangi standart gereksiniminin platformda nerede karşılandığı.
+
+---
+
+## Analiz katmanı
+
+`src/lib/ai.ts` içindeki analiz motoru **kural tabanlıdır**: bir dil modeli çağırmaz,
+GRC bilgi tabanı ve organizasyonun veri grafiği üzerinde deterministik olarak çalışır.
+Sonuçlar her zaman dayandığı kayda geri bağlanır. Üç yeteneği vardır:
+
+1. **Risk / kontrol önerme** — süreç adımının adı, açıklaması, girdi–çıktısı ve
+   kullandığı sistemler, bilinen GRC desenleriyle (ödeme, onay, görevler ayrılığı,
+   kişisel veri, manuel giriş, üçüncü taraf, mevzuat, belge, sistem değişikliği)
+   eşleştirilir.
+2. **Süreç analizi** — kontrol boşlukları, önleyici kontrol eksikliği, görevler ayrılığı
+   zafiyetleri, örtüşen kontroller, prosedürü olmayan faaliyetler, güncelliğini yitirmiş
+   süreç ve dokümanlar, test edilmemiş kritik kontroller, risk iştahı aşımları, gecikmiş
+   aksiyonlar ve KRI eşik aşımları.
+3. **Doğal dil sorgulama** — “Ödemelerdeki kritik riskleri göster”, “Son 6 ayda
+   güncellenmeyen süreçler hangileri?”, “Hangi kontroller manuel yapılıyor?”,
+   “Hukuk birimindeki yüksek riskleri göster” gibi sorular yorumlanır; sorgunun nasıl
+   anlaşıldığı kullanıcıya açıkça yazılır.
+
+Bir LLM entegrasyonu eklenecekse bu modül, model çıktısını doğrulayan kural katmanı
+olarak korunmalıdır.
+
+---
+
+## Veri modeli ve standartlar
+
+Veri modeli (`src/types/grc.ts`) arka planda aşağıdaki çerçeveleri taşır; arayüz bu
+terminolojiyi kullanıcıya dayatmaz (`src/lib/labels.ts` sade Türkçe karşılıkları sağlar):
+
+- **COSO Internal Control** — kontrol bileşeni sınıflandırması, kontrol faaliyetleri
+- **ISO 31000** — doğal / artık / hedef risk, risk iştahı, işleme stratejileri
+- **ISO 9001** — süreç yaklaşımı; girdi, çıktı, süreç sahibi, çıktı alıcısı
+- **ISO 27001** — erişim yönetimi, değişiklik yönetimi, veri gizliliği kontrolleri
+- **ISO 22301** — iş sürekliliği riskleri, yedekleme ve kurtarma testleri
+- **Three Lines Model** — birimlerin savunma hattı konumu
+
+**Risk skoru = olasılık (1–5) × etki (1–5)** ve dört bantla seviyelendirilir:
+`1–4 Düşük · 5–9 Orta · 10–14 Yüksek · 15–25 Kritik`.
+
+Artık risk, kontrollerin niteliği (önleyici olasılığı, tespit edici/düzeltici etkiyi
+azaltır) ve etkinlik değerlendirmesi dikkate alınarak yorumlanır
+(`src/lib/riskMath.ts` → `derivedResidual`, `combinedMitigation`).
+
+---
+
+## Demo süreci — Hasar Yönetimi
+
+İlk prototip, uçtan uca bir hasar sürecini tam detayla içerir:
+
+1. Hasar İhbarı · 2. Dosya Açılışı · 3. Evrak Kontrolü · 4. Eksper Atama ·
+5. Hasar Değerlendirmesi · 6. Tazminat Hesaplama · 7. Ödeme Onayı ·
+8. Muhasebeleştirme · 9. Ödeme · 10. Dosya Kapatma
+
+Her adım için açıklama, amaç, süreç sahibi, sorumlu birim, görevli kişiler, kullanılan
+sistem, girdi/çıktı, prosedür, **en az iki risk**, **en az iki kontrol**, kritik noktalar,
+gerçek hayata yakın örnek senaryo, bağlı doküman ve aksiyon tanımlıdır.
+
+Diğer dokuz ana süreç (Mali İşler, Hukuk, Bilgi Teknolojileri, İnsan Kaynakları,
+Satın Alma, İdari İşler, Raporlama, Risk Yönetimi, İç Kontrol) daha sade fakat gerçekçi
+içerikle modellenmiştir.
+
+---
+
+## Tasarım dili
+
+Swiss modernism + modern enterprise SaaS + veri görselleştirme yaklaşımı. Bol beyaz alan,
+güçlü ve sade tipografi, hairline kenarlıklar, kurumsal lacivert–mavi–gri palet.
+
+**Risk renkleri yalnızca risk seviyesi için kullanılır** ve her zaman bir metin etiketiyle
+birlikte gösterilir; hiçbir yerde tek başına renk anlam taşımaz. Seviye paleti iki
+katmanlıdır:
+
+- `--risk-*` — metin/kenarlık katmanı, WCAG AA kontrastını sağlar (5.3–9.2:1)
+- `--risk-*-mark` — grafik işaret katmanı (ısı haritası noktaları, çubuklar, çizgiler);
+  renk körlüğü ayrımı için doğrulanmıştır (en yakın komşu ΔE 15.9 normal / 9.6 deutan)
+
+Animasyonlar profesyonel ve kısa tutulmuştur; `prefers-reduced-motion` desteklenir.
+
+---
+
+## Proje yapısı
+
+```
+src/
+  types/grc.ts            # GRC alan modeli
+  data/
+    org.ts                # birimler ve kullanıcılar
+    spec.ts               # bildirimsel süreç tanımı (DSL)
+    build.ts              # spec → normalize edilmiş varlık grafiği
+    processes/            # ana süreç tanımları
+    index.ts              # veri kümesi + değişiklik talepleri + audit trail
+  lib/
+    riskMath.ts           # skorlama, seviyelendirme, KRI, tarih yardımcıları
+    labels.ts             # GRC terminolojisi → arayüz dili
+    selectors.ts          # ağaç, rollup, dağılım, ısı matrisi, trend
+    search.ts             # global arama indeksi (Türkçe normalizasyon ile)
+    ai.ts                 # kural tabanlı öneri, analiz ve doğal dil sorgusu
+  store/                  # zustand: veri + oturum + arayüz durumu
+  components/
+    common/               # ikonlar ve temel bileşenler
+    charts/               # el yazımı SVG grafikler, ısı haritası, ağ grafiği
+    layout/               # kabuk, kenar çubuğu, komut paleti
+    process/              # süreç görünümleri ve detay panelleri
+  pages/                  # rota bileşenleri
+  styles/                 # tasarım belirteçleri ve katmanlı stiller
+```
+
+Grafiklerin tamamı bağımlılık kullanmadan, doğrudan SVG olarak çizilmiştir.
+
+## Klavye
+
+| Kısayol | İşlev |
+|---|---|
+| `Ctrl/⌘ + K` | Komut paleti / global arama |
+| `↑ ↓` | Sonuçlar arasında gezinme |
+| `↵` | Seçili sonucu açma |
+| `Esc` | Palet veya detay panelini kapatma |
+
+---
+
+## Notlar
+
+- Demo veri kümesindeki kişi, şirket ve olayların tamamı kurgusaldır.
+- Bugünün tarihi veri kümesinde `2026-09-04` olarak sabitlenmiştir; gecikme ve
+  gözden geçirme hesapları bu tarihe göre yapılır (`src/lib/riskMath.ts` → `TODAY`).
+- Risk trendi grafiği, tarihsel değerlendirme kaydı bulunmadığı için güncel skorlardan ve
+  trend yönlerinden projekte edilir; grafik başlığında bu açıkça belirtilir.
