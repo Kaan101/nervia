@@ -198,10 +198,15 @@ export function FlowView({ rootId, onSelect, selectedId }: { rootId: string; onS
   const lanes = useMemo(() => {
     const root = data.nodes.find((n) => n.id === rootId);
     if (!root) return [];
-    const subs = data.nodes.filter((n) => n.parentId === rootId).sort((a, b) => a.order - b.order);
-    // Alt süreç yoksa doğrudan çocukları tek şerit olarak göster.
-    if (!subs.length) return [{ lane: root, steps: [] as ProcessNode[] }];
-    return subs.map((sub) => ({
+    const children = data.nodes.filter((n) => n.parentId === rootId).sort((a, b) => a.order - b.order);
+    if (!children.length) return [{ lane: root, steps: [] as ProcessNode[] }];
+
+    // Çocuklar zaten faaliyet ya da iş adımı ise tek şerit olarak akıtılır; böylece
+    // akış her zaman risk ve kontrolleri taşıyan seviyeyi gösterir.
+    if (children.every((c) => c.kind === 'activity' || c.kind === 'step')) {
+      return [{ lane: root, steps: children }];
+    }
+    return children.map((sub) => ({
       lane: sub,
       steps: data.nodes.filter((n) => n.parentId === sub.id).sort((a, b) => a.order - b.order),
     }));
@@ -229,9 +234,11 @@ export function FlowView({ rootId, onSelect, selectedId }: { rootId: string; onS
           <div className="flow-track">
             {steps.map((step) => {
               sequence += 1;
-              const risks = risksOf(data, step.riskIds);
+              // Sayımlar adımın kendisini ve alt adımlarını kapsar.
+              const roll = rollup(data, step.id);
+              const risks = risksOf(data, roll.riskIds);
               const worst = risks.length ? Math.max(...risks.map((r) => score(r.residual))) : 0;
-              const controls = controlsOf(data, step.controlIds);
+              const controls = controlsOf(data, roll.controlIds);
               const weak = controls.filter((c) => c.effectiveness !== 'effective').length;
               return (
                 <button
