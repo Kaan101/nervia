@@ -38,6 +38,15 @@ export const nodeKindLabels: Record<NodeKind, string> = {
   step: 'İş Adımı',
 };
 
+/** Çoğul biçimler — Türkçe ekler düzensiz olduğu için ayrı tanımlanır. */
+export const nodeKindPlurals: Record<NodeKind, string> = {
+  organization: 'Organizasyonlar',
+  process: 'Ana Süreçler',
+  subprocess: 'Alt Süreçler',
+  activity: 'Faaliyetler',
+  step: 'İş Adımları',
+};
+
 export const processStatusLabels: Record<ProcessStatus, string> = {
   active: 'Yürürlükte',
   draft: 'Taslak',

@@ -1,10 +1,11 @@
 import type {
-  ActionItem, Control, Dataset, FieldChange, GrcDocument, Risk, User,
+  ActionItem, Control, Dataset, FieldChange, GrcDocument, NodeKind, ProcessNode, Risk, User,
 } from '@/types/grc';
 import {
   actionPriorityLabels, actionSourceLabels, actionStatusLabels, controlCategoryLabels,
   controlEffectivenessLabels, controlExecutionLabels, controlFrequencyLabels,
-  controlNatureLabels, cosoComponentLabels, riskAppetiteLabels, riskCategoryLabels,
+  controlNatureLabels, cosoComponentLabels, documentTypeLabels, nodeKindLabels,
+  processClassLabels, processStatusLabels, riskAppetiteLabels, riskCategoryLabels,
   riskStatusLabels, riskTreatmentLabels, riskTrendLabels,
 } from './labels';
 import { NOW } from '@/data/build';
@@ -34,6 +35,48 @@ export const riskFieldLabels: Record<string, string> = {
   processNodeIds: 'İlişkili süreç adımları',
   lastAssessedAt: 'Son değerlendirme',
   nextAssessmentAt: 'Sonraki değerlendirme',
+  archived: 'Arşiv durumu',
+};
+
+export const nodeFieldLabels: Record<string, string> = {
+  code: 'Kod',
+  name: 'Ad',
+  description: 'Açıklama',
+  purpose: 'Amaç',
+  ownerId: 'Süreç sahibi',
+  unitId: 'Sorumlu birim',
+  participantIds: 'Görevli kişiler',
+  systems: 'Kullanılan sistem',
+  inputs: 'Girdi',
+  outputs: 'Çıktı',
+  customer: 'Çıktı alıcısı',
+  slaDays: 'Hedef süre (iş günü)',
+  maturity: 'Olgunluk seviyesi',
+  status: 'Durum',
+  processClass: 'Süreç sınıfı',
+  standards: 'Standartlar',
+  reviewFrequencyMonths: 'Gözden geçirme periyodu (ay)',
+  version: 'Versiyon',
+  parentId: 'Üst süreç',
+  order: 'Sıra',
+  criticalPoints: 'Kritik noktalar',
+  examples: 'Örnek senaryolar',
+};
+
+export const documentFieldLabels: Record<string, string> = {
+  code: 'Kod',
+  name: 'Doküman adı',
+  type: 'Doküman türü',
+  version: 'Versiyon',
+  ownerId: 'Doküman sahibi',
+  unitId: 'Sorumlu birim',
+  publishedAt: 'Yayın tarihi',
+  updatedAt: 'Son güncelleme',
+  nextReviewAt: 'Sonraki gözden geçirme',
+  summary: 'Özet',
+  sections: 'Bölümler',
+  processNodeIds: 'İlişkili süreç adımları',
+  controlIds: 'İlişkili kontroller',
   archived: 'Arşiv durumu',
 };
 
@@ -87,7 +130,12 @@ const designAdequacyLabels: Record<string, string> = {
 };
 
 /** Kodlu değerleri okunabilir metne çevirir. */
+const processDictionaries: Record<string, string> = {
+  ...processStatusLabels, ...processClassLabels, ...nodeKindLabels, ...documentTypeLabels,
+};
+
 const valueDictionaries: Record<string, string>[] = [
+  processDictionaries,
   riskCategoryLabels, riskAppetiteLabels, riskTreatmentLabels, riskStatusLabels, riskTrendLabels,
   controlNatureLabels, controlExecutionLabels, controlFrequencyLabels, controlEffectivenessLabels,
   controlCategoryLabels, cosoComponentLabels, designAdequacyLabels,
@@ -284,6 +332,114 @@ export function blankAction(
     source: 'internal_control',
     evidence: '',
     managerComment: '',
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Süreç düğümü ve doküman üreticileri                                 */
+/* ------------------------------------------------------------------ */
+
+/** Bir üst düğümün altına eklenebilecek düğüm türü. */
+export function childKindOf(parentKind: NodeKind): NodeKind | null {
+  const order: NodeKind[] = ['organization', 'process', 'subprocess', 'activity', 'step'];
+  const i = order.indexOf(parentKind);
+  return i >= 0 && i < order.length - 1 ? order[i + 1] : null;
+}
+
+/**
+ * Yeni süreç düğümü için kod önerir.
+ * Alt süreçler harfle (HSR-A), faaliyet ve iş adımları sayıyla numaralanır.
+ */
+export function suggestNodeCode(data: Dataset, parent: ProcessNode, kind: NodeKind): string {
+  const siblings = data.nodes.filter((n) => n.parentId === parent.id);
+  const taken = new Set(data.nodes.map((n) => n.code));
+
+  if (kind === 'process') {
+    // Ana süreçler kısa harf kodu kullanır; ilk boş üç harfli kodu seçeriz.
+    for (let i = 1; i < 100; i += 1) {
+      const candidate = `SRC${String(i).padStart(2, '0')}`;
+      if (!taken.has(candidate)) return candidate;
+    }
+    return `SRC-${Date.now().toString(36).slice(-4).toUpperCase()}`;
+  }
+
+  if (kind === 'subprocess') {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (const letter of letters) {
+      const candidate = `${parent.code}-${letter}`;
+      if (!taken.has(candidate)) return candidate;
+    }
+  }
+
+  const pad = kind === 'activity' ? 2 : 1;
+  // Faaliyet kodları ana süreç koduna göre numaralanır (HSR-11 gibi).
+  const base = kind === 'activity'
+    ? (parent.code.includes('-') ? parent.code.split('-')[0] : parent.code)
+    : parent.code;
+  for (let i = siblings.length + 1; i < siblings.length + 200; i += 1) {
+    const candidate = `${base}-${String(i).padStart(pad, '0')}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${base}-${Date.now().toString(36).slice(-3).toUpperCase()}`;
+}
+
+export function blankNode(
+  user: User,
+  parent: ProcessNode,
+  kind: NodeKind,
+  code: string,
+  order: number,
+): ProcessNode {
+  return {
+    id: `nd-${code}`,
+    code,
+    name: '',
+    kind,
+    parentId: parent.id,
+    order,
+    description: '',
+    purpose: '',
+    ownerId: user.id,
+    unitId: parent.unitId,
+    participantIds: [],
+    systems: [],
+    inputs: [],
+    outputs: [],
+    riskIds: [],
+    controlIds: [],
+    documentIds: [],
+    actionIds: [],
+    criticalPoints: [],
+    examples: [],
+    maturity: 3,
+    status: 'draft',
+    processClass: parent.processClass,
+    standards: parent.standards,
+    lastReviewedAt: today(),
+    nextReviewAt: addMonths(today(), 12),
+    reviewFrequencyMonths: 12,
+    version: '1.0',
+    updatedAt: today(),
+  };
+}
+
+export function blankDocument(user: User, code: string, nodeId: string | null): GrcDocument {
+  return {
+    id: `doc-${code}`,
+    code,
+    name: '',
+    type: 'procedure',
+    version: '1.0',
+    ownerId: user.id,
+    unitId: user.unitId,
+    publishedAt: today(),
+    updatedAt: today(),
+    nextReviewAt: addMonths(today(), 12),
+    status: 'published',
+    summary: '',
+    sections: [],
+    processNodeIds: nodeId ? [nodeId] : [],
+    controlIds: [],
   };
 }
 

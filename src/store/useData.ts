@@ -6,7 +6,8 @@ import type {
 import { dataset as seedDataset } from '@/data';
 import { NOW } from '@/data/build';
 import {
-  actionFieldLabels, controlFieldLabels, diffEntity, riskFieldLabels,
+  actionFieldLabels, controlFieldLabels, diffEntity, documentFieldLabels, nodeFieldLabels,
+  riskFieldLabels,
 } from '@/lib/entityMeta';
 import { userName } from '@/data/org';
 import { loadSnapshot, saveSnapshot, clearSnapshot, persistenceState } from './persistence';
@@ -109,8 +110,20 @@ interface DataState extends Indexes {
   linkRiskNode: (riskId: string, nodeId: string, on: boolean, actorId: string) => void;
   linkControlNode: (controlId: string, nodeId: string, on: boolean, actorId: string) => void;
 
-  /* --- Süreç --- */
+  /* --- Süreç yapısı --- */
   markReviewed: (nodeId: string, actorId: string) => void;
+  createNode: (node: ProcessNode, actorId: string) => void;
+  updateNode: (id: string, patch: Partial<ProcessNode>, actorId: string, reason?: string) => void;
+  /** Düğümü kardeşleri arasında bir sıra yukarı/aşağı taşır. */
+  reorderNode: (id: string, direction: 'up' | 'down', actorId: string) => void;
+  /** Düğümü başka bir üst düğümün altına taşır. */
+  moveNode: (id: string, newParentId: string, actorId: string, reason?: string) => void;
+
+  /* --- Doküman --- */
+  createDocument: (doc: GrcDocument, actorId: string) => void;
+  updateDocument: (id: string, patch: Partial<GrcDocument>, actorId: string, reason?: string) => void;
+  linkDocumentNode: (documentId: string, nodeId: string, on: boolean, actorId: string) => void;
+  linkDocumentControl: (documentId: string, controlId: string, on: boolean, actorId: string) => void;
 
   /* --- Değişiklik yönetimi --- */
   decideChangeRequest: (
@@ -527,6 +540,231 @@ export const useData = create<DataState>((set, get) => ({
     });
   },
 
+  createNode: (node, actorId) => {
+    set((state) => withIndexes({ ...state.data, nodes: [...state.data.nodes, node] }));
+    get().logAudit({
+      userId: actorId,
+      action: 'create',
+      entityType: 'process',
+      entityId: node.id,
+      entityName: node.name,
+      summary: `Yeni süreç kaydı oluşturuldu (${node.code}).`,
+    });
+  },
+
+  updateNode: (id, patch, actorId, reason) => {
+    const before = get().nodeById.get(id);
+    if (!before) return;
+    const changes = diffEntity(before, patch, nodeFieldLabels, (x) => resolveName(get().data, x));
+    if (!changes.length) return;
+
+    // Gözden geçirme periyodu değiştiyse sonraki tarih yeniden hesaplanır.
+    let extra: Partial<ProcessNode> = {};
+    if (patch.reviewFrequencyMonths && patch.reviewFrequencyMonths !== before.reviewFrequencyMonths) {
+      const next = new Date(before.lastReviewedAt);
+      next.setMonth(next.getMonth() + patch.reviewFrequencyMonths);
+      extra = { nextReviewAt: next.toISOString().slice(0, 10) };
+    }
+
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        nodes: state.data.nodes.map((n) =>
+          n.id === id ? { ...n, ...patch, ...extra, updatedAt: today() } : n,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'process',
+      entityId: id,
+      entityName: patch.name ?? before.name,
+      summary: 'Süreç kaydı güncellendi.',
+      reason,
+      changes,
+    });
+  },
+
+  reorderNode: (id, direction, actorId) => {
+    const node = get().nodeById.get(id);
+    if (!node) return;
+    const siblings = get().data.nodes
+      .filter((n) => n.parentId === node.parentId)
+      .sort((a, b) => a.order - b.order);
+    const index = siblings.findIndex((n) => n.id === id);
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (index < 0 || target < 0 || target >= siblings.length) return;
+
+    const other = siblings[target];
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        nodes: state.data.nodes.map((n) => {
+          if (n.id === node.id) return { ...n, order: other.order };
+          if (n.id === other.id) return { ...n, order: node.order };
+          return n;
+        }),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'process',
+      entityId: id,
+      entityName: node.name,
+      summary: `Akıştaki sırası değiştirildi: “${other.name}” ile yer değiştirdi.`,
+      changes: [
+        { field: 'order', label: 'Sıra', oldValue: String(index + 1), newValue: String(target + 1) },
+      ],
+    });
+  },
+
+  moveNode: (id, newParentId, actorId, reason) => {
+    const node = get().nodeById.get(id);
+    const newParent = get().nodeById.get(newParentId);
+    const oldParent = node?.parentId ? get().nodeById.get(node.parentId) : undefined;
+    if (!node || !newParent || node.parentId === newParentId) return;
+    // Bir düğüm kendi alt ağacının içine taşınamaz.
+    if (isDescendant(get().data.nodes, newParentId, id)) return;
+
+    const nextOrder = get().data.nodes.filter((n) => n.parentId === newParentId).length;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        nodes: state.data.nodes.map((n) =>
+          n.id === id ? { ...n, parentId: newParentId, order: nextOrder, updatedAt: today() } : n,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'process',
+      entityId: id,
+      entityName: node.name,
+      summary: `Süreç “${newParent.name}” altına taşındı.`,
+      reason,
+      changes: [
+        {
+          field: 'parentId',
+          label: 'Üst süreç',
+          oldValue: oldParent?.name ?? '—',
+          newValue: newParent.name,
+        },
+      ],
+    });
+  },
+
+  /* ---------------- Doküman ---------------- */
+
+  createDocument: (doc, actorId) => {
+    set((state) => {
+      const nodes = state.data.nodes.map((n) =>
+        doc.processNodeIds.includes(n.id) && !n.documentIds.includes(doc.id)
+          ? { ...n, documentIds: [...n.documentIds, doc.id] }
+          : n,
+      );
+      const controls = state.data.controls.map((c) =>
+        doc.controlIds.includes(c.id) && !c.documentIds.includes(doc.id)
+          ? { ...c, documentIds: [...c.documentIds, doc.id] }
+          : c,
+      );
+      return withIndexes({ ...state.data, documents: [doc, ...state.data.documents], nodes, controls });
+    });
+    get().logAudit({
+      userId: actorId,
+      action: 'create',
+      entityType: 'document',
+      entityId: doc.id,
+      entityName: doc.name,
+      summary: `Yeni doküman oluşturuldu (${doc.code} v${doc.version}).`,
+    });
+  },
+
+  updateDocument: (id, patch, actorId, reason) => {
+    const before = get().documentById.get(id);
+    if (!before) return;
+    const changes = diffEntity(before, patch, documentFieldLabels, (x) => resolveName(get().data, x));
+    if (!changes.length) return;
+    const merged = { ...before, ...patch };
+    // Gözden geçirme tarihi geçmişse doküman "süresi geçmiş" sayılır.
+    const status: GrcDocument['status'] =
+      new Date(merged.nextReviewAt).getTime() < new Date(NOW).getTime() ? 'expired' : 'published';
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        documents: state.data.documents.map((d) =>
+          d.id === id ? { ...merged, status, updatedAt: today() } : d,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'document',
+      entityId: id,
+      entityName: patch.name ?? before.name,
+      summary: 'Doküman güncellendi.',
+      reason,
+      changes,
+    });
+  },
+
+  linkDocumentNode: (documentId, nodeId, on, actorId) => {
+    const doc = get().documentById.get(documentId);
+    const node = get().nodeById.get(nodeId);
+    if (!doc || !node) return;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        documents: state.data.documents.map((d) =>
+          d.id === documentId ? { ...d, processNodeIds: toggle(d.processNodeIds, nodeId, on) } : d,
+        ),
+        nodes: state.data.nodes.map((n) =>
+          n.id === nodeId ? { ...n, documentIds: toggle(n.documentIds, documentId, on) } : n,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'document',
+      entityId: documentId,
+      entityName: doc.name,
+      summary: on
+        ? `Doküman “${node.name}” adımına bağlandı.`
+        : `Dokümanın “${node.name}” adımıyla ilişkisi kaldırıldı.`,
+    });
+  },
+
+  linkDocumentControl: (documentId, controlId, on, actorId) => {
+    const doc = get().documentById.get(documentId);
+    const control = get().controlById.get(controlId);
+    if (!doc || !control) return;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        documents: state.data.documents.map((d) =>
+          d.id === documentId ? { ...d, controlIds: toggle(d.controlIds, controlId, on) } : d,
+        ),
+        controls: state.data.controls.map((c) =>
+          c.id === controlId ? { ...c, documentIds: toggle(c.documentIds, documentId, on) } : c,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'document',
+      entityId: documentId,
+      entityName: doc.name,
+      summary: on
+        ? `“${control.name}” kontrolü bu dokümana bağlandı.`
+        : `“${control.name}” kontrolünün bu dokümanla ilişkisi kaldırıldı.`,
+    });
+  },
+
   /* ---------------- Değişiklik yönetimi ---------------- */
 
   decideChangeRequest: (id, stepOrder, decision, approverId, comment) => {
@@ -583,6 +821,17 @@ export const useData = create<DataState>((set, get) => ({
     set(withIndexes(seedDataset));
   },
 }));
+
+/** `candidateId`, `ancestorId`'nin alt ağacında mı? Döngüsel taşımayı engeller. */
+function isDescendant(nodes: ProcessNode[], candidateId: string, ancestorId: string): boolean {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  let current = byId.get(candidateId);
+  while (current?.parentId) {
+    if (current.parentId === ancestorId) return true;
+    current = byId.get(current.parentId);
+  }
+  return false;
+}
 
 /** Audit trail'de kimlik değerlerini okunabilir hale getirir. */
 function resolveName(data: Dataset, id: string): string | undefined {

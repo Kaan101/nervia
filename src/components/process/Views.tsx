@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import type { ProcessNode } from '@/types/grc';
 import { useData } from '@/store/useData';
 import { useUi } from '@/store/useUi';
-import { controlsOf, descendants, risksOf, rollup, sortRisksBySeverity, type NodeTree } from '@/lib/selectors';
+import {
+  activeNodes, controlsOf, descendants, risksOf, rollup, sortRisksBySeverity, type NodeTree,
+} from '@/lib/selectors';
 import { formatDate, isReviewOverdue, levelOf, monthsSince, score } from '@/lib/riskMath';
 import {
   controlEffectivenessLabels, controlExecutionLabels, controlNatureLabels, nodeKindLabels,
@@ -31,7 +33,9 @@ export function ProcessMap({ nodes, onOpen }: { nodes: ProcessNode[]; onOpen: (i
         const roll = rollup(data, node.id);
         const level = levelOf(roll.maxResidualScore);
         const open = Boolean(expanded[node.id]);
-        const children = data.nodes.filter((n) => n.parentId === node.id).sort((a, b) => a.order - b.order);
+        const children = activeNodes(data.nodes)
+          .filter((n) => n.parentId === node.id)
+          .sort((a, b) => a.order - b.order);
 
         return (
           <div className={`proc-card lvl-${level} ${open ? 'open' : ''}`} key={node.id}>
@@ -198,7 +202,8 @@ export function FlowView({ rootId, onSelect, selectedId }: { rootId: string; onS
   const lanes = useMemo(() => {
     const root = data.nodes.find((n) => n.id === rootId);
     if (!root) return [];
-    const children = data.nodes.filter((n) => n.parentId === rootId).sort((a, b) => a.order - b.order);
+    const visible = activeNodes(data.nodes);
+    const children = visible.filter((n) => n.parentId === rootId).sort((a, b) => a.order - b.order);
     if (!children.length) return [{ lane: root, steps: [] as ProcessNode[] }];
 
     // Çocuklar zaten faaliyet ya da iş adımı ise tek şerit olarak akıtılır; böylece
@@ -208,7 +213,7 @@ export function FlowView({ rootId, onSelect, selectedId }: { rootId: string; onS
     }
     return children.map((sub) => ({
       lane: sub,
-      steps: data.nodes.filter((n) => n.parentId === sub.id).sort((a, b) => a.order - b.order),
+      steps: visible.filter((n) => n.parentId === sub.id).sort((a, b) => a.order - b.order),
     }));
   }, [data, rootId]);
 
@@ -425,7 +430,9 @@ export function ManagementView({ rootId, onSelect }: { rootId: string; onSelect:
   const rows = useMemo(() => {
     const root = data.nodes.find((n) => n.id === rootId);
     if (!root) return [];
-    const kids = data.nodes.filter((n) => n.parentId === rootId).sort((a, b) => a.order - b.order);
+    const kids = activeNodes(data.nodes)
+      .filter((n) => n.parentId === rootId)
+      .sort((a, b) => a.order - b.order);
     const targets = kids.length ? kids : [root];
     return targets.map((n) => ({ node: n, roll: rollup(data, n.id) }));
   }, [data, rootId]);

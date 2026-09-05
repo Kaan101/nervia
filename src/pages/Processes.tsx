@@ -1,8 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '@/store/useData';
 import { useUi, type ProcessView } from '@/store/useUi';
-import { buildTree, mainProcesses, pathTo, rollup } from '@/lib/selectors';
+import { canCreateRecords, canEditNode, useAuth } from '@/store/useAuth';
+import { NodeFormModal } from '@/components/forms/NodeForm';
+import { activeNodes, buildTree, mainProcesses, pathTo, rollup } from '@/lib/selectors';
 import { formatDate, isReviewOverdue, levelOf, monthsSince } from '@/lib/riskMath';
 import { nodeKindLabels, processClassLabels, riskLevelLabels } from '@/lib/labels';
 import { userName } from '@/data/org';
@@ -12,7 +14,8 @@ import {
 } from '@/components/process/Views';
 import { SelectionDrawer } from '@/components/process/DetailPanel';
 import {
-  IconChevronLeft, IconControl, IconFlow, IconHeat, IconLayers, IconList, IconProcess,
+  IconChevronLeft, IconControl, IconFlow, IconHeat, IconLayers, IconList, IconPlus, IconProcess,
+  IconSettings,
 } from '@/components/common/Icons';
 
 const viewOptions: { id: ProcessView; label: string; icon: React.ReactNode }[] = [
@@ -29,6 +32,9 @@ export function ProcessesPage() {
   const navigate = useNavigate();
   const data = useData((s) => s.data);
   const { view, setView, select, selection, setExpanded } = useUi();
+  const currentUser = useAuth((s) => s.currentUser);
+  const [addingChild, setAddingChild] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const root = useMemo(
     () => (nodeId ? data.nodes.find((n) => n.id === nodeId) : data.nodes.find((n) => n.kind === 'organization')),
@@ -43,8 +49,12 @@ export function ProcessesPage() {
   if (!root) return null;
 
   const isOrg = root.kind === 'organization';
+  const canAddChild = canCreateRecords(currentUser) && canEditNode(currentUser, root);
+  const archivedChildren = data.nodes.filter(
+    (n) => n.parentId === root.id && n.status === 'archived',
+  );
   const roll = rollup(data, root.id);
-  const tree = buildTree(data.nodes, root.id);
+  const tree = buildTree(activeNodes(data.nodes), root.id);
   const trail = pathTo(data.nodes, root.id);
 
   const effectiveView: ProcessView = isOrg && view === 'flow' ? 'map' : view;
@@ -96,12 +106,29 @@ export function ProcessesPage() {
           ) : null}
         </div>
 
-        <Segmented<ProcessView>
-          ariaLabel="Görünüm seçimi"
-          value={effectiveView}
-          onChange={setView}
-          options={isOrg ? viewOptions.filter((v) => v.id !== 'flow') : viewOptions}
-        />
+        <div className="row gap-3 wrap">
+          <Segmented<ProcessView>
+            ariaLabel="Görünüm seçimi"
+            value={effectiveView}
+            onChange={setView}
+            options={isOrg ? viewOptions.filter((v) => v.id !== 'flow') : viewOptions}
+          />
+          {!isOrg ? (
+            <button className="btn" onClick={() => select('node', root.id)}>
+              <IconSettings size={14} /> Süreç detayı
+            </button>
+          ) : null}
+          {archivedChildren.length ? (
+            <button className="btn" onClick={() => setShowArchived((v) => !v)}>
+              {showArchived ? 'Arşivi gizle' : `Arşiv (${archivedChildren.length})`}
+            </button>
+          ) : null}
+          {canAddChild ? (
+            <button className="btn btn-primary" onClick={() => setAddingChild(true)}>
+              <IconPlus size={14} /> {isOrg ? 'Yeni ana süreç' : 'Alt kayıt ekle'}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid cols-5" style={{ marginBottom: 'var(--s6)' }}>
@@ -117,7 +144,7 @@ export function ProcessesPage() {
           <ProcessMap nodes={mainProcesses(data)} onOpen={(id) => navigate(`/surecler/${id}`)} />
         ) : (
           <ProcessMap
-            nodes={data.nodes.filter((n) => n.parentId === root.id)}
+            nodes={activeNodes(data.nodes).filter((n) => n.parentId === root.id)}
             onOpen={(id) => {
               const target = data.nodes.find((n) => n.id === id);
               if (target && (target.kind === 'process' || target.kind === 'subprocess')) navigate(`/surecler/${id}`);
@@ -155,6 +182,39 @@ export function ProcessesPage() {
         </div>
       ) : null}
 
+      {showArchived && archivedChildren.length ? (
+        <div className="section">
+          <div className="sh"><span>Arşivlenmiş süreçler</span><span className="n">{archivedChildren.length}</span><span className="line" /></div>
+          <div className="callout lvl-medium" style={{ marginBottom: 'var(--s3)' }}>
+            <span>
+              <span className="callout-title">Arşiv görünümü. </span>
+              Bu süreçler ve altındaki tüm yapı haritadan, sayımlardan ve analizden düşürüldü.
+              Detayını açıp durumunu değiştirerek geri alabilirsiniz.
+            </span>
+          </div>
+          <div className="stack gap-2">
+            {archivedChildren.map((n) => (
+              <button className="rel-control" key={n.id} onClick={() => select('node', n.id)} style={{ width: '100%', textAlign: 'left' }}>
+                <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
+                  <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{n.name}</span>
+                  <span className="dim mono" style={{ fontSize: 'var(--text-2xs)' }}>{n.code} · {nodeKindLabels[n.kind]}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <NodeFormModal
+        open={addingChild}
+        onClose={() => setAddingChild(false)}
+        parentId={root.id}
+        onSaved={(id) => {
+          const created = useData.getState().nodeById.get(id);
+          if (created && (created.kind === 'process' || created.kind === 'subprocess')) navigate(`/surecler/${id}`);
+          else select('node', id);
+        }}
+      />
       <SelectionDrawer />
     </div>
   );

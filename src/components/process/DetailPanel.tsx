@@ -34,6 +34,9 @@ import { RiskFormModal } from '@/components/forms/RiskForm';
 import { ControlFormModal } from '@/components/forms/ControlForm';
 import { ActionFormModal } from '@/components/forms/ActionForm';
 import { LinkEditorModal, type LinkEditorMode } from '@/components/forms/LinkEditor';
+import { NodeFormModal } from '@/components/forms/NodeForm';
+import { NodeStructurePanel } from '@/components/forms/NodeStructure';
+import { DocumentFormModal } from '@/components/forms/DocumentForm';
 import {
   IconArrowRight, IconCheck, IconChevronRight, IconClock, IconControl, IconDoc,
   IconExternal, IconLayers, IconLock, IconMoney, IconPlus, IconRisk, IconSettings,
@@ -235,7 +238,7 @@ function ArchivedNotice({ archived }: { archived?: boolean }) {
 /* Süreç / iş adımı detay paneli                                       */
 /* ================================================================== */
 
-type ProcessTab = 'overview' | 'controls' | 'risks' | 'procedure' | 'examples' | 'insight';
+type ProcessTab = 'overview' | 'controls' | 'risks' | 'procedure' | 'examples' | 'structure' | 'insight';
 
 export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () => void }) {
   const data = useData((s) => s.data);
@@ -247,6 +250,11 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
   const [addingRisk, setAddingRisk] = useState(false);
   const [addingControl, setAddingControl] = useState(false);
   const [addingAction, setAddingAction] = useState(false);
+  const [editingNode, setEditingNode] = useState(false);
+  /** Yeni düğümün ekleneceği üst düğüm; null ise form kapalı. */
+  const [addingUnder, setAddingUnder] = useState<string | null>(null);
+  const [editingChildId, setEditingChildId] = useState<string | null>(null);
+  const [addingDocument, setAddingDocument] = useState(false);
   const navigate = useNavigate();
 
   const node = data.nodes.find((n) => n.id === nodeId);
@@ -317,9 +325,14 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
             </>
           ) : null}
           {editable ? (
-            <button className="btn btn-sm" onClick={() => markReviewed(node.id, currentUser!.id)}>
-              <IconCheck size={14} /> Gözden geçirildi
-            </button>
+            <>
+              <button className="btn btn-sm btn-primary" onClick={() => setEditingNode(true)}>
+                <IconSettings size={13} /> Düzenle
+              </button>
+              <button className="btn btn-sm" onClick={() => markReviewed(node.id, currentUser!.id)}>
+                <IconCheck size={14} /> Gözden geçirildi
+              </button>
+            </>
           ) : null}
           <button className="btn btn-sm" onClick={() => { onClose(); navigate(`/iliskiler?dugum=${node.id}`); }}>
             Bağlantı ağı
@@ -355,6 +368,7 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
           { id: 'risks', label: 'Riskler', count: info.risks.length },
           { id: 'procedure', label: 'Prosedür', count: info.documents.length },
           { id: 'examples', label: 'Örnekler', count: node.examples.length },
+          { id: 'structure', label: 'Yapı' },
           { id: 'insight', label: 'Analiz' },
         ]}
       />
@@ -532,10 +546,22 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
                   </div>
                 </div>
               ))}
+              {canCreate ? (
+                <button className="btn" onClick={() => setAddingDocument(true)}>
+                  <IconPlus size={14} /> Bu adıma doküman ekle
+                </button>
+              ) : null}
             </div>
           ) : (
-            <EmptyState icon={<IconDoc size={28} />} title="Bağlı doküman yok"
-              hint="Bu adım için prosedür, talimat veya kontrol listesi tanımlanmamış." />
+            <div className="stack gap-4">
+              <EmptyState icon={<IconDoc size={28} />} title="Bağlı doküman yok"
+                hint="Bu adım için prosedür, talimat veya kontrol listesi tanımlanmamış." />
+              {canCreate ? (
+                <button className="btn btn-primary" style={{ alignSelf: 'center' }} onClick={() => setAddingDocument(true)}>
+                  <IconPlus size={14} /> Bu adıma doküman ekle
+                </button>
+              ) : null}
+            </div>
           )
         ) : null}
 
@@ -562,12 +588,39 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
           )
         ) : null}
 
+        {tab === 'structure' ? (
+          <NodeStructurePanel
+            node={node}
+            onAddChild={() => setAddingUnder(node.id)}
+            onAddSibling={() => setAddingUnder(node.parentId)}
+            onEditNode={(id) => setEditingChildId(id)}
+            onSelectNode={(id) => select('node', id)}
+          />
+        ) : null}
+
         {tab === 'insight' ? (
           <NodeInsights node={node} suggestedRisks={info.suggestedRisks} suggestedControls={info.suggestedControls} />
         ) : null}
       </div>
 
       {openDoc ? <DocumentViewer document={openDoc} onClose={() => setOpenDoc(null)} /> : null}
+      <NodeFormModal open={editingNode} onClose={() => setEditingNode(false)} nodeId={node.id} />
+      <DocumentFormModal
+        open={addingDocument}
+        onClose={() => setAddingDocument(false)}
+        defaultNodeId={node.id}
+      />
+      <NodeFormModal
+        open={Boolean(addingUnder)}
+        onClose={() => setAddingUnder(null)}
+        parentId={addingUnder}
+        onSaved={(id) => select('node', id)}
+      />
+      <NodeFormModal
+        open={Boolean(editingChildId)}
+        onClose={() => setEditingChildId(null)}
+        nodeId={editingChildId}
+      />
       <RiskFormModal open={addingRisk} onClose={() => setAddingRisk(false)} defaultNodeId={node.id} />
       <ControlFormModal open={addingControl} onClose={() => setAddingControl(false)} defaultNodeId={node.id} />
       <ActionFormModal
@@ -1175,6 +1228,13 @@ export function ControlDetail({ controlId, onClose }: { controlId: string; onClo
 /* ================================================================== */
 
 export function DocumentViewer({ document: doc, onClose }: { document: GrcDocument; onClose: () => void }) {
+  const setArchived = useData((s) => s.setArchived);
+  const currentUser = useAuth((s) => s.currentUser);
+  const [editing, setEditing] = useState(false);
+  const [linking, setLinking] = useState<LinkEditorMode | null>(null);
+  const canEdit = canEditRecord(currentUser, doc);
+  const canArchive = canArchiveRecords(currentUser);
+
   return (
     <Drawer
       open onClose={onClose} wide
@@ -1188,7 +1248,31 @@ export function DocumentViewer({ document: doc, onClose }: { document: GrcDocume
       }
       title={doc.name}
       subtitle={doc.summary}
+      footer={
+        <RecordToolbar
+          canEdit={canEdit}
+          canArchive={canArchive}
+          archived={Boolean(doc.archived)}
+          onEdit={() => setEditing(true)}
+          onArchive={() => setArchived('document', doc.id, !doc.archived, currentUser!.id)}
+          deniedNote="Bu dokümanı düzenleme yetkiniz yok. Doküman sahibi, birim yöneticisi veya İç Kontrol düzenleyebilir."
+          extra={
+            canEdit ? (
+              <>
+                <button className="btn btn-sm" onClick={() => setLinking({ kind: 'document-nodes', documentId: doc.id })}>
+                  <IconLayers size={13} /> Süreç adımları
+                </button>
+                <button className="btn btn-sm" onClick={() => setLinking({ kind: 'document-controls', documentId: doc.id })}>
+                  <IconControl size={13} /> Kontroller
+                </button>
+              </>
+            ) : null
+          }
+        />
+      }
     >
+      <ArchivedNotice archived={doc.archived} />
+
       <div className="doc-view">
         <div className="doc-meta">
           <div className="stack" style={{ gap: 1 }}>
@@ -1210,16 +1294,19 @@ export function DocumentViewer({ document: doc, onClose }: { document: GrcDocume
           </div>
         </div>
 
-        {doc.sections.length ? doc.sections.map((s) => (
-          <section key={s.heading}>
-            <h4>{s.heading}</h4>
-            {s.body.map((line, i) => <p key={i}>{line}</p>)}
+        {doc.sections.length ? doc.sections.map((section, i) => (
+          <section key={`${section.heading}-${i}`}>
+            <h4>{section.heading}</h4>
+            {section.body.map((line, j) => <p key={j}>{line}</p>)}
           </section>
         )) : (
           <EmptyState title="Doküman içeriği sisteme yüklenmemiş"
-            hint="Bu kayıt yalnızca meta veri olarak takip edilmektedir." />
+            hint="Bu kayıt yalnızca künye olarak takip ediliyor. Düzenle diyerek bölüm ekleyebilirsiniz." />
         )}
       </div>
+
+      <DocumentFormModal open={editing} onClose={() => setEditing(false)} documentId={doc.id} />
+      <LinkEditorModal open={Boolean(linking)} onClose={() => setLinking(null)} mode={linking} />
     </Drawer>
   );
 }

@@ -24,6 +24,30 @@ export function buildTree(nodes: ProcessNode[], rootId: string): NodeTree | null
   return attach(root);
 }
 
+/**
+ * Arşivlenmiş süreçler ve onların tüm alt ağaçları hariç düğüm listesi.
+ *
+ * Süreç arşivlemek yalnızca o kaydı değil, altındaki tüm yapıyı da görünürden
+ * düşürür; aksi halde ağaçta sahipsiz alt süreçler kalırdı.
+ */
+export function activeNodes(nodes: ProcessNode[]): ProcessNode[] {
+  const archivedRoots = nodes.filter((n) => n.status === 'archived').map((n) => n.id);
+  if (!archivedRoots.length) return nodes;
+
+  const hidden = new Set(archivedRoots);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const n of nodes) {
+      if (!hidden.has(n.id) && n.parentId && hidden.has(n.parentId)) {
+        hidden.add(n.id);
+        grew = true;
+      }
+    }
+  }
+  return nodes.filter((n) => !hidden.has(n.id));
+}
+
 /** Bir düğüm ve tüm alt düğümleri. */
 export function descendants(nodes: ProcessNode[], rootId: string): ProcessNode[] {
   const byParent = new Map<string, ProcessNode[]>();
@@ -75,8 +99,10 @@ export interface NodeRollup {
 }
 
 export function rollup(data: Dataset, nodeId: string): NodeRollup {
-  const node = data.nodes.find((n) => n.id === nodeId);
-  const subtree = node ? [node, ...descendants(data.nodes, nodeId)] : [];
+  // Arşivlenmiş alt süreçler sayımlara dahil edilmez.
+  const visible = activeNodes(data.nodes);
+  const node = visible.find((n) => n.id === nodeId) ?? data.nodes.find((n) => n.id === nodeId);
+  const subtree = node ? [node, ...descendants(visible, nodeId)] : [];
   const riskIds = new Set<string>();
   const controlIds = new Set<string>();
   const actionIds = new Set<string>();
@@ -125,8 +151,9 @@ export function rollup(data: Dataset, nodeId: string): NodeRollup {
   };
 }
 
-export function mainProcesses(data: Dataset): ProcessNode[] {
-  return data.nodes.filter((n) => n.kind === 'process').sort((a, b) => a.order - b.order);
+export function mainProcesses(data: Dataset, includeArchived = false): ProcessNode[] {
+  const source = includeArchived ? data.nodes : activeNodes(data.nodes);
+  return source.filter((n) => n.kind === 'process').sort((a, b) => a.order - b.order);
 }
 
 /**
@@ -201,10 +228,11 @@ export function portfolio(data: Dataset): PortfolioSummary {
   const controls = data.controls.filter((c) => !c.archived);
   const actions = data.actions.filter((a) => !a.archived);
   const open = actions.filter((a) => a.status === 'open' || a.status === 'in_progress');
-  const processes = data.nodes.filter((n) => n.kind !== 'organization' && n.kind !== 'step');
+  const visible = activeNodes(data.nodes);
+  const processes = visible.filter((n) => n.kind !== 'organization' && n.kind !== 'step');
   return {
-    processCount: data.nodes.filter((n) => n.kind === 'process').length,
-    activityCount: data.nodes.filter((n) => n.kind === 'activity').length,
+    processCount: visible.filter((n) => n.kind === 'process').length,
+    activityCount: visible.filter((n) => n.kind === 'activity').length,
     riskCount: risks.length,
     criticalRiskCount: risks.filter((r) => riskLevel(r.residual) === 'critical').length,
     highRiskCount: risks.filter((r) => riskLevel(r.residual) === 'high').length,

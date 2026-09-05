@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { DocumentType, GrcDocument } from '@/types/grc';
 import { useData } from '@/store/useData';
+import { canCreateRecords, useAuth } from '@/store/useAuth';
+import { DocumentFormModal } from '@/components/forms/DocumentForm';
 import { documentTypeLabels } from '@/lib/labels';
 import { daysBetween, formatDate } from '@/lib/riskMath';
 import { userName } from '@/data/org';
 import { Badge, EmptyState, Metric, Tabs } from '@/components/common/Primitives';
 import { DocumentViewer } from '@/components/process/DetailPanel';
-import { IconDoc, IconSearch } from '@/components/common/Icons';
+import { IconDoc, IconPlus, IconSearch } from '@/components/common/Icons';
 
 export function DocumentsPage() {
   const data = useData((s) => s.data);
@@ -17,6 +19,11 @@ export function DocumentsPage() {
   const [type, setType] = useState<DocumentType | 'all'>('all');
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<GrcDocument | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const currentUser = useAuth((s) => s.currentUser);
+  const canCreate = canCreateRecords(currentUser);
+  const archivedCount = data.documents.filter((d) => d.archived).length;
 
   useEffect(() => {
     if (documentId) {
@@ -26,14 +33,14 @@ export function DocumentsPage() {
   }, [documentId, data.documents]);
 
   const rows = useMemo(() => {
-    let list = activeDocuments;
+    let list = showArchived ? data.documents.filter((d) => d.archived) : activeDocuments;
     if (type !== 'all') list = list.filter((d) => d.type === type);
     if (query.trim()) {
       const q = query.toLocaleLowerCase('tr-TR');
       list = list.filter((d) => `${d.code} ${d.name} ${d.summary}`.toLocaleLowerCase('tr-TR').includes(q));
     }
     return [...list].sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt));
-  }, [activeDocuments, type, query]);
+  }, [activeDocuments, data.documents, type, query, showArchived]);
 
   const expired = activeDocuments.filter((d) => d.status === 'expired');
   const dueSoon = activeDocuments.filter((d) => {
@@ -51,6 +58,18 @@ export function DocumentsPage() {
             Süreçlere bağlı tüm dokümanlar; versiyonu, sahibi, yayın tarihi ve bir sonraki gözden geçirme
             tarihiyle birlikte izlenir.
           </p>
+        </div>
+        <div className="row gap-2">
+          {archivedCount ? (
+            <button className="btn" onClick={() => setShowArchived((v) => !v)}>
+              {showArchived ? 'Aktif kayıtlar' : `Arşiv (${archivedCount})`}
+            </button>
+          ) : null}
+          {canCreate ? (
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
+              <IconPlus size={14} /> Yeni doküman
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -122,7 +141,20 @@ export function DocumentsPage() {
         {!rows.length ? <EmptyState title="Doküman bulunamadı" /> : null}
       </div>
 
-      {open ? <DocumentViewer document={open} onClose={() => { setOpen(null); if (documentId) navigate('/dokumanlar'); }} /> : null}
+      {open ? (
+        <DocumentViewer
+          document={data.documents.find((d) => d.id === open.id) ?? open}
+          onClose={() => { setOpen(null); if (documentId) navigate('/dokumanlar'); }}
+        />
+      ) : null}
+      <DocumentFormModal
+        open={creating}
+        onClose={() => setCreating(false)}
+        onSaved={(id) => {
+          const created = data.documents.find((d) => d.id === id);
+          if (created) setOpen(created);
+        }}
+      />
     </div>
   );
 }

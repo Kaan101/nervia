@@ -13,7 +13,9 @@ type Mode =
   | { kind: 'risk-controls'; riskId: string }
   | { kind: 'control-risks'; controlId: string }
   | { kind: 'risk-nodes'; riskId: string }
-  | { kind: 'control-nodes'; controlId: string };
+  | { kind: 'control-nodes'; controlId: string }
+  | { kind: 'document-nodes'; documentId: string }
+  | { kind: 'document-controls'; documentId: string };
 
 const titles: Record<Mode['kind'], { title: string; hint: string }> = {
   'risk-controls': {
@@ -31,6 +33,14 @@ const titles: Record<Mode['kind'], { title: string; hint: string }> = {
   'control-nodes': {
     title: 'Kontrolün uygulandığı süreç adımları',
     hint: 'Aynı kontrol birden fazla süreçte uygulanabilir.',
+  },
+  'document-nodes': {
+    title: 'Dokümanın bağlı olduğu süreç adımları',
+    hint: 'Doküman, seçilen adımların “Prosedür” sekmesinde görünür.',
+  },
+  'document-controls': {
+    title: 'Dokümanın dayanak oluşturduğu kontroller',
+    hint: 'Kontrolün yazılı dayanağı bu dokümandır.',
   },
 };
 
@@ -51,6 +61,8 @@ export function LinkEditorModal({
   const linkRiskControl = useData((s) => s.linkRiskControl);
   const linkRiskNode = useData((s) => s.linkRiskNode);
   const linkControlNode = useData((s) => s.linkControlNode);
+  const linkDocumentNode = useData((s) => s.linkDocumentNode);
+  const linkDocumentControl = useData((s) => s.linkDocumentControl);
   const currentUser = useAuth((s) => s.currentUser);
   const [query, setQuery] = useState('');
 
@@ -71,6 +83,18 @@ export function LinkEditorModal({
           badge: c.keyControl ? 'Kritik' : undefined,
         }));
     }
+    if (mode.kind === 'document-controls') {
+      const doc = data.documents.find((d) => d.id === mode.documentId);
+      return data.controls
+        .filter((c) => !c.archived && match(`${c.code} ${c.name} ${c.description}`))
+        .map((c) => ({
+          id: c.id,
+          title: c.name,
+          meta: `${c.code} · ${controlNatureLabels[c.nature]} · ${userName(c.ownerId)}`,
+          on: Boolean(doc?.controlIds.includes(c.id)),
+          badge: c.keyControl ? 'Kritik' : undefined,
+        }));
+    }
     if (mode.kind === 'control-risks') {
       const control = data.controls.find((c) => c.id === mode.controlId);
       return data.risks
@@ -84,7 +108,9 @@ export function LinkEditorModal({
     }
     const owner = mode.kind === 'risk-nodes'
       ? data.risks.find((r) => r.id === mode.riskId)?.processNodeIds ?? []
-      : data.controls.find((c) => c.id === mode.controlId)?.processNodeIds ?? [];
+      : mode.kind === 'document-nodes'
+        ? data.documents.find((d) => d.id === mode.documentId)?.processNodeIds ?? []
+        : data.controls.find((c) => c.id === mode.controlId)?.processNodeIds ?? [];
     return data.nodes
       .filter((n) => n.kind !== 'organization' && match(`${n.code} ${n.name}`))
       .map((n) => ({
@@ -101,6 +127,8 @@ export function LinkEditorModal({
     if (mode.kind === 'risk-controls') linkRiskControl(mode.riskId, id, on, currentUser.id);
     else if (mode.kind === 'control-risks') linkRiskControl(id, mode.controlId, on, currentUser.id);
     else if (mode.kind === 'risk-nodes') linkRiskNode(mode.riskId, id, on, currentUser.id);
+    else if (mode.kind === 'document-nodes') linkDocumentNode(mode.documentId, id, on, currentUser.id);
+    else if (mode.kind === 'document-controls') linkDocumentControl(mode.documentId, id, on, currentUser.id);
     else linkControlNode(mode.controlId, id, on, currentUser.id);
   };
 

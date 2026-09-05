@@ -82,7 +82,8 @@ Aynı süreç altı farklı görünümle incelenebilir (`Süreç Haritası` sayf
 
 - **Dashboard** — toplam süreç/risk/kontrol/aksiyon göstergeleri, risk trendi, birim ve
   süreç bazlı risk dağılımı, kontrol etkinliği, KRI’ler, gecikmiş aksiyonlar, süreç sağlık özeti.
-- **Süreç Haritası** — yukarıdaki altı görünüm + iş adımı detay paneli.
+- **Süreç Haritası** — yukarıdaki altı görünüm + iş adımı detay paneli (Genel, Kontroller,
+  Riskler, Prosedür, Örnekler, **Yapı**, Analiz sekmeleri).
 - **Bağlantı Ağı** — Süreç → Risk → Kontrol → Sorumlu → Aksiyon katmanlı ağ grafiği.
 - **Risk Isı Haritası** — 5×5 olasılık × etki matrisi; birim, süreç, risk türü, sahip,
   seviye, kontrol etkinliği ve değerlendirme tarihi filtreleriyle.
@@ -112,9 +113,11 @@ Sistem yalnızca okuma odaklı değildir; kayıtlar arayüzden yönetilir.
 
 | İşlem | Nereden |
 |---|---|
-| Risk / kontrol / aksiyon **oluşturma** | Kütüphane sayfalarındaki “Yeni …” düğmesi, ya da bir süreç adımının detay panelinden (kayıt o adıma bağlı açılır) |
-| **Düzenleme** | İlgili kaydın detay panelindeki “Düzenle” |
-| **İlişkilendirme** | Risk ↔ kontrol, risk ↔ süreç adımı, kontrol ↔ süreç adımı — detay panelindeki bağlama düğmeleri; bağ iki yönde de kurulur |
+| Risk / kontrol / aksiyon / doküman **oluşturma** | Kütüphane sayfalarındaki “Yeni …” düğmesi, ya da bir süreç adımının detay panelinden (kayıt o adıma bağlı açılır) |
+| **Süreç oluşturma** | Süreç haritasında “Yeni ana süreç”; alt süreç, faaliyet ve iş adımı için detay panelinin **Yapı** sekmesi |
+| **Düzenleme** | İlgili kaydın detay panelindeki “Düzenle” — süreçlerde ayrıca kritik nokta ve örnek senaryo editörleri |
+| **Yapı düzenleme** | Yapı sekmesi: akıştaki sırayı değiştirme (yukarı/aşağı), başka bir üst sürecin altına taşıma, alt kayıt ve kardeş ekleme |
+| **İlişkilendirme** | Risk ↔ kontrol, risk ↔ süreç adımı, kontrol ↔ süreç adımı, doküman ↔ süreç adımı, doküman ↔ kontrol — bağ iki yönde de kurulur |
 | Kontrol **etkinlik değerlendirmesi** | Kontrol panelinin altı (yalnızca İç Kontrol) |
 | Aksiyon **durum ve ilerleme** | Aksiyon panelinin altı |
 | Süreç **gözden geçirme** işaretleme | Süreç paneli ve Gözden Geçirme sayfası |
@@ -126,6 +129,11 @@ raporları tutarsızlaştırır. Arşivlenen kayıt listelerden, sayımlardan, �
 haritasından, aramadan ve analizden düşer; kütüphanenin “Arşiv” görünümünde ve
 audit trail'de yerinde kalır, geri alınabilir.
 
+Süreçlerde arşivleme durum alanı üzerinden yapılır ve **alt ağacın tamamını**
+kapsar: bir ana süreç arşivlendiğinde altındaki alt süreç, faaliyet ve iş
+adımları da haritadan, sayımlardan ve analizden düşer — aksi halde ağaçta
+sahipsiz düğümler kalırdı.
+
 **Her değişiklik audit trail'e yazılır** — kim, ne zaman, hangi alan, eski değer,
 yeni değer ve (düzenlemelerde zorunlu) gerekçe.
 
@@ -133,6 +141,10 @@ yeni değer ve (düzenlemelerde zorunlu) gerekçe.
 uygular. Örnek: artık risk doğal riskten büyük olamaz (kontroller riski
 artırmaz); tamamlandı işaretlenen aksiyon kanıtsız kapatılamaz; kanıtı olmayan
 kontrol tanımlanamaz. Risk iştahı aşıldığında form uyarır.
+
+**Taşıma güvenliği.** Bir süreç yalnızca aynı türde kayıt alabilen düğümlerin
+altına taşınabilir ve kendi alt ağacının içine taşınamaz; döngü oluşması
+engellenir. Taşıma altındaki tüm yapıyı birlikte götürür ve gerekçe ister.
 
 **Yetkiler kayıt bazlıdır.** Yeni kayıt açmak için süreç sahibi / birim yöneticisi
 / 2. hat rolü gerekir; düzenleme için kaydın sahibi olmak, biriminden sorumlu
@@ -260,7 +272,8 @@ src/
     persistence.ts        # localStorage anlık görüntüsü ve sürüm koruması
   components/
     common/               # ikonlar ve temel bileşenler
-    forms/                # ekle/düzenle formları, alan bileşenleri, ilişkilendirme
+    forms/                # ekle/düzenle formları, alan bileşenleri, ilişkilendirme,
+                          #   süreç yapısı düzenleyicisi
     charts/               # el yazımı SVG grafikler, ısı haritası, ağ grafiği
     layout/               # kabuk, kenar çubuğu, komut paleti
     process/              # süreç görünümleri ve detay panelleri

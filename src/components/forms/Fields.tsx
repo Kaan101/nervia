@@ -1,9 +1,10 @@
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import type { User } from '@/types/grc';
-import { impactLabels, likelihoodLabels } from '@/lib/labels';
+import { impactLabels, likelihoodLabels, maturityLabels } from '@/lib/labels';
 import { levelOf } from '@/lib/riskMath';
 import { riskLevelLabels } from '@/lib/labels';
 import { Avatar } from '@/components/common/Primitives';
+import { IconClose } from '@/components/common/Icons';
 
 /** Form alanları — tüm ekle/düzenle modalleri bunları kullanır. */
 
@@ -280,6 +281,162 @@ export function FormSection({ title, children }: { title: string; children: Reac
     <div className="detail-section">
       <div className="sh"><span>{title}</span><span className="line" /></div>
       <div className="stack gap-4">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Serbest metin listesi (sistemler, girdiler, çıktılar, standartlar).
+ * Enter ya da virgül ile yeni öğe eklenir.
+ */
+export function ListInput({
+  label, values, onChange, placeholder, hint,
+}: {
+  label: string; values: string[]; onChange: (v: string[]) => void;
+  placeholder?: string; hint?: string;
+}) {
+  const id = useId();
+  const [draft, setDraft] = useState('');
+
+  const commit = (raw: string) => {
+    const items = raw.split(',').map((x) => x.trim()).filter(Boolean);
+    if (!items.length) return;
+    const merged = [...values];
+    for (const item of items) if (!merged.includes(item)) merged.push(item);
+    onChange(merged);
+    setDraft('');
+  };
+
+  return (
+    <Field id={id} label={label} hint={hint}>
+      <div className="stack gap-2">
+        {values.length ? (
+          <div className="row gap-1 wrap">
+            {values.map((v) => (
+              <span key={v} className="tag row gap-1">
+                {v}
+                <button
+                  type="button"
+                  onClick={() => onChange(values.filter((x) => x !== v))}
+                  aria-label={`${v} kaldır`}
+                  style={{ border: 0, background: 'none', padding: 0, lineHeight: 1, color: 'var(--ink-400)', cursor: 'pointer' }}
+                >
+                  <IconClose size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        <input
+          id={id}
+          className="input"
+          value={draft}
+          placeholder={placeholder ?? 'Yazıp Enter’a basın'}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => commit(draft)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit(draft); }
+            if (e.key === 'Backspace' && !draft && values.length) onChange(values.slice(0, -1));
+          }}
+        />
+      </div>
+    </Field>
+  );
+}
+
+/** Çoklu kişi seçimi (görevli kişiler). */
+export function MultiUserSelect({
+  label, values, onChange, users, hint,
+}: { label: string; values: string[]; onChange: (v: string[]) => void; users: User[]; hint?: string }) {
+  const id = useId();
+  return (
+    <Field id={id} label={label} hint={hint}>
+      <div className="stack gap-2">
+        {values.length ? (
+          <div className="row gap-1 wrap">
+            {values.map((uid) => {
+              const u = users.find((x) => x.id === uid);
+              return (
+                <span key={uid} className="tag row gap-1">
+                  <Avatar user={u} size="sm" />
+                  {u?.name ?? uid}
+                  <button
+                    type="button"
+                    onClick={() => onChange(values.filter((x) => x !== uid))}
+                    aria-label={`${u?.name ?? uid} kaldır`}
+                    style={{ border: 0, background: 'none', padding: 0, lineHeight: 1, color: 'var(--ink-400)', cursor: 'pointer' }}
+                  >
+                    <IconClose size={11} />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
+        <select
+          id={id}
+          className="select"
+          value=""
+          onChange={(e) => {
+            if (e.target.value && !values.includes(e.target.value)) onChange([...values, e.target.value]);
+          }}
+        >
+          <option value="">Kişi ekle…</option>
+          {users.filter((u) => !values.includes(u.id)).map((u) => (
+            <option key={u.id} value={u.id}>{u.name} — {u.title}</option>
+          ))}
+        </select>
+      </div>
+    </Field>
+  );
+}
+
+/** 1–5 olgunluk seçici. */
+export function MaturityInput({
+  label, value, onChange, hint,
+}: { label: string; value: number; onChange: (v: number) => void; hint?: string }) {
+  return (
+    <Field label={label} hint={hint}>
+      <div className="row gap-1">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            aria-pressed={value === n}
+            title={maturityLabels[n]}
+            style={{
+              flex: 1, height: 32, borderRadius: 'var(--radius-sm)',
+              border: `1px solid ${value === n ? 'var(--brand-500)' : 'var(--border-strong)'}`,
+              background: value === n ? 'var(--brand-700)' : 'var(--surface)',
+              color: value === n ? '#fff' : 'var(--ink-600)',
+              fontSize: 'var(--text-xs)', fontWeight: value === n ? 600 : 500,
+            }}
+          >
+            {n} · {maturityLabels[n]}
+          </button>
+        ))}
+      </div>
+    </Field>
+  );
+}
+
+/** Tekrarlanan alt kayıtlar için satır kabı (kritik nokta, örnek senaryo, doküman bölümü). */
+export function RepeaterRow({
+  title, onRemove, children,
+}: { title: string; onRemove: () => void; children: ReactNode }) {
+  return (
+    <div style={{
+      border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+      padding: 'var(--s3)', background: 'var(--surface-sunken)',
+    }}>
+      <div className="row between gap-2" style={{ marginBottom: 'var(--s2)' }}>
+        <span className="eyebrow">{title}</span>
+        <button type="button" className="btn btn-sm btn-ghost" onClick={onRemove}>
+          <IconClose size={12} /> Kaldır
+        </button>
+      </div>
+      <div className="stack gap-3">{children}</div>
     </div>
   );
 }

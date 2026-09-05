@@ -1,7 +1,7 @@
 import type {
   Control, ControlNature, Dataset, ProcessNode, Risk, RiskCategory,
 } from '@/types/grc';
-import { descendants, mainProcessOfNode, pathTo, sortRisksBySeverity } from './selectors';
+import { activeNodes, descendants, mainProcessOfNode, pathTo, sortRisksBySeverity } from './selectors';
 import { isOverdue, isReviewOverdue, monthsSince, riskLevel, score } from './riskMath';
 import { normalize } from './search';
 import { riskCategoryLabels } from './labels';
@@ -236,9 +236,11 @@ const appetiteThreshold = { averse: 4, minimal: 6, cautious: 9, open: 14 } as co
 
 /** Tüm organizasyon ya da tek bir süreç için kontrol boşluğu ve zafiyet analizi. */
 export function analyseProcesses(data: Dataset, scopeNodeId?: string): Finding[] {
+  // Arşivlenmiş süreçler analiz dışıdır.
+  const visible = activeNodes(data.nodes);
   const scope = scopeNodeId
-    ? [data.nodes.find((n) => n.id === scopeNodeId)!, ...descendants(data.nodes, scopeNodeId)].filter(Boolean)
-    : data.nodes;
+    ? [visible.find((n) => n.id === scopeNodeId)!, ...descendants(visible, scopeNodeId)].filter(Boolean)
+    : visible;
   const scopeIds = new Set(scope.map((n) => n.id));
   const findings: Finding[] = [];
   const nameOf = (id: string) => data.nodes.find((n) => n.id === id)?.name ?? '';
