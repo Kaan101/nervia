@@ -42,12 +42,19 @@ jobs:
       # yaşamayabilir, bu yüzden başlatma-bekleme-koşma-durdurma bir arada.
       - name: Uçtan uca doğrulama süitleri
         run: |
-          npm run preview -- --port 4173 --strictPort &
+          # --host 127.0.0.1 şart: vite preview varsayılan olarak "localhost"a
+          # bağlanır, bu da runner'da önce ::1 (IPv6) olarak çözülüp IPv4
+          # üzerinden erişilemez hale gelebiliyor.
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > preview.log 2>&1 &
           PREVIEW_PID=$!
           trap 'kill $PREVIEW_PID 2>/dev/null || true' EXIT
           for i in $(seq 1 60); do
             if curl -sf http://127.0.0.1:4173 >/dev/null; then break; fi
-            if [ "$i" = "60" ]; then echo "Önizleme sunucusu açılmadı"; exit 1; fi
+            if [ "$i" = "60" ]; then
+              echo "Önizleme sunucusu açılmadı; sunucu günlüğü:"
+              cat preview.log
+              exit 1
+            fi
             sleep 1
           done
           npm run test:e2e
