@@ -23,6 +23,13 @@ export interface Selection {
   id: string | null;
 }
 
+export interface Notice {
+  id: number;
+  tone: 'info' | 'success' | 'warning';
+  title: string;
+  detail?: string;
+}
+
 interface UiState {
   view: ProcessView;
   setView: (v: ProcessView) => void;
@@ -49,6 +56,11 @@ interface UiState {
 
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+
+  /** Kaydetme, onaya gönderme gibi işlemlerin geri bildirimi. */
+  notice: Notice | null;
+  notify: (notice: Omit<Notice, 'id'>) => void;
+  dismissNotice: () => void;
 }
 
 export const useUi = create<UiState>((set, get) => ({
@@ -81,4 +93,8 @@ export const useUi = create<UiState>((set, get) => ({
 
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+
+  notice: null,
+  notify: (notice) => set({ notice: { ...notice, id: Date.now() } }),
+  dismissNotice: () => set({ notice: null }),
 }));

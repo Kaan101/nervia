@@ -118,6 +118,7 @@ Sistem yalnızca okuma odaklı değildir; kayıtlar arayüzden yönetilir.
 | **Düzenleme** | İlgili kaydın detay panelindeki “Düzenle” — süreçlerde ayrıca kritik nokta ve örnek senaryo editörleri |
 | **Yapı düzenleme** | Yapı sekmesi: akıştaki sırayı değiştirme (yukarı/aşağı), başka bir üst sürecin altına taşıma, alt kayıt ve kardeş ekleme |
 | **İlişkilendirme** | Risk ↔ kontrol, risk ↔ süreç adımı, kontrol ↔ süreç adımı, doküman ↔ süreç adımı, doküman ↔ kontrol — bağ iki yönde de kurulur |
+| **Onay** | Kritik alan değişiklikleri Değişiklik Yönetimi’nde onaylanır; onay tamamlanınca yama uygulanır ve yeni versiyon yayımlanır |
 | Kontrol **etkinlik değerlendirmesi** | Kontrol panelinin altı (yalnızca İç Kontrol) |
 | Aksiyon **durum ve ilerleme** | Aksiyon panelinin altı |
 | Süreç **gözden geçirme** işaretleme | Süreç paneli ve Gözden Geçirme sayfası |
@@ -135,7 +136,8 @@ adımları da haritadan, sayımlardan ve analizden düşer — aksi halde ağaç
 sahipsiz düğümler kalırdı.
 
 **Her değişiklik audit trail'e yazılır** — kim, ne zaman, hangi alan, eski değer,
-yeni değer ve (düzenlemelerde zorunlu) gerekçe.
+yeni değer ve (düzenlemelerde zorunlu) gerekçe. Onay akışında talep oluşturma, her
+onay kademesi ve yamanın uygulanması ayrı kayıtlar olarak izlenir.
 
 **Form doğrulamaları** yalnızca boş alan kontrolü değildir; GRC kurallarını da
 uygular. Örnek: artık risk doğal riskten büyük olamaz (kontroller riski
@@ -145,6 +147,49 @@ kontrol tanımlanamaz. Risk iştahı aşıldığında form uyarır.
 **Taşıma güvenliği.** Bir süreç yalnızca aynı türde kayıt alabilen düğümlerin
 altına taşınabilir ve kendi alt ağacının içine taşınamaz; döngü oluşması
 engellenir. Taşıma altındaki tüm yapıyı birlikte götürür ve gerekçe ister.
+
+## Onay mekanizması
+
+Her değişiklik doğrudan kaydedilmez. Alanlar iki gruba ayrılır:
+
+- **Kritik alanlar** — kurumsal risk profilini, kontrol tasarımını, sorumluluğu ya da
+  yazılı dayanağı değiştirenler. Örnek: doğal/artık risk skoru, risk iştahı, kontrol
+  türü ve kanıtı, kontrol etkinliği, süreç sahibi, süreç durumu, doküman versiyonu
+  ve içeriği.
+- **Betimleyici alanlar** — açıklama düzeltmesi, sistem listesi, girdi/çıktı gibi
+  kayıt anlamını değiştirmeyenler.
+
+Kritik alan değiştiğinde form bunu **kaydetmeden önce** söyler: uyarı şeridi hangi
+alanların onaya götürdüğünü yazar ve kaydet düğmesi “Onaya gönder”e döner.
+Yamanın **tamamı** talebe girer — kayıt yarısı uygulanmış yarısı bekliyor durumuna
+düşmez.
+
+```
+Süreç Sahibi
+   ↓  değişiklik talebi (DT-YYYY-NNN)
+Birim Yöneticisi
+   ↓
+İç Kontrol  /  Risk Yönetimi        (risklerde Risk Yönetimi, diğerlerinde İç Kontrol)
+   ↓
+Onay → yama uygulanır → yeni versiyon (v4.2 → v4.3)
+```
+
+**Taslak kayıtlar onay gerektirmez.** Onay mekanizması *yürürlükteki* bir tanımın
+değişmesini korur; henüz hazırlanmakta olan taslak (`status: draft`) süreç ya da
+doküman üzerinde çalışırken her düzenleme doğrudan kaydedilir. Kayıt yürürlüğe
+alındıktan sonra kritik alanlar onaya tabi olur.
+
+Talep açan kişi birim yöneticisiyse ilk kademe atlanır. **Kimse kendi talebini
+onaylayamaz** — görevler ayrılığı onay zincirinde de geçerlidir; sayfa bunu gerekçesiyle
+söyler.
+
+Talep beklerken hedef kaydın detay panelinde şerit görünür: gördüğünüz değerlerin
+hâlâ yürürlükteki sürüm olduğu belirtilir. Onay tamamlandığında yama hedefe
+uygulanır ve sürüm bir basamak artar. Talep açıldığından beri hedefin sürümü
+değiştiyse yama yine uygulanır, ancak audit kaydında çakışma açıkça belirtilir —
+sessizce üzerine yazılmaz.
+
+Reddedilen talepte hedef kayıt hiç değişmez.
 
 **Yetkiler kayıt bazlıdır.** Yeni kayıt açmak için süreç sahibi / birim yöneticisi
 / 2. hat rolü gerekir; düzenleme için kaydın sahibi olmak, biriminden sorumlu
@@ -273,7 +318,7 @@ src/
   components/
     common/               # ikonlar ve temel bileşenler
     forms/                # ekle/düzenle formları, alan bileşenleri, ilişkilendirme,
-                          #   süreç yapısı düzenleyicisi
+                          #   süreç yapısı düzenleyicisi, onay yönlendirmesi
     charts/               # el yazımı SVG grafikler, ısı haritası, ağ grafiği
     layout/               # kabuk, kenar çubuğu, komut paleti
     process/              # süreç görünümleri ve detay panelleri

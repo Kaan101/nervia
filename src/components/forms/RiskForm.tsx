@@ -5,10 +5,13 @@ import { useAuth } from '@/store/useAuth';
 import {
   riskAppetiteLabels, riskCategoryLabels, riskStatusLabels, riskTreatmentLabels, riskTrendLabels,
 } from '@/lib/labels';
-import { blankRisk, nextCode, processPrefix } from '@/lib/entityMeta';
+import { blankRisk, nextCode, processPrefix, riskFieldLabels } from '@/lib/entityMeta';
 import { appetiteThreshold, score } from '@/lib/riskMath';
 import { units, users } from '@/data/org';
 import { Modal } from '@/components/common/Primitives';
+import { ApprovalNotice } from './ApprovalNotice';
+import { previewCritical, useApprovalSave } from './useApprovalSave';
+import { useUi } from '@/store/useUi';
 import {
   AssessmentPicker, FormGrid, FormSection, SelectInput, TextArea, TextInput, UserSelect,
 } from './Fields';
@@ -26,7 +29,8 @@ interface Props {
 export function RiskFormModal({ open, onClose, riskId, defaultNodeId, onSaved }: Props) {
   const data = useData((s) => s.data);
   const createRisk = useData((s) => s.createRisk);
-  const updateRisk = useData((s) => s.updateRisk);
+  const notify = useUi((x) => x.notify);
+  const saveWithApproval = useApprovalSave('risk');
   const currentUser = useAuth((s) => s.currentUser);
 
   const existing = riskId ? data.risks.find((r) => r.id === riskId) : undefined;
@@ -54,6 +58,8 @@ export function RiskFormModal({ open, onClose, riskId, defaultNodeId, onSaved }:
 
   if (!open || !currentUser) return null;
 
+  const critical = previewCritical('risk', existing, draft, riskFieldLabels);
+
   const errors: Record<string, string> = {};
   if (!draft.name.trim()) errors.name = 'Risk adı zorunludur.';
   if (!draft.description.trim()) errors.description = 'Açıklama zorunludur.';
@@ -71,10 +77,11 @@ export function RiskFormModal({ open, onClose, riskId, defaultNodeId, onSaved }:
     setTouched(true);
     if (hasErrors) return;
     if (existing) {
-      updateRisk(existing.id, draft, currentUser.id, reason.trim());
+      saveWithApproval(existing.id, draft as unknown as Record<string, unknown>, reason.trim(), currentUser.id);
       onSaved?.(existing.id);
     } else {
       createRisk(draft, currentUser.id);
+      notify({ tone: 'success', title: 'Risk oluşturuldu', detail: `${draft.code} · ${draft.name}` });
       onSaved?.(draft.id);
     }
     onClose();
@@ -91,18 +98,22 @@ export function RiskFormModal({ open, onClose, riskId, defaultNodeId, onSaved }:
         <div className="row between gap-3">
           <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>
             {existing
-              ? 'Değişiklikler eski/yeni değer ve gerekçeyle audit trail’e yazılır.'
+              ? (critical.length
+                ? 'Kritik alan değiştiği için kayıt doğrudan güncellenmez; onay zinciri başlatılır.'
+                : 'Değişiklikler eski/yeni değer ve gerekçeyle audit trail’e yazılır.')
               : `Kod otomatik üretildi: ${draft.code}`}
           </span>
           <span className="row gap-2">
             <button className="btn btn-sm" onClick={onClose}>Vazgeç</button>
             <button className="btn btn-sm btn-primary" onClick={save} disabled={touched && hasErrors}>
-              {existing ? 'Değişiklikleri kaydet' : 'Riski oluştur'}
+              {existing ? (critical.length ? 'Onaya gönder' : 'Değişiklikleri kaydet') : 'Riski oluştur'}
             </button>
           </span>
         </div>
       }
     >
+      <ApprovalNotice critical={critical} />
+
       <FormSection title="Tanım">
         <TextInput
           label="Risk adı" required value={draft.name} error={err('name')}

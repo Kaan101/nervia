@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { ChangeRequest, ChangeRequestStatus } from '@/types/grc';
 import { useData } from '@/store/useData';
 import { useAuth } from '@/store/useAuth';
-import { changeRequestStatusLabels, roleLabels } from '@/lib/labels';
+import { changeRequestStatusText, roleLabels } from '@/lib/labels';
 import { formatDateTime, relativeTime } from '@/lib/riskMath';
 import { userName } from '@/data/org';
 import { Avatar, Badge, EmptyState, Metric, Modal, Tabs } from '@/components/common/Primitives';
@@ -27,11 +27,28 @@ export function ChangeManagementPage() {
     return data.changeRequests.filter((c) => c.status === filter);
   }, [data.changeRequests, filter, pending]);
 
+  /**
+   * Karar verebilir mi?
+   * Rol eşleşmesi yetmez: kimse kendi talebini onaylayamaz — görevler ayrılığı
+   * ilkesi onay zincirinde de geçerlidir.
+   */
   const canDecide = (request: ChangeRequest) => {
     if (!currentUser || !capabilities.approve) return false;
+    if (request.requestedById === currentUser.id) return false;
     const step = request.approvals.find((a) => a.decision === 'pending');
     if (!step) return false;
     return currentUser.roles.includes(step.requiredRole) || currentUser.roles.includes('system_admin');
+  };
+
+  /** Yetkisi olduğu halde karar veremiyorsa nedenini açıklar. */
+  const denialReason = (request: ChangeRequest): string | null => {
+    if (!currentUser) return null;
+    const step = request.approvals.find((a) => a.decision === 'pending');
+    if (!step) return null;
+    if (request.requestedById === currentUser.id) {
+      return 'Bu talebi siz oluşturdunuz; kimse kendi talebini onaylayamaz.';
+    }
+    return `Sıradaki onay ${roleLabels[step.requiredRole]} rolündedir; bu talebi onaylama yetkiniz yok.`;
   };
 
   return (
@@ -90,7 +107,7 @@ export function ChangeManagementPage() {
                     <Badge
                       level={request.status === 'approved' ? 'low' : request.status === 'rejected' ? 'critical' : 'medium'}
                     >
-                      {changeRequestStatusLabels[request.status]}
+                      {changeRequestStatusText(request)}
                     </Badge>
                     <Badge tone="plain">Etki: {request.impact === 'high' ? 'Yüksek' : request.impact === 'medium' ? 'Orta' : 'Düşük'}</Badge>
                     <Badge tone="plain">Hedef: {request.targetName}</Badge>
@@ -113,11 +130,29 @@ export function ChangeManagementPage() {
                 </div>
 
                 <div>
-                  <span className="eyebrow">Değişiklikler</span>
+                  <span className="row between gap-3 wrap" style={{ marginBottom: 'var(--s2)' }}>
+                    <span className="eyebrow">Değişiklikler</span>
+                    {request.criticalFields?.length ? (
+                      <span className="dim" style={{ fontSize: 'var(--text-2xs)' }}>
+                        Onayı tetikleyen kritik alan: {request.criticalFields.length}
+                      </span>
+                    ) : null}
+                  </span>
                   <div className="change-diff">
                     {request.changes.map((c) => (
-                      <div className="change-row" key={c.field}>
-                        <span className="dim">{c.label}</span>
+                      <div
+                        className="change-row"
+                        key={c.field}
+                        style={request.criticalFields?.includes(c.field)
+                          ? { borderColor: 'var(--risk-medium-line)', background: 'var(--risk-medium-bg)' }
+                          : undefined}
+                      >
+                        <span className="dim">
+                          {c.label}
+                          {request.criticalFields?.includes(c.field) ? (
+                            <span title="Bu alan onay gerektirir" style={{ color: 'var(--risk-medium)', marginLeft: 4 }}>*</span>
+                          ) : null}
+                        </span>
                         <span>
                           <span className="old">{c.oldValue}</span>
                           <span className="arrow">→</span>
@@ -155,10 +190,34 @@ export function ChangeManagementPage() {
                   </div>
                 </div>
 
-                {request.resultingVersion ? (
+                {request.status === 'approved' ? (
                   <div className="callout lvl-low">
-                    <IconCheck size={15} />
-                    <span>Talep onaylandı; ilgili kayıt <strong>v{request.resultingVersion}</strong> sürümüyle yayımlandı.</span>
+                    <IconCheck size={15} style={{ flex: '0 0 auto', marginTop: 2 }} />
+                    <span>
+                      <span className="callout-title">Onaylandı ve uygulandı. </span>
+                      {request.resultingVersion
+                        ? <>Değişiklikler hedef kayda işlendi; yeni sürüm <strong>v{request.resultingVersion}</strong>.</>
+                        : 'Değişiklikler hedef kayda işlendi.'}
+                    </span>
+                  </div>
+                ) : null}
+
+                {request.status === 'rejected' ? (
+                  <div className="callout lvl-critical">
+                    <IconClose size={15} style={{ flex: '0 0 auto', marginTop: 2 }} />
+                    <span>
+                      <span className="callout-title">Reddedildi. </span>
+                      Hedef kayıt değişmedi; yürürlükteki sürüm korundu.
+                    </span>
+                  </div>
+                ) : null}
+
+                {step && request.payload ? (
+                  <div className="callout">
+                    <span style={{ fontSize: 'var(--text-xs)' }}>
+                      Onay tamamlandığında bu değişiklikler hedef kayda otomatik olarak uygulanır ve
+                      sürüm numarası bir basamak artırılır. O ana kadar kayıt değişmez.
+                    </span>
                   </div>
                 ) : null}
               </div>
@@ -178,9 +237,7 @@ export function ChangeManagementPage() {
                 </div>
               ) : step ? (
                 <div className="card-foot">
-                  <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>
-                    Sıradaki onay <strong>{roleLabels[step.requiredRole]}</strong> rolündedir; bu talebi onaylama yetkiniz yok.
-                  </span>
+                  <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>{denialReason(request)}</span>
                 </div>
               ) : null}
             </div>

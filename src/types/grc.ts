@@ -439,9 +439,21 @@ export interface ChangeRequest {
   requestedById: string;
   requestedAt: string;
   status: ChangeRequestStatus;
+  /** İnsan okunur alan farkları — onay ekranında gösterilir. */
   changes: FieldChange[];
   approvals: ApprovalStep[];
   resultingVersion: string | null;
+
+  /**
+   * Onaylandığında hedefe uygulanacak alan değerleri.
+   * Demo verisindeki geçmiş talepler bu alanı taşımaz; onlar yalnızca
+   * kayıt olarak durur ve yeniden uygulanmaz.
+   */
+  payload?: Record<string, unknown>;
+  /** Talep açıldığı andaki hedef versiyonu — çakışma tespiti için. */
+  baseVersion?: string;
+  /** Kritik kabul edilen ve onayı tetikleyen alanlar. */
+  criticalFields?: string[];
 }
 
 export type AuditAction =

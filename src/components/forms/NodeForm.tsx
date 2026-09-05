@@ -7,9 +7,12 @@ import { useAuth } from '@/store/useAuth';
 import {
   criticalPointLabels, nodeKindLabels, processClassLabels, processStatusLabels,
 } from '@/lib/labels';
-import { blankNode, childKindOf, suggestNodeCode } from '@/lib/entityMeta';
+import { blankNode, childKindOf, nodeFieldLabels, suggestNodeCode } from '@/lib/entityMeta';
 import { units, users } from '@/data/org';
 import { Modal } from '@/components/common/Primitives';
+import { ApprovalNotice } from './ApprovalNotice';
+import { previewCritical, useApprovalSave } from './useApprovalSave';
+import { useUi } from '@/store/useUi';
 import {
   DateInput, FormGrid, FormSection, ListInput, MaturityInput, MultiUserSelect, RepeaterRow,
   SelectInput, TextArea, TextInput, UserSelect,
@@ -34,7 +37,8 @@ interface Props {
 export function NodeFormModal({ open, onClose, nodeId, parentId, onSaved }: Props) {
   const data = useData((s) => s.data);
   const createNode = useData((s) => s.createNode);
-  const updateNode = useData((s) => s.updateNode);
+  const saveWithApproval = useApprovalSave('process');
+  const notify = useUi((x) => x.notify);
   const currentUser = useAuth((s) => s.currentUser);
 
   const existing = nodeId ? data.nodes.find((n) => n.id === nodeId) : undefined;
@@ -63,6 +67,8 @@ export function NodeFormModal({ open, onClose, nodeId, parentId, onSaved }: Prop
 
   if (!open || !currentUser || !draft) return null;
 
+  const critical = previewCritical('process', existing, draft, nodeFieldLabels);
+
   const errors: Record<string, string> = {};
   if (!draft.name.trim()) errors.name = 'Ad zorunludur.';
   if (!draft.description.trim()) errors.description = 'Açıklama zorunludur.';
@@ -78,8 +84,12 @@ export function NodeFormModal({ open, onClose, nodeId, parentId, onSaved }: Prop
     if (hasErrors) return;
     // Kod, kimliğin parçası olduğu için yalnızca yeni kayıtta belirlenir.
     const record = existing ? draft : { ...draft, id: `nd-${draft.code}` };
-    if (existing) updateNode(existing.id, record, currentUser.id, reason.trim());
-    else createNode(record, currentUser.id);
+    if (existing) {
+      saveWithApproval(existing.id, record as unknown as Record<string, unknown>, reason.trim(), currentUser.id);
+    } else {
+      createNode(record, currentUser.id);
+      notify({ tone: 'success', title: `${kindLabel} oluşturuldu`, detail: `${record.code} · ${record.name}` });
+    }
     onSaved?.(record.id);
     onClose();
   };
@@ -108,18 +118,24 @@ export function NodeFormModal({ open, onClose, nodeId, parentId, onSaved }: Prop
         <div className="row between gap-3">
           <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>
             {existing
-              ? 'Değişiklikler eski/yeni değer ve gerekçeyle audit trail’e yazılır.'
+              ? (critical.length
+                ? 'Kritik alan değiştiği için kayıt doğrudan güncellenmez; onay zinciri başlatılır.'
+                : 'Değişiklikler eski/yeni değer ve gerekçeyle audit trail’e yazılır.')
               : `Yeni ${kindLabel.toLocaleLowerCase('tr-TR')} taslak olarak açılır.`}
           </span>
           <span className="row gap-2">
             <button className="btn btn-sm" onClick={onClose}>Vazgeç</button>
             <button className="btn btn-sm btn-primary" onClick={save} disabled={touched && hasErrors}>
-              {existing ? 'Değişiklikleri kaydet' : `${kindLabel} oluştur`}
+              {existing
+                ? (critical.length ? 'Onaya gönder' : 'Değişiklikleri kaydet')
+                : `${kindLabel} oluştur`}
             </button>
           </span>
         </div>
       }
     >
+      <ApprovalNotice critical={critical} />
+
       <FormSection title="Tanım">
         <FormGrid>
           <TextInput

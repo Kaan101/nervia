@@ -7,6 +7,7 @@ import { portfolio } from '@/lib/selectors';
 import { roleLabels } from '@/lib/labels';
 import { Avatar } from '@/components/common/Primitives';
 import { CommandPalette } from './CommandPalette';
+import { NoticeToast } from './NoticeToast';
 import {
   IconAction, IconAudit, IconBook, IconChange, IconClock, IconControl, IconDashboard,
   IconDoc, IconHeat, IconLogout, IconMenu, IconNetwork, IconProcess, IconRisk,
@@ -147,6 +148,7 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
+      <NoticeToast />
     </div>
   );
 }

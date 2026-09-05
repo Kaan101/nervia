@@ -37,7 +37,11 @@ export function capabilitiesOf(user: User | null): Capabilities {
     assessControls: has('internal_control') || has('system_admin'),
     assessRisks: has('risk_management') || has('system_admin'),
     administer: has('system_admin'),
-    viewAudit: has('internal_audit') || has('internal_control') || has('system_admin') || has('executive'),
+    // Three Lines Model: her iki ikinci hat işlevi de (İç Kontrol ve Risk Yönetimi)
+    // audit trail'i görmelidir; üçüncü hat ve üst yönetim de öyle.
+    viewAudit:
+      has('internal_audit') || has('internal_control') || has('risk_management')
+      || has('system_admin') || has('executive'),
   };
 }
 

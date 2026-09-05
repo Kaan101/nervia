@@ -320,6 +320,13 @@ export function heatMatrix(risks: Risk[], use: 'residual' | 'inherent' = 'residu
   return cells;
 }
 
+/** Bir kayıt için onay bekleyen değişiklik talebi (varsa). */
+export function pendingRequestFor(data: Dataset, targetId: string) {
+  return data.changeRequests.find(
+    (c) => c.targetId === targetId && (c.status === 'pending_manager' || c.status === 'pending_control'),
+  );
+}
+
 /**
  * Aylık risk trendi.
  *

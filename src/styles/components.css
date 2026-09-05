@@ -261,3 +261,27 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 /* ---- Yükleniyor iskeleti ---- */
 .skeleton { background: linear-gradient(90deg, var(--ink-050), var(--ink-100), var(--ink-050)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: var(--radius); }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* ---- Bildirim şeridi ---- */
+.toast {
+  position: fixed; z-index: 80; left: 50%; bottom: var(--s6);
+  transform: translateX(-50%);
+  display: flex; align-items: flex-start; gap: var(--s3);
+  min-width: 320px; max-width: min(560px, calc(100vw - 32px));
+  padding: var(--s3) var(--s4);
+  background: var(--ink-900); color: #fff;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  animation: toastIn var(--dur) var(--ease-out);
+}
+@keyframes toastIn {
+  from { transform: translate(-50%, 8px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+.toast .toast-title { font-size: var(--text-sm); font-weight: 600; }
+.toast .toast-detail { font-size: var(--text-xs); color: #b9c7d8; margin-top: 2px; }
+.toast .toast-mark { width: 3px; align-self: stretch; border-radius: 2px; flex: 0 0 auto; }
+.toast.success .toast-mark { background: var(--risk-low-mark); }
+.toast.warning .toast-mark { background: var(--risk-medium-mark); }
+.toast.info .toast-mark { background: var(--brand-400); }
+.toast button { border: 0; background: none; color: #8fa4bd; padding: 0; cursor: pointer; }
+.toast button:hover { color: #fff; }

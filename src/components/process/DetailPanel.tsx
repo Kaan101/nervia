@@ -9,7 +9,8 @@ import {
 } from '@/store/useAuth';
 import { useUi } from '@/store/useUi';
 import {
-  actionPriorityLabels, actionSourceLabels, actionStatusLabels, controlCategoryLabels,
+  actionPriorityLabels, actionSourceLabels, actionStatusLabels, changeRequestStatusText,
+  controlCategoryLabels,
   controlEffectivenessLabels, controlExecutionLabels, controlFrequencyLabels,
   controlNatureLabels, cosoComponentLabels, criticalPointLabels, documentTypeLabels,
   impactLabels, likelihoodLabels, nodeKindLabels, processClassLabels, processStatusLabels,
@@ -21,7 +22,8 @@ import {
   mitigationPercent, monthsSince, riskLevel, score,
 } from '@/lib/riskMath';
 import {
-  actionsOf, controlsOf, documentsOf, krisOf, pathTo, risksOf, rollup, sortRisksBySeverity,
+  actionsOf, controlsOf, documentsOf, krisOf, pathTo, pendingRequestFor, risksOf, rollup,
+  sortRisksBySeverity,
 } from '@/lib/selectors';
 import { analyseProcesses, suggestControls, suggestRisks } from '@/lib/ai';
 import { userById, userName, unitName } from '@/data/org';
@@ -38,7 +40,7 @@ import { NodeFormModal } from '@/components/forms/NodeForm';
 import { NodeStructurePanel } from '@/components/forms/NodeStructure';
 import { DocumentFormModal } from '@/components/forms/DocumentForm';
 import {
-  IconArrowRight, IconCheck, IconChevronRight, IconClock, IconControl, IconDoc,
+  IconArrowRight, IconChange, IconCheck, IconChevronRight, IconClock, IconControl, IconDoc,
   IconExternal, IconLayers, IconLock, IconMoney, IconPlus, IconRisk, IconSettings,
   IconShieldAlert, IconSparkles, IconWarning,
 } from '@/components/common/Icons';
@@ -219,6 +221,35 @@ function RecordToolbar({
   );
 }
 
+/**
+ * Kayıtta onay bekleyen değişiklik varsa panelin üstünde gösterilen şerit.
+ * Kullanıcının ekranda gördüğü değerlerin hâlâ yürürlükteki sürüm olduğunu belirtir.
+ */
+function PendingChangeNotice({ targetId }: { targetId: string }) {
+  const data = useData((s) => s.data);
+  const navigate = useNavigate();
+  const request = pendingRequestFor(data, targetId);
+  if (!request) return null;
+
+  return (
+    <button
+      className="callout lvl-medium"
+      style={{ marginBottom: 'var(--s4)', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+      onClick={() => navigate('/degisiklikler')}
+    >
+      <IconChange size={16} style={{ flex: '0 0 auto', marginTop: 2 }} />
+      <span className="stack" style={{ gap: 4, minWidth: 0 }}>
+        <span className="callout-title">Onay bekleyen değişiklik var · {request.code}</span>
+        <span>
+          {request.changes.length} alan değişikliği {changeRequestStatusText(request).toLocaleLowerCase('tr-TR')}.
+          Aşağıda gördüğünüz değerler hâlâ yürürlükteki sürüme aittir.
+        </span>
+        <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>Talebi görmek için tıklayın →</span>
+      </span>
+    </button>
+  );
+}
+
 /** Arşivlenmiş kayıtlarda panelin üstünde gösterilen şerit. */
 function ArchivedNotice({ archived }: { archived?: boolean }) {
   if (!archived) return null;
@@ -359,6 +390,8 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
         </div>
       }
     >
+      <PendingChangeNotice targetId={node.id} />
+
       <Tabs<ProcessTab>
         value={tab}
         onChange={setTab}
@@ -922,6 +955,7 @@ export function RiskDetail({ riskId, onClose }: { riskId: string; onClose: () =>
         />
       }
     >
+      <PendingChangeNotice targetId={risk.id} />
       <ArchivedNotice archived={risk.archived} />
 
       <div className="detail-section">
@@ -1143,6 +1177,7 @@ export function ControlDetail({ controlId, onClose }: { controlId: string; onClo
         </div>
       }
     >
+      <PendingChangeNotice targetId={control.id} />
       <ArchivedNotice archived={control.archived} />
 
       <div className="detail-section">
@@ -1271,6 +1306,7 @@ export function DocumentViewer({ document: doc, onClose }: { document: GrcDocume
         />
       }
     >
+      <PendingChangeNotice targetId={doc.id} />
       <ArchivedNotice archived={doc.archived} />
 
       <div className="doc-view">

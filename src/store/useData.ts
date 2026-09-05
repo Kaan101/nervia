@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import type {
-  ActionItem, AuditEntry, ChangeRequest, Control, Dataset, FieldChange, GrcDocument,
-  Kri, ProcessNode, Risk,
+  ActionItem, ApprovalStep, AuditEntry, ChangeRequest, Control, Dataset, FieldChange,
+  GrcDocument, Kri, ProcessNode, Risk, RoleId,
 } from '@/types/grc';
 import { dataset as seedDataset } from '@/data';
 import { NOW } from '@/data/build';
 import {
-  actionFieldLabels, controlFieldLabels, diffEntity, documentFieldLabels, nodeFieldLabels,
-  riskFieldLabels,
+  actionFieldLabels, bumpVersion, controlFieldLabels, diffEntity, documentFieldLabels,
+  nodeFieldLabels, riskFieldLabels, splitByApproval,
 } from '@/lib/entityMeta';
 import { userName } from '@/data/org';
 import { loadSnapshot, saveSnapshot, clearSnapshot, persistenceState } from './persistence';
@@ -72,6 +72,18 @@ function today(): string {
 
 export type ArchivableKind = 'risk' | 'control' | 'action' | 'document';
 
+/** Onay akışına tabi kayıt türleri. */
+export type ApprovableKind = 'risk' | 'control' | 'process' | 'document';
+
+export interface SaveOutcome {
+  /** 'saved' doğrudan kaydedildi, 'requested' onaya gönderildi, 'noop' değişiklik yok. */
+  result: 'saved' | 'requested' | 'noop';
+  /** Onaya gönderildiyse talebin kodu. */
+  requestCode?: string;
+  /** Onayı tetikleyen alan etiketleri. */
+  criticalLabels?: string[];
+}
+
 interface DataState extends Indexes {
   data: Dataset;
 
@@ -134,6 +146,18 @@ interface DataState extends Indexes {
     comment: string,
   ) => void;
   createChangeRequest: (request: ChangeRequest, actorId: string) => void;
+
+  /**
+   * Kaydı günceller. Kritik alanlar değiştiyse doğrudan kaydetmez;
+   * değişiklik talebi açar ve onay zincirine gönderir.
+   */
+  saveWithApproval: (input: {
+    kind: ApprovableKind;
+    id: string;
+    patch: Record<string, unknown>;
+    reason: string;
+    actorId: string;
+  }) => SaveOutcome;
 
   /* --- Kalıcılık --- */
   resetToSeed: () => void;
@@ -770,10 +794,14 @@ export const useData = create<DataState>((set, get) => ({
   decideChangeRequest: (id, stepOrder, decision, approverId, comment) => {
     const request = get().data.changeRequests.find((c) => c.id === id);
     if (!request) return;
+    // Kimse kendi talebini onaylayamaz.
+    if (decision === 'approved' && request.requestedById === approverId) return;
+
     const at = nowIso();
     const approvals = request.approvals.map((a) =>
       a.order === stepOrder ? { ...a, decision, approverId, comment, decidedAt: at } : a,
     );
+
     let status: ChangeRequest['status'] = request.status;
     if (decision === 'rejected') status = 'rejected';
     else if (approvals.every((a) => a.decision === 'approved')) status = 'approved';
@@ -781,21 +809,34 @@ export const useData = create<DataState>((set, get) => ({
       const next = approvals.find((a) => a.decision === 'pending');
       status = next?.requiredRole === 'unit_manager' ? 'pending_manager' : 'pending_control';
     }
+
+    const fullyApproved = status === 'approved';
+    const applied = fullyApproved ? applyRequestPayload(get(), request, approverId) : null;
+
     set((state) =>
       withIndexes({
         ...state.data,
         changeRequests: state.data.changeRequests.map((c) =>
-          c.id === id ? { ...c, approvals, status } : c,
+          c.id === id
+            ? { ...c, approvals, status, resultingVersion: applied?.version ?? c.resultingVersion }
+            : c,
         ),
       }),
     );
+
     get().logAudit({
       userId: approverId,
       action: decision === 'approved' ? 'approve' : 'reject',
       entityType: 'change_request',
       entityId: id,
       entityName: `${request.code} — ${request.title}`,
-      summary: decision === 'approved' ? 'Onay verildi.' : 'Talep reddedildi.',
+      summary: decision === 'rejected'
+        ? 'Talep reddedildi; hedef kayıt değişmedi.'
+        : fullyApproved
+          ? applied
+            ? `Talep onaylandı ve uygulandı; ${applied.version ? `yeni versiyon v${applied.version}.` : 'kayıt güncellendi.'}`
+            : 'Talep onaylandı. (Bu kayıt yalnızca geçmiş olarak tutulduğu için uygulanacak bir yama yok.)'
+          : 'Onay verildi; talep bir sonraki kademeye iletildi.',
       reason: comment || undefined,
     });
   },
@@ -814,6 +855,61 @@ export const useData = create<DataState>((set, get) => ({
     });
   },
 
+  saveWithApproval: ({ kind, id, patch, reason, actorId }) => {
+    const state = get();
+    const meta = approvalMeta[kind];
+    const before = meta.find(state, id);
+    if (!before) return { result: 'noop' };
+
+    const resolve = (x: string) => resolveName(state.data, x);
+    const changes = diffEntity(before as object, patch, meta.labels, resolve);
+    if (!changes.length) return { result: 'noop' };
+
+    const { critical } = splitByApproval(kind, changes);
+
+    // Kritik alan yoksa doğrudan kaydedilir.
+    // Henüz yürürlüğe girmemiş taslak kayıtlar da onay gerektirmez: onay
+    // mekanizması yürürlükteki bir tanımın değişmesini korur, hazırlanmakta
+    // olan taslağı değil.
+    if (!critical.length || isDraftRecord(before)) {
+      meta.apply(get(), id, patch, actorId, reason);
+      return { result: 'saved' };
+    }
+
+    // Kritik alan varsa yamanın tamamı onaya gider: kayıt bölünmüş biçimde
+    // yarısı uygulanmış yarısı bekliyor durumuna düşmemelidir.
+    const code = nextRequestCode(state.data.changeRequests);
+    const targetName = 'name' in before ? (before as { name: string }).name : id;
+    const version = 'version' in before ? String((before as { version: string }).version) : undefined;
+
+    const request: ChangeRequest = {
+      id: `chg-${code}`,
+      code,
+      targetType: kind === 'process' ? 'process' : kind,
+      targetId: id,
+      targetName,
+      title: `${targetName} — ${critical.map((c) => c.label).join(', ')} değişikliği`,
+      reason,
+      impact: critical.length > 2 ? 'high' : critical.length > 1 ? 'medium' : 'low',
+      requestedById: actorId,
+      requestedAt: nowIso(),
+      status: 'pending_manager',
+      changes,
+      approvals: buildApprovalChain(kind, state.data, actorId),
+      resultingVersion: null,
+      payload: patch,
+      baseVersion: version,
+      criticalFields: critical.map((c) => c.field),
+    };
+
+    get().createChangeRequest(request, actorId);
+    return {
+      result: 'requested',
+      requestCode: code,
+      criticalLabels: critical.map((c) => c.label),
+    };
+  },
+
   /* ---------------- Kalıcılık ---------------- */
 
   resetToSeed: () => {
@@ -821,6 +917,134 @@ export const useData = create<DataState>((set, get) => ({
     set(withIndexes(seedDataset));
   },
 }));
+
+/** Kayıt henüz yürürlüğe girmemiş bir taslak mı? */
+function isDraftRecord(record: object): boolean {
+  return 'status' in record && (record as { status: string }).status === 'draft';
+}
+
+/**
+ * Onaylanan talebi hedefe uygular ve versiyonu bir basamak artırır.
+ *
+ * Talep açıldığından bu yana hedefin versiyonu değiştiyse (başka bir talep
+ * araya girmişse) yama yine de uygulanır, ancak audit kaydında çakışma
+ * belirtilir — sessizce üzerine yazmak yerine iz bırakılır.
+ */
+function applyRequestPayload(
+  state: DataState,
+  request: ChangeRequest,
+  approverId: string,
+): { version: string | null } | null {
+  if (!request.payload) return null;
+  const kind = (request.targetType === 'process' ? 'process' : request.targetType) as ApprovableKind;
+  const meta = approvalMeta[kind];
+  if (!meta) return null;
+
+  const target = meta.find(state, request.targetId);
+  if (!target) return null;
+
+  const currentVersion = 'version' in target ? String((target as { version: string }).version) : null;
+  const conflicted = Boolean(
+    request.baseVersion && currentVersion && request.baseVersion !== currentVersion,
+  );
+  const nextVersion = currentVersion ? bumpVersion(currentVersion) : null;
+
+  const patch = { ...request.payload };
+  if (nextVersion) patch.version = nextVersion;
+
+  meta.apply(
+    state,
+    request.targetId,
+    patch,
+    approverId,
+    conflicted
+      ? `${request.code} onayı uygulandı. Dikkat: talep v${request.baseVersion} üzerine açılmıştı, kayıt bu arada v${currentVersion} olmuştu.`
+      : `${request.code} onayı uygulandı.`,
+  );
+
+  return { version: nextVersion };
+}
+
+/** Onay akışında kayıt türüne göre okuma/yazma ve etiketler. */
+const approvalMeta: Record<
+  ApprovableKind,
+  {
+    labels: Record<string, string>;
+    find: (s: DataState, id: string) => object | undefined;
+    apply: (s: DataState, id: string, patch: Record<string, unknown>, actorId: string, reason: string) => void;
+  }
+> = {
+  risk: {
+    labels: riskFieldLabels,
+    find: (s, id) => s.riskById.get(id),
+    apply: (s, id, patch, actorId, reason) => s.updateRisk(id, patch as Partial<Risk>, actorId, reason),
+  },
+  control: {
+    labels: controlFieldLabels,
+    find: (s, id) => s.controlById.get(id),
+    apply: (s, id, patch, actorId, reason) => s.updateControl(id, patch as Partial<Control>, actorId, reason),
+  },
+  process: {
+    labels: nodeFieldLabels,
+    find: (s, id) => s.nodeById.get(id),
+    apply: (s, id, patch, actorId, reason) => s.updateNode(id, patch as Partial<ProcessNode>, actorId, reason),
+  },
+  document: {
+    labels: documentFieldLabels,
+    find: (s, id) => s.documentById.get(id),
+    apply: (s, id, patch, actorId, reason) => s.updateDocument(id, patch as Partial<GrcDocument>, actorId, reason),
+  },
+};
+
+/** Sıradaki değişiklik talebi kodu: DT-YYYY-NNN. */
+function nextRequestCode(existing: ChangeRequest[]): string {
+  const year = new Date(NOW).getFullYear();
+  const prefix = `DT-${year}-`;
+  const max = existing.reduce((acc, c) => {
+    if (!c.code.startsWith(prefix)) return acc;
+    const n = Number(c.code.slice(prefix.length));
+    return Number.isNaN(n) ? acc : Math.max(acc, n);
+  }, 0);
+  return `${prefix}${String(max + 1).padStart(3, '0')}`;
+}
+
+/**
+ * Onay zinciri.
+ * Birinci aşama hedef kaydın birim yöneticisi; ikinci aşama risklerde
+ * Risk Yönetimi, diğer kayıtlarda İç Kontrol. Talebi açan kişi kendi
+ * talebini onaylayamaz — bu kural karar anında ayrıca denetlenir.
+ */
+function buildApprovalChain(kind: ApprovableKind, data: Dataset, requesterId: string): ApprovalStep[] {
+  const secondLine: RoleId = kind === 'risk' ? 'risk_management' : 'internal_control';
+  const requester = data.users.find((u) => u.id === requesterId);
+  const steps: ApprovalStep[] = [];
+
+  // Talebi açan kişi zaten birim yöneticisiyse ilk kademe atlanır.
+  const requesterIsManager = Boolean(requester?.roles.includes('unit_manager'));
+  if (!requesterIsManager) {
+    steps.push({
+      order: 1,
+      label: 'Birim Yöneticisi Onayı',
+      requiredRole: 'unit_manager',
+      approverId: null,
+      decision: 'pending',
+      comment: '',
+      decidedAt: null,
+    });
+  }
+
+  steps.push({
+    order: steps.length + 1,
+    label: secondLine === 'risk_management' ? 'Risk Yönetimi Onayı' : 'İç Kontrol Onayı',
+    requiredRole: secondLine,
+    approverId: null,
+    decision: 'pending',
+    comment: '',
+    decidedAt: null,
+  });
+
+  return steps;
+}
 
 /** `candidateId`, `ancestorId`'nin alt ağacında mı? Döngüsel taşımayı engeller. */
 function isDescendant(nodes: ProcessNode[], candidateId: string, ancestorId: string): boolean {

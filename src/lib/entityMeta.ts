@@ -201,6 +201,62 @@ export function diffEntity<T extends object>(
 }
 
 /* ------------------------------------------------------------------ */
+/* Onay gerektiren alanlar                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Kritik alanlar — değiştirildiğinde kayıt doğrudan güncellenmez,
+ * değişiklik talebi üretilir ve onay zincirinden geçer.
+ *
+ * Ölçüt: kurumsal risk profilini, kontrol tasarımını, sorumluluğu ya da
+ * yazılı dayanağı değiştiren alanlar. Açıklama düzeltmesi, sistem listesi
+ * gibi betimleyici alanlar doğrudan kaydedilir.
+ */
+export const criticalFieldsByEntity: Record<string, string[]> = {
+  risk: [
+    'inherent', 'residual', 'target', 'appetite', 'treatment', 'category',
+    'ownerId', 'unitId', 'status',
+  ],
+  control: [
+    'nature', 'execution', 'frequency', 'method', 'evidence', 'keyControl',
+    'effectiveness', 'designAdequacy', 'categories', 'ownerId', 'unitId',
+  ],
+  process: [
+    'ownerId', 'unitId', 'status', 'processClass', 'reviewFrequencyMonths',
+    'criticalPoints', 'slaDays',
+  ],
+  document: ['version', 'sections', 'type', 'ownerId', 'unitId', 'nextReviewAt'],
+};
+
+export interface ApprovalSplit {
+  /** Onay gerektiren alan farkları. */
+  critical: FieldChange[];
+  /** Doğrudan kaydedilebilecek alan farkları. */
+  direct: FieldChange[];
+}
+
+/** Bir yamanın hangi kısmının onaya gideceğini belirler. */
+export function splitByApproval(
+  entityKind: string,
+  changes: FieldChange[],
+): ApprovalSplit {
+  const critical = new Set(criticalFieldsByEntity[entityKind] ?? []);
+  return {
+    critical: changes.filter((c) => critical.has(c.field)),
+    direct: changes.filter((c) => !critical.has(c.field)),
+  };
+}
+
+/** Sürüm numarasını bir minör basamak artırır: 4.2 → 4.3, 1 → 1.1. */
+export function bumpVersion(version: string): string {
+  const parts = version.trim().split('.');
+  if (parts.length < 2) return `${version.trim() || '1'}.1`;
+  const minor = Number(parts[parts.length - 1]);
+  if (Number.isNaN(minor)) return `${version}.1`;
+  return [...parts.slice(0, -1), String(minor + 1)].join('.');
+}
+
+/* ------------------------------------------------------------------ */
 /* Kod üretimi                                                         */
 /* ------------------------------------------------------------------ */
 

@@ -9,9 +9,12 @@ import {
   controlCategoryLabels, controlEffectivenessLabels, controlExecutionLabels,
   controlFrequencyLabels, controlNatureLabels, cosoComponentLabels,
 } from '@/lib/labels';
-import { blankControl, nextCode, processPrefix } from '@/lib/entityMeta';
+import { blankControl, controlFieldLabels, nextCode, processPrefix } from '@/lib/entityMeta';
 import { units, users } from '@/data/org';
 import { Modal } from '@/components/common/Primitives';
+import { ApprovalNotice } from './ApprovalNotice';
+import { previewCritical, useApprovalSave } from './useApprovalSave';
+import { useUi } from '@/store/useUi';
 import {
   ChipMultiSelect, DateInput, FormGrid, FormSection, SelectInput, TextArea, TextInput, Toggle,
   UserSelect,
@@ -38,7 +41,8 @@ export function ControlFormModal({
 }: Props) {
   const data = useData((s) => s.data);
   const createControl = useData((s) => s.createControl);
-  const updateControl = useData((s) => s.updateControl);
+  const notify = useUi((x) => x.notify);
+  const saveWithApproval = useApprovalSave('control');
   const currentUser = useAuth((s) => s.currentUser);
 
   const existing = controlId ? data.controls.find((c) => c.id === controlId) : undefined;
@@ -66,6 +70,8 @@ export function ControlFormModal({
 
   if (!open || !currentUser) return null;
 
+  const critical = previewCritical('control', existing, draft, controlFieldLabels);
+
   const errors: Record<string, string> = {};
   if (!draft.name.trim()) errors.name = 'Kontrol adı zorunludur.';
   if (!draft.description.trim()) errors.description = 'Açıklama zorunludur.';
@@ -79,10 +85,11 @@ export function ControlFormModal({
     setTouched(true);
     if (hasErrors) return;
     if (existing) {
-      updateControl(existing.id, draft, currentUser.id, reason.trim());
+      saveWithApproval(existing.id, draft as unknown as Record<string, unknown>, reason.trim(), currentUser.id);
       onSaved?.(existing.id);
     } else {
       createControl(draft, currentUser.id);
+      notify({ tone: 'success', title: 'Kontrol oluşturuldu', detail: `${draft.code} · ${draft.name}` });
       onSaved?.(draft.id);
     }
     onClose();
@@ -99,18 +106,22 @@ export function ControlFormModal({
         <div className="row between gap-3">
           <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>
             {existing
-              ? 'Değişiklikler eski/yeni değer ve gerekçeyle audit trail’e yazılır.'
+              ? (critical.length
+                ? 'Kritik alan değiştiği için kayıt doğrudan güncellenmez; onay zinciri başlatılır.'
+                : 'Değişiklikler eski/yeni değer ve gerekçeyle audit trail’e yazılır.')
               : `Kod otomatik üretildi: ${draft.code}`}
           </span>
           <span className="row gap-2">
             <button className="btn btn-sm" onClick={onClose}>Vazgeç</button>
             <button className="btn btn-sm btn-primary" onClick={save} disabled={touched && hasErrors}>
-              {existing ? 'Değişiklikleri kaydet' : 'Kontrolü oluştur'}
+              {existing ? (critical.length ? 'Onaya gönder' : 'Değişiklikleri kaydet') : 'Kontrolü oluştur'}
             </button>
           </span>
         </div>
       }
     >
+      <ApprovalNotice critical={critical} />
+
       <FormSection title="Tanım">
         <TextInput
           label="Kontrol adı" required value={draft.name} error={err('name')}

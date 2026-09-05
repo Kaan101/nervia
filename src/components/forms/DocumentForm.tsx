@@ -3,10 +3,13 @@ import type { DocumentSection, DocumentType, GrcDocument } from '@/types/grc';
 import { useData } from '@/store/useData';
 import { useAuth } from '@/store/useAuth';
 import { documentTypeLabels } from '@/lib/labels';
-import { blankDocument, nextCode } from '@/lib/entityMeta';
+import { blankDocument, documentFieldLabels, nextCode } from '@/lib/entityMeta';
 import { isOverdue } from '@/lib/riskMath';
 import { units, users } from '@/data/org';
 import { Modal } from '@/components/common/Primitives';
+import { ApprovalNotice } from './ApprovalNotice';
+import { previewCritical, useApprovalSave } from './useApprovalSave';
+import { useUi } from '@/store/useUi';
 import {
   DateInput, FormGrid, FormSection, RepeaterRow, SelectInput, TextArea, TextInput, UserSelect,
 } from './Fields';
@@ -33,7 +36,8 @@ interface Props {
 export function DocumentFormModal({ open, onClose, documentId, defaultNodeId, onSaved }: Props) {
   const data = useData((s) => s.data);
   const createDocument = useData((s) => s.createDocument);
-  const updateDocument = useData((s) => s.updateDocument);
+  const saveWithApproval = useApprovalSave('document');
+  const notify = useUi((x) => x.notify);
   const currentUser = useAuth((s) => s.currentUser);
 
   const existing = documentId ? data.documents.find((d) => d.id === documentId) : undefined;
@@ -59,6 +63,8 @@ export function DocumentFormModal({ open, onClose, documentId, defaultNodeId, on
 
   if (!open || !currentUser) return null;
 
+  const critical = previewCritical('document', existing, draft, documentFieldLabels);
+
   const errors: Record<string, string> = {};
   if (!draft.name.trim()) errors.name = 'Doküman adı zorunludur.';
   if (!draft.code.trim()) errors.code = 'Kod zorunludur.';
@@ -77,8 +83,12 @@ export function DocumentFormModal({ open, onClose, documentId, defaultNodeId, on
     setTouched(true);
     if (hasErrors) return;
     const record = existing ? draft : { ...draft, id: `doc-${draft.code}` };
-    if (existing) updateDocument(existing.id, record, currentUser.id, reason.trim());
-    else createDocument(record, currentUser.id);
+    if (existing) {
+      saveWithApproval(existing.id, record as unknown as Record<string, unknown>, reason.trim(), currentUser.id);
+    } else {
+      createDocument(record, currentUser.id);
+      notify({ tone: 'success', title: 'Doküman oluşturuldu', detail: `${record.code} v${record.version}` });
+    }
     onSaved?.(record.id);
     onClose();
   };
@@ -101,18 +111,24 @@ export function DocumentFormModal({ open, onClose, documentId, defaultNodeId, on
         <div className="row between gap-3">
           <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>
             {existing
-              ? 'Değişiklikler eski/yeni değer ve gerekçeyle audit trail’e yazılır.'
+              ? (critical.length
+                ? 'Kritik alan değiştiği için doküman doğrudan güncellenmez; onay zinciri başlatılır.'
+                : 'Değişiklikler eski/yeni değer ve gerekçeyle audit trail’e yazılır.')
               : 'Süreç ilişkisi doküman oluşturulduktan sonra da düzenlenebilir.'}
           </span>
           <span className="row gap-2">
             <button className="btn btn-sm" onClick={onClose}>Vazgeç</button>
             <button className="btn btn-sm btn-primary" onClick={save} disabled={touched && hasErrors}>
-              {existing ? 'Değişiklikleri kaydet' : 'Dokümanı oluştur'}
+              {existing
+                ? (critical.length ? 'Onaya gönder' : 'Değişiklikleri kaydet')
+                : 'Dokümanı oluştur'}
             </button>
           </span>
         </div>
       }
     >
+      <ApprovalNotice critical={critical} />
+
       <FormSection title="Künye">
         <FormGrid>
           <TextInput
