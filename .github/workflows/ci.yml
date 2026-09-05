@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# Aynı dal için üst üste gelen koşuları iptal et; sadece son commit önemli.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dogrulama:
+    name: Tip kontrolü, derleme ve uçtan uca testler
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      - name: Tip kontrolü
+        run: npm run typecheck
+
+      - name: Derle
+        run: npm run build
+
+      # Süitler gerçek tarayıcı sürüyor; Playwright'in kendi Chromium'u ve
+      # sistem bağımlılıkları gerekiyor.
+      - name: Chromium kur
+        run: npx playwright install --with-deps chromium
+
+      # Sunucu ve testler tek adımda: arka plan süreci adımlar arasında
+      # yaşamayabilir, bu yüzden başlatma-bekleme-koşma-durdurma bir arada.
+      - name: Uçtan uca doğrulama süitleri
+        run: |
+          npm run preview -- --port 4173 --strictPort &
+          PREVIEW_PID=$!
+          trap 'kill $PREVIEW_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:4173 >/dev/null; then break; fi
+            if [ "$i" = "60" ]; then echo "Önizleme sunucusu açılmadı"; exit 1; fi
+            sleep 1
+          done
+          npm run test:e2e
+        env:
+          NERVIA_BASE_URL: http://127.0.0.1:4173
+          NERVIA_SHOT_DIR: test-results
+
+      # Bir süit düşerse ekran görüntüleri hatanın nerede olduğunu gösterir.
+      - name: Ekran görüntülerini yükle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ekran-goruntuleri
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

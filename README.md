@@ -25,6 +25,8 @@ npm install
 npm run dev        # geliştirme sunucusu
 npm run build      # tip kontrolü + üretim derlemesi
 npm run preview    # derlenmiş sürümü yerelde çalıştır
+npm run typecheck  # yalnızca tip kontrolü
+npm test           # tip kontrolü + derleme + uçtan uca doğrulama
 ```
 
 Uygulama tamamen istemci tarafında çalışır; arka uç gerektirmez. Demo veri kümesi
@@ -196,6 +198,38 @@ Reddedilen talepte hedef kayıt hiç değişmez.
 olmak ya da 2. hatta bulunmak gerekir; arşivleme yalnızca 2. hat ve sistem
 yöneticisindedir. Yetkisi olmayan kullanıcı düğmeleri görmez, gerekçesini görür.
 
+## Doğrulama
+
+Üç uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
+düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 50 kontrol.
+
+```bash
+npm run build
+npm run preview -- --port 4173 --strictPort &
+npm run test:e2e
+```
+
+| Süit | Kapsam | Kontrol |
+|---|---|---|
+| `faz1-kayit-yonetimi` | Kayıt oluşturma, düzenleme, risk–kontrol bağlama, arşivleme, kalıcılık, rol bazlı yetki reddi | 16 |
+| `faz2-surec-yapisi` | Ana süreç → alt süreç → faaliyet ağacı, sıralama, kritik nokta, doküman bağlama, süreç arşivleme | 15 |
+| `faz3-onay-mekanizmasi` | Kritik alan tespiti, talep üretimi, kendi talebini onaylayamama, iki kademeli zincir, uygulama | 19 |
+
+Ortam değişkenleri:
+
+| Değişken | Varsayılan | Açıklama |
+|---|---|---|
+| `NERVIA_BASE_URL` | `http://localhost:4173` | Süitlerin bağlanacağı sunucu |
+| `NERVIA_SHOT_DIR` | `test-results` | Ekran görüntüsü klasörü |
+| `NERVIA_CHROMIUM_PATH` | — | Sistemde hazır bir Chromium varsa yolu; Playwright'in indirmesini atlatır |
+
+Her süit kendi tarayıcı bağlamını açar, böylece `localStorage` süitler arasında
+taşınmaz ve her biri tohum veriden başlar. Bir kontrol düşerse süreç sıfırdan
+farklı çıkış kodu döner; `.github/workflows/ci.yml` bunu her push ve pull
+request'te koşar, ekran görüntülerini artifact olarak yükler.
+
+---
+
 ## Kalıcılık
 
 Uygulama arka uçsuz çalışır. Yapılan her değişiklik tarayıcının `localStorage`
@@ -324,6 +358,12 @@ src/
     process/              # süreç görünümleri ve detay panelleri
   pages/                  # rota bileşenleri
   styles/                 # tasarım belirteçleri ve katmanlı stiller
+tests/
+  harness.mjs             # ortak tarayıcı iskeleti ve kontrol sayacı
+  faz1-kayit-yonetimi.mjs # kalıcılık, CRUD, ilişkilendirme, arşivleme
+  faz2-surec-yapisi.mjs   # süreç ağacı, sıralama, doküman yönetimi
+  faz3-onay-mekanizmasi.mjs # kritik alan → onay zinciri → uygulama
+  run-all.mjs             # üç süiti sırayla koşan toplu koşucu
 ```
 
 Grafiklerin tamamı bağımlılık kullanmadan, doğrudan SVG olarak çizilmiştir.
