@@ -101,7 +101,7 @@ check('Kalıcılık paneli durumu gösteriyor', /Yerel değişiklikler kayıtlı
 await page.screenshot({ path: 'crud-09-profil.png' });
 
 // ---------- 9. Yetki kontrolü ----------
-setPersona('usr-04'); // Barış Öztürk — Hasar Uzmanı, yalnızca 'employee' rolü
+await setPersona('usr-04'); // Barış Öztürk — Hasar Uzmanı, yalnızca 'employee' rolü
 await page.goto(`${BASE}/#/riskler`, { waitUntil: 'domcontentloaded' });
 await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(800);

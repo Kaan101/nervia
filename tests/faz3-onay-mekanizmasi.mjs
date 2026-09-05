@@ -75,8 +75,7 @@ check('Kendi talebini onaylayamıyor', /kendi talebini onaylayamaz/.test(selfTex
 await page.screenshot({ path: 'f3-05-kendi-talebi.png' });
 
 // ---------- 5. Birim yöneticisi onaylar ----------
-setPersona('usr-02'); // Mert Aydın — Hasar Direktörü, birim yöneticisi
-await page.goto('about:blank');
+await setPersona('usr-02'); // Mert Aydın — Hasar Direktörü, birim yöneticisi
 await page.goto(`${BASE}/#/degisiklikler`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(900);
 await page.getByRole('button', { name: 'Onayla' }).first().click();
@@ -94,8 +93,7 @@ const stillPending = await page.locator('.drawer').innerText();
 check('Tek onaydan sonra kayıt hâlâ değişmedi', /Onay bekleyen değişiklik var/.test(stillPending));
 
 // ---------- 6. Risk Yönetimi onaylar → uygulanır ----------
-setPersona('usr-20'); // Pelin Yavuz — Risk Yönetimi Direktörü
-await page.goto('about:blank');
+await setPersona('usr-20'); // Pelin Yavuz — Risk Yönetimi Direktörü
 await page.goto(`${BASE}/#/degisiklikler`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(900);
 await page.getByRole('button', { name: 'Onayla' }).first().click();

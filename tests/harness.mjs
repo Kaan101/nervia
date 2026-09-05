@@ -27,17 +27,19 @@ export async function startRun(initialPersona) {
   const browser = await chromium.launch(executablePath ? { executablePath } : {});
   const ctx = await browser.newContext({ viewport: { width: 1500, height: 980 } });
 
-  // Persona kapanış değişkeni olarak tutulur: addInitScript her gezinmede
-  // yeniden koşar ve o anki değeri okur, sabit bir değeri ezmez.
-  const state = { persona: initialPersona };
-  await ctx.exposeFunction('__persona', () => state.persona);
-  await ctx.addInitScript(async () => {
-    try {
-      localStorage.setItem('nervia.session', await window.__persona());
-    } catch {
-      /* depolama kapalıysa uygulama giriş ekranına düşer, test bunu raporlar */
+  // Başlangıç oturumu SENKRON olarak yazılır. Değeri exposeFunction ile
+  // köprülemek cazip görünüyor ama init script'i asenkron yapıyor: setItem
+  // bir IPC gidiş-dönüşünün ardına düşüyor ve uygulamanın açılış kodu
+  // oturumu daha yazılmadan okuyabiliyor. Yavaş makinelerde bu yarış
+  // kaybediliyordu.
+  //
+  // "Yoksa yaz" koşulu şart: setPersona sonradan başka bir değer yazdığında
+  // sonraki gezinmelerde bu script onu geri ezmemeli.
+  await ctx.addInitScript(`try {
+    if (!localStorage.getItem('nervia.session')) {
+      localStorage.setItem('nervia.session', ${JSON.stringify(initialPersona)});
     }
-  });
+  } catch (e) { /* depolama kapalıysa uygulama giriş ekranına düşer */ }`);
 
   const page = await ctx.newPage();
   const errs = [];
@@ -55,8 +57,23 @@ export async function startRun(initialPersona) {
     console.log(`  ${ok ? '✓' : '✗'} ${name}${detail ? ' — ' + detail : ''}`);
   };
   const step = (n) => console.log('  →', n);
-  const setPersona = (id) => {
-    state.persona = id;
+  /**
+   * Oturumu başka bir kullanıcıya geçirir.
+   *
+   * Değeri sayfa bağlamında doğrudan yazar ve yeniden yükler: hash
+   * gezinmesi aynı belge içinde kaldığı için uygulama oturumu kendiliğinden
+   * yeniden okumaz. Sonunda değerin gerçekten uygulandığı doğrulanır —
+   * sessizce eski kullanıcıyla devam etmek, testin çok ilerisinde anlamsız
+   * bir "düğme bulunamadı" hatası olarak patlıyordu.
+   */
+  const setPersona = async (id) => {
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((v) => localStorage.setItem('nervia.session', v), id);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const applied = await page.evaluate(() => localStorage.getItem('nervia.session'));
+    if (applied !== id) {
+      throw new Error(`Oturum değiştirilemedi: beklenen ${id}, bulunan ${applied}`);
+    }
   };
 
   /** Sonucu özetler ve başarısızlıkta süreç çıkış kodunu 1 yapar. */
