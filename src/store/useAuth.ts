@@ -52,6 +52,53 @@ export function canEditNode(user: User | null, node: ProcessNode | undefined): b
   return false;
 }
 
+/* ------------------------------------------------------------------ */
+/* Kayıt bazlı düzenleme yetkileri                                     */
+/* ------------------------------------------------------------------ */
+
+const authorRoles: RoleId[] = [
+  'process_owner', 'unit_manager', 'internal_control', 'risk_management', 'system_admin',
+];
+
+/** İkinci hat ve sistem yöneticisi: kapsam sınırı olmadan düzenleyebilir. */
+function isSecondLine(user: User): boolean {
+  return user.roles.some((r) => ['internal_control', 'risk_management', 'system_admin'].includes(r));
+}
+
+/** Yeni risk / kontrol / aksiyon tanımlayabilir mi? */
+export function canCreateRecords(user: User | null): boolean {
+  return Boolean(user && user.roles.some((r) => authorRoles.includes(r)));
+}
+
+/** Belirli bir kaydı düzenleyebilir mi? Sahiplik ya da birim sorumluluğu gerekir. */
+export function canEditRecord(
+  user: User | null,
+  record: { ownerId: string; unitId?: string } | undefined,
+): boolean {
+  if (!user || !record) return false;
+  if (isSecondLine(user)) return true;
+  if (!user.roles.some((r) => authorRoles.includes(r))) return false;
+  if (record.ownerId === user.id) return true;
+  return user.roles.includes('unit_manager') && record.unitId === user.unitId;
+}
+
+/**
+ * Arşivleme yetkisi.
+ * Kayıt kütüphaneden düştüğü için birinci hattan daha dar tutulur:
+ * yalnızca ikinci hat ve sistem yöneticisi arşivleyebilir.
+ */
+export function canArchiveRecords(user: User | null): boolean {
+  return Boolean(user && isSecondLine(user));
+}
+
+/** Aksiyonu güncelleyebilir mi? Sorumlusu da güncelleyebilir. */
+export function canEditAction(user: User | null, action: { ownerId: string } | undefined): boolean {
+  if (!user || !action) return false;
+  if (action.ownerId === user.id) return true;
+  if (isSecondLine(user)) return true;
+  return user.roles.includes('unit_manager');
+}
+
 interface AuthState {
   currentUser: User | null;
   capabilities: Capabilities;

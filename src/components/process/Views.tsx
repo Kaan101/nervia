@@ -358,7 +358,7 @@ export function ControlView({ rootId }: { rootId: string }) {
     const root = data.nodes.find((n) => n.id === rootId);
     if (!root) return [];
     const ids = new Set([root.id, ...descendants(data.nodes, rootId).map((n) => n.id)]);
-    return data.controls.filter((c) => c.processNodeIds.some((id) => ids.has(id)));
+    return data.controls.filter((c) => !c.archived && c.processNodeIds.some((id) => ids.has(id)));
   }, [data, rootId]);
 
   const byNature = useMemo(() => {
@@ -505,7 +505,7 @@ export function EffectivenessSummary({ rootId }: { rootId: string }) {
   const data = useData((s) => s.data);
   const controls = useMemo(() => {
     const ids = new Set([rootId, ...descendants(data.nodes, rootId).map((n) => n.id)]);
-    return data.controls.filter((c) => c.processNodeIds.some((id) => ids.has(id)));
+    return data.controls.filter((c) => !c.archived && c.processNodeIds.some((id) => ids.has(id)));
   }, [data, rootId]);
 
   const groups = (['effective', 'partially_effective', 'ineffective', 'not_tested'] as const)

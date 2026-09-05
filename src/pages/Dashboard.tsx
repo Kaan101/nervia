@@ -23,6 +23,8 @@ import {
 
 export function Dashboard() {
   const data = useData((s) => s.data);
+  const activeControls = useData((s) => s.activeControls);
+  const activeActions = useData((s) => s.activeActions);
   const currentUser = useAuth((s) => s.currentUser);
   const select = useUi((s) => s.select);
   const navigate = useNavigate();
@@ -45,7 +47,7 @@ export function Dashboard() {
 
   const topRisks = useMemo(() => sortRisksBySeverity(data.risks).slice(0, 6), [data]);
   const overdueActions = useMemo(
-    () => data.actions
+    () => activeActions
       .filter((a) => (a.status === 'open' || a.status === 'in_progress') && isOverdue(a.dueDate))
       .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
     [data],
@@ -62,7 +64,7 @@ export function Dashboard() {
     .map((e, i) => ({
       key: e,
       label: controlEffectivenessLabels[e],
-      value: data.controls.filter((c) => c.effectiveness === e).length,
+      value: activeControls.filter((c) => c.effectiveness === e).length,
       color: [levelMark.low, levelMark.medium, levelMark.critical, 'var(--ink-300)'][i],
     }))
     .filter((s) => s.value > 0);
@@ -126,7 +128,7 @@ export function Dashboard() {
           <div className="card-body">
             <Donut
               slices={effectivenessSlices}
-              heroValue={`%${Math.round((data.controls.filter((c) => c.effectiveness === 'effective').length / Math.max(1, data.controls.length)) * 100)}`}
+              heroValue={`%${Math.round((activeControls.filter((c) => c.effectiveness === 'effective').length / Math.max(1, activeControls.length)) * 100)}`}
               heroLabel="Etkin"
             />
           </div>

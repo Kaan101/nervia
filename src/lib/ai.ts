@@ -246,6 +246,7 @@ export function analyseProcesses(data: Dataset, scopeNodeId?: string): Finding[]
 
   /* Kontrolsüz veya zayıf kontrollü riskler */
   for (const risk of data.risks) {
+    if (risk.archived) continue;
     if (!risk.processNodeIds.some((id) => scopeIds.has(id))) continue;
     const controls = risk.controlIds.map((id) => data.controls.find((c) => c.id === id)!).filter(Boolean);
     const level = riskLevel(risk.residual);
@@ -297,6 +298,7 @@ export function analyseProcesses(data: Dataset, scopeNodeId?: string): Finding[]
 
   /* Etkin olmayan ve test edilmemiş kontroller */
   for (const control of data.controls) {
+    if (control.archived) continue;
     if (!control.processNodeIds.some((id) => scopeIds.has(id))) continue;
     if (control.effectiveness === 'ineffective' || control.effectiveness === 'partially_effective') {
       findings.push({
@@ -329,6 +331,7 @@ export function analyseProcesses(data: Dataset, scopeNodeId?: string): Finding[]
   /* Görevler ayrılığı: aynı kişinin çakışan rolleri */
   const byNode = new Map<string, Control[]>();
   for (const c of data.controls) {
+    if (c.archived) continue;
     for (const nodeId of c.processNodeIds) {
       if (!scopeIds.has(nodeId)) continue;
       byNode.set(nodeId, [...(byNode.get(nodeId) ?? []), c]);
@@ -358,6 +361,7 @@ export function analyseProcesses(data: Dataset, scopeNodeId?: string): Finding[]
   /* Mükerrer / örtüşen kontroller */
   const controlSignature = new Map<string, Control[]>();
   for (const c of data.controls) {
+    if (c.archived) continue;
     if (!c.processNodeIds.some((id) => scopeIds.has(id))) continue;
     const key = `${c.nature}|${[...c.categories].sort().join(',')}|${normalize(c.name).split(' ').slice(0, 2).join(' ')}`;
     controlSignature.set(key, [...(controlSignature.get(key) ?? []), c]);
@@ -416,6 +420,7 @@ export function analyseProcesses(data: Dataset, scopeNodeId?: string): Finding[]
 
   /* Süresi geçmiş dokümanlar */
   for (const doc of data.documents) {
+    if (doc.archived) continue;
     if (!doc.processNodeIds.some((id) => scopeIds.has(id))) continue;
     if (doc.status === 'expired') {
       findings.push({
@@ -433,6 +438,7 @@ export function analyseProcesses(data: Dataset, scopeNodeId?: string): Finding[]
 
   /* Gecikmiş aksiyonlar */
   for (const action of data.actions) {
+    if (action.archived) continue;
     if (action.processNodeId && !scopeIds.has(action.processNodeId)) continue;
     if ((action.status === 'open' || action.status === 'in_progress') && isOverdue(action.dueDate)) {
       findings.push({
@@ -571,7 +577,7 @@ export function answerQuestion(data: Dataset, question: string): NlAnswer {
   /* --- Manuel kontroller --- */
   if (has('manuel') && has('kontrol')) {
     const list = data.controls
-      .filter((c) => c.execution === 'manual')
+      .filter((c) => !c.archived && c.execution === 'manual')
       .filter((c) => inScope(c.processNodeIds));
     return {
       interpretation: `Manuel olarak yürütülen kontroller — kapsam: ${scopeLabel}.`,
@@ -588,7 +594,7 @@ export function answerQuestion(data: Dataset, question: string): NlAnswer {
   /* --- Etkin olmayan kontroller --- */
   if (has('etkin olmayan', 'etkin değil', 'zayıf kontrol', 'çalışmayan kontrol')) {
     const list = data.controls
-      .filter((c) => c.effectiveness === 'ineffective' || c.effectiveness === 'partially_effective')
+      .filter((c) => !c.archived && (c.effectiveness === 'ineffective' || c.effectiveness === 'partially_effective'))
       .filter((c) => inScope(c.processNodeIds));
     return {
       interpretation: `Etkinliği yetersiz kontroller — kapsam: ${scopeLabel}.`,
@@ -606,7 +612,7 @@ export function answerQuestion(data: Dataset, question: string): NlAnswer {
   if (has('aksiyon', 'aksiyonlar', 'gecikmiş')) {
     const overdueOnly = has('gecikmiş', 'geciken', 'süresi geçen');
     const list = data.actions
-      .filter((a) => a.status === 'open' || a.status === 'in_progress')
+      .filter((a) => !a.archived && (a.status === 'open' || a.status === 'in_progress'))
       .filter((a) => (overdueOnly ? isOverdue(a.dueDate) : true))
       .filter((a) => (person ? a.ownerId === person.id : true))
       .filter((a) => (a.processNodeId ? inScope([a.processNodeId]) : true))
@@ -627,7 +633,7 @@ export function answerQuestion(data: Dataset, question: string): NlAnswer {
   if (has('prosedür', 'doküman', 'talimat', 'politika')) {
     const expiredOnly = has('güncel olmayan', 'süresi geçen', 'eski');
     const list = data.documents
-      .filter((d) => (expiredOnly ? d.status === 'expired' : true))
+      .filter((d) => !d.archived && (expiredOnly ? d.status === 'expired' : true))
       .filter((d) => inScope(d.processNodeIds));
     return {
       interpretation: `${expiredOnly ? 'Gözden geçirme tarihi geçmiş' : 'Tanımlı'} dokümanlar — kapsam: ${scopeLabel}.`,
@@ -644,7 +650,7 @@ export function answerQuestion(data: Dataset, question: string): NlAnswer {
   /* --- Varsayılan: risk sorgusu --- */
   const wantsCritical = has('kritik', 'en riskli', 'en yüksek');
   const wantsHigh = has('yüksek');
-  let risks = data.risks.filter((r) => inScope(r.processNodeIds));
+  let risks = data.risks.filter((r) => !r.archived && inScope(r.processNodeIds));
   if (person) risks = risks.filter((r) => r.ownerId === person.id);
   if (category) risks = risks.filter((r) => r.category === category);
   if (wantsCritical) risks = risks.filter((r) => riskLevel(r.residual) === 'critical');

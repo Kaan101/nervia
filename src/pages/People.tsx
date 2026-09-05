@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
+import { formatDateTime } from '@/lib/riskMath';
 import { useData } from '@/store/useData';
+import { persistenceState, snapshotSizeKb } from '@/store/persistence';
 import { useAuth, capabilitiesOf, demoPersonas } from '@/store/useAuth';
 import { roleDescriptions, roleLabels } from '@/lib/labels';
 import { unitName, userById, userName } from '@/data/org';
-import { Avatar, Badge, EmptyState, Metric, SectionHeading } from '@/components/common/Primitives';
-import { IconCheck, IconClose, IconSearch } from '@/components/common/Icons';
+import { Avatar, Badge, EmptyState, Metric, Modal, SectionHeading } from '@/components/common/Primitives';
+import { IconCheck, IconClose, IconRefresh, IconSearch, IconWarning } from '@/components/common/Icons';
 import type { RoleId } from '@/types/grc';
 
 /* ------------------------------------------------------------------ */
@@ -141,13 +143,20 @@ export function UsersPage() {
 
 export function ProfilePage() {
   const data = useData((s) => s.data);
+  const resetToSeed = useData((s) => s.resetToSeed);
   const { currentUser, capabilities, login, logout } = useAuth();
+  const [confirmReset, setConfirmReset] = useState(false);
   if (!currentUser) return null;
 
+  // Kalıcılık durumu her render'da tazelenir; veri değiştikçe bileşen yeniden çizilir.
+  const sizeKb = snapshotSizeKb();
+  const savedAt = persistenceState.savedAt;
+  const storageError = persistenceState.error;
+
   const ownedProcesses = data.nodes.filter((n) => n.ownerId === currentUser.id && n.kind !== 'step');
-  const ownedRisks = data.risks.filter((r) => r.ownerId === currentUser.id);
-  const ownedControls = data.controls.filter((c) => c.ownerId === currentUser.id);
-  const myActions = data.actions.filter((a) => a.ownerId === currentUser.id);
+  const ownedRisks = data.risks.filter((r) => !r.archived && r.ownerId === currentUser.id);
+  const ownedControls = data.controls.filter((c) => !c.archived && c.ownerId === currentUser.id);
+  const myActions = data.actions.filter((a) => !a.archived && a.ownerId === currentUser.id);
 
   const capRows: { label: string; value: boolean; note: string }[] = [
     { label: 'Tüm organizasyonu görüntüleme', value: capabilities.viewAll, note: 'Kendi birimi dışındaki süreçleri de görebilir.' },
@@ -220,6 +229,84 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <div className="section">
+        <SectionHeading title="Veri ve kalıcılık" />
+        <div className="card">
+          <div className="card-body stack gap-4">
+            {storageError ? (
+              <div className="callout lvl-critical">
+                <IconWarning size={15} style={{ flex: '0 0 auto', marginTop: 2 }} />
+                <span><span className="callout-title">Kaydedilemiyor. </span>{storageError}</span>
+              </div>
+            ) : (
+              <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>
+                Yaptığınız her değişiklik — yeni risk, kontrol, aksiyon, düzenleme, arşivleme, onay —
+                bu tarayıcıda saklanır ve sayfayı yenilediğinizde korunur. Veri yalnızca bu tarayıcıda
+                tutulur; başka bir cihaza ya da kullanıcıya taşınmaz.
+              </p>
+            )}
+
+            <dl className="dl">
+              <dt>Durum</dt>
+              <dd>
+                {savedAt
+                  ? <Badge level="low"><span className="dot" />Yerel değişiklikler kayıtlı</Badge>
+                  : <Badge tone="plain">Demo verisi — henüz değişiklik yok</Badge>}
+              </dd>
+              <dt>Son kayıt</dt>
+              <dd>{savedAt ? formatDateTime(savedAt) : '—'}</dd>
+              <dt>Kayıt boyutu</dt>
+              <dd>{sizeKb !== null ? `${sizeKb} KB` : '—'}</dd>
+              <dt>Kayıt sayısı</dt>
+              <dd className="num">
+                {data.risks.filter((r) => !r.archived).length} risk
+                · {data.controls.filter((c) => !c.archived).length} kontrol
+                · {data.actions.filter((a) => !a.archived).length} aksiyon
+                · {data.auditTrail.length} audit kaydı
+              </dd>
+            </dl>
+
+            <div className="hairline" style={{ margin: 0 }} />
+
+            <div className="row between gap-3 wrap">
+              <span className="dim" style={{ fontSize: 'var(--text-xs)', maxWidth: '60ch' }}>
+                Sıfırlama, bu tarayıcıdaki tüm değişiklikleri kalıcı olarak siler ve demo verisini
+                geri yükler. Bu işlem geri alınamaz.
+              </span>
+              <button className="btn btn-danger" onClick={() => setConfirmReset(true)}>
+                <IconRefresh size={14} /> Demo verisine sıfırla
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Modal
+        open={confirmReset}
+        onClose={() => setConfirmReset(false)}
+        title="Demo verisine sıfırla"
+        footer={
+          <div className="row gap-2 end">
+            <button className="btn btn-sm" onClick={() => setConfirmReset(false)}>Vazgeç</button>
+            <button
+              className="btn btn-sm btn-danger"
+              onClick={() => { resetToSeed(); setConfirmReset(false); }}
+            >
+              Evet, sıfırla
+            </button>
+          </div>
+        }
+      >
+        <div className="callout lvl-critical">
+          <IconWarning size={16} style={{ flex: '0 0 auto', marginTop: 2 }} />
+          <span>
+            <span className="callout-title">Bu işlem geri alınamaz. </span>
+            Eklediğiniz tüm risk, kontrol ve aksiyonlar, yaptığınız düzenlemeler, arşivlemeler ve
+            audit trail kayıtları silinir; sistem ilk demo verisine döner.
+          </span>
+        </div>
+      </Modal>
 
       <div className="section">
         <SectionHeading title="Persona değiştir" />

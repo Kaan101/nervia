@@ -102,7 +102,8 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 
 /* ---- Form ---- */
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field > label { font-size: var(--text-xs); font-weight: 600; color: var(--ink-600); }
+.field > label,
+.field > .field-label { font-size: var(--text-xs); font-weight: 600; color: var(--ink-600); }
 .input, .select, .textarea {
   height: 32px; padding: 0 var(--s3);
   border: 1px solid var(--border-strong); border-radius: var(--radius);
@@ -208,8 +209,10 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .drawer-body { flex: 1; overflow-y: auto; padding: var(--s5); }
 .drawer-foot { padding: var(--s3) var(--s5); border-top: 1px solid var(--border); background: var(--surface-sunken); }
 
+.overlay-modal { z-index: 70; }
+
 .modal {
-  position: fixed; z-index: 61; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  position: fixed; z-index: 71; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 64px);
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);

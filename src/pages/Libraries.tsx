@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import type { ControlCategory, ControlNature, RiskCategory } from '@/types/grc';
 import { useData } from '@/store/useData';
 import { useUi } from '@/store/useUi';
+import { canCreateRecords, useAuth } from '@/store/useAuth';
+import { RiskFormModal } from '@/components/forms/RiskForm';
+import { ControlFormModal } from '@/components/forms/ControlForm';
 import { mainProcessOfRisk, sortRisksBySeverity } from '@/lib/selectors';
 import { formatDate, isOutsideAppetite, monthsSince, riskLevel, score } from '@/lib/riskMath';
 import {
@@ -14,7 +17,7 @@ import { userName } from '@/data/org';
 import { Badge, EmptyState, Metric, ScoreChip, Segmented, TrendIcon } from '@/components/common/Primitives';
 import { LevelLegend, StackedBarList, levelMark } from '@/components/charts/Charts';
 import { SelectionDrawer } from '@/components/process/DetailPanel';
-import { IconSearch } from '@/components/common/Icons';
+import { IconPlus, IconSearch } from '@/components/common/Icons';
 
 /* ================================================================== */
 /* Risk Kütüphanesi                                                    */
@@ -23,19 +26,26 @@ import { IconSearch } from '@/components/common/Icons';
 export function RiskLibrary() {
   const data = useData((s) => s.data);
   const { select } = useUi();
+  const currentUser = useAuth((s) => s.currentUser);
   const { riskId } = useParams();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string>('');
   const [level, setLevel] = useState<string>('');
   const [sort, setSort] = useState<'severity' | 'code' | 'assessed'>('severity');
+  const [showArchived, setShowArchived] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  const canCreate = canCreateRecords(currentUser);
+  const archivedCount = data.risks.filter((r) => r.archived).length;
+  const activeRisks = useData((s) => s.activeRisks);
 
   useEffect(() => {
     if (riskId) select('risk', riskId);
   }, [riskId, select]);
 
   const rows = useMemo(() => {
-    let list = data.risks;
+    let list = data.risks.filter((r) => Boolean(r.archived) === showArchived);
     if (query.trim()) {
       const q = query.toLocaleLowerCase('tr-TR');
       list = list.filter((r) => `${r.code} ${r.name} ${r.description}`.toLocaleLowerCase('tr-TR').includes(q));
@@ -45,11 +55,11 @@ export function RiskLibrary() {
     if (sort === 'severity') return sortRisksBySeverity(list);
     if (sort === 'code') return [...list].sort((a, b) => a.code.localeCompare(b.code));
     return [...list].sort((a, b) => a.lastAssessedAt.localeCompare(b.lastAssessedAt));
-  }, [data, query, category, level, sort]);
+  }, [data, query, category, level, sort, showArchived]);
 
   const byCategory = useMemo(() => {
     const map = new Map<RiskCategory, { total: number; byLevel: Record<string, number> }>();
-    for (const r of data.risks) {
+    for (const r of activeRisks) {
       const entry = map.get(r.category) ?? { total: 0, byLevel: { low: 0, medium: 0, high: 0, critical: 0 } };
       entry.total += 1;
       entry.byLevel[riskLevel(r.residual)] += 1;
@@ -71,13 +81,25 @@ export function RiskLibrary() {
             daha fazla süreç adımı ve kontrolle ilişkilendirilir.
           </p>
         </div>
+        <div className="row gap-2">
+          {archivedCount ? (
+            <button className="btn" onClick={() => setShowArchived((v) => !v)}>
+              {showArchived ? 'Aktif kayıtlar' : `Arşiv (${archivedCount})`}
+            </button>
+          ) : null}
+          {canCreate ? (
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
+              <IconPlus size={14} /> Yeni risk
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid cols-4" style={{ marginBottom: 'var(--s5)' }}>
-        <div className="card card-pad"><Metric compact label="Toplam risk" value={data.risks.length} /></div>
-        <div className="card card-pad"><Metric compact label="Kritik" value={data.risks.filter((r) => riskLevel(r.residual) === 'critical').length} tone="alert" /></div>
-        <div className="card card-pad"><Metric compact label="İştah aşımı" value={data.risks.filter(isOutsideAppetite).length} tone="warn" /></div>
-        <div className="card card-pad"><Metric compact label="Kontrolsüz risk" value={data.risks.filter((r) => r.controlIds.length === 0).length} tone={data.risks.some((r) => !r.controlIds.length) ? 'alert' : 'default'} /></div>
+        <div className="card card-pad"><Metric compact label="Toplam risk" value={activeRisks.length} /></div>
+        <div className="card card-pad"><Metric compact label="Kritik" value={activeRisks.filter((r) => riskLevel(r.residual) === 'critical').length} tone="alert" /></div>
+        <div className="card card-pad"><Metric compact label="İştah aşımı" value={activeRisks.filter(isOutsideAppetite).length} tone="warn" /></div>
+        <div className="card card-pad"><Metric compact label="Kontrolsüz risk" value={activeRisks.filter((r) => r.controlIds.length === 0).length} tone={activeRisks.some((r) => !r.controlIds.length) ? 'alert' : 'default'} /></div>
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(300px, 0.5fr)', marginBottom: 'var(--s5)' }}>
@@ -92,7 +114,7 @@ export function RiskLibrary() {
           <div className="card-head"><h4>Değerlendirme güncelliği</h4></div>
           <div className="card-body stack gap-3">
             {[3, 6, 12].map((m) => {
-              const count = data.risks.filter((r) => monthsSince(r.lastAssessedAt) > m).length;
+              const count = activeRisks.filter((r) => monthsSince(r.lastAssessedAt) > m).length;
               return (
                 <div className="row between" key={m} style={{ fontSize: 'var(--text-sm)' }}>
                   <span className="muted">{m} aydan eski değerlendirme</span>
@@ -107,6 +129,16 @@ export function RiskLibrary() {
           </div>
         </div>
       </div>
+
+      {showArchived ? (
+        <div className="callout lvl-medium" style={{ marginBottom: 'var(--s4)' }}>
+          <span>
+            <span className="callout-title">Arşiv görünümü. </span>
+            Bu kayıtlar sayımlara, ısı haritasına, aramaya ve analize dahil edilmez.
+            Detayını açıp “Arşivden geri al” ile aktifleştirebilirsiniz.
+          </span>
+        </div>
+      ) : null}
 
       <div className="card">
         <div className="card-head">
@@ -182,9 +214,19 @@ export function RiskLibrary() {
             </tbody>
           </table>
         </div>
-        {!rows.length ? <EmptyState title="Kriterlere uyan risk yok" /> : null}
+        {!rows.length ? (
+          <EmptyState
+            title={showArchived ? 'Arşivde risk yok' : 'Kriterlere uyan risk yok'}
+            hint={showArchived ? undefined : 'Filtreleri gevşetin ya da yeni bir risk tanımlayın.'}
+          />
+        ) : null}
       </div>
 
+      <RiskFormModal
+        open={creating}
+        onClose={() => setCreating(false)}
+        onSaved={(id) => navigate(`/riskler/${id}`)}
+      />
       <SelectionDrawer />
     </div>
   );
@@ -197,6 +239,7 @@ export function RiskLibrary() {
 export function ControlLibrary() {
   const data = useData((s) => s.data);
   const { select } = useUi();
+  const currentUser = useAuth((s) => s.currentUser);
   const { controlId } = useParams();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -205,13 +248,19 @@ export function ControlLibrary() {
   const [category, setCategory] = useState<string>('');
   const [effectiveness, setEffectiveness] = useState<string>('');
   const [keyOnly, setKeyOnly] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  const canCreate = canCreateRecords(currentUser);
+  const archivedCount = data.controls.filter((c) => c.archived).length;
+  const activeControls = useData((s) => s.activeControls);
 
   useEffect(() => {
     if (controlId) select('control', controlId);
   }, [controlId, select]);
 
   const rows = useMemo(() => {
-    let list = data.controls;
+    let list = data.controls.filter((c) => Boolean(c.archived) === showArchived);
     if (query.trim()) {
       const q = query.toLocaleLowerCase('tr-TR');
       list = list.filter((c) => `${c.code} ${c.name} ${c.description} ${c.method} ${c.evidence}`.toLocaleLowerCase('tr-TR').includes(q));
@@ -222,10 +271,10 @@ export function ControlLibrary() {
     if (effectiveness) list = list.filter((c) => c.effectiveness === effectiveness);
     if (keyOnly) list = list.filter((c) => c.keyControl);
     return [...list].sort((a, b) => Number(b.keyControl) - Number(a.keyControl) || a.code.localeCompare(b.code));
-  }, [data, query, nature, execution, category, effectiveness, keyOnly]);
+  }, [data, query, nature, execution, category, effectiveness, keyOnly, showArchived]);
 
   const natureCounts = (Object.keys(controlNatureLabels) as ControlNature[]).map((n) => ({
-    key: n, label: controlNatureLabels[n], count: data.controls.filter((c) => c.nature === n).length,
+    key: n, label: controlNatureLabels[n], count: activeControls.filter((c) => c.nature === n).length,
   }));
 
   return (
@@ -239,14 +288,26 @@ export function ControlLibrary() {
             COSO kontrol faaliyetleri sınıflandırmasıyla uyumludur.
           </p>
         </div>
+        <div className="row gap-2">
+          {archivedCount ? (
+            <button className="btn" onClick={() => setShowArchived((v) => !v)}>
+              {showArchived ? 'Aktif kayıtlar' : `Arşiv (${archivedCount})`}
+            </button>
+          ) : null}
+          {canCreate ? (
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
+              <IconPlus size={14} /> Yeni kontrol
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid cols-5" style={{ marginBottom: 'var(--s5)' }}>
-        <div className="card card-pad"><Metric compact label="Toplam kontrol" value={data.controls.length} /></div>
-        <div className="card card-pad"><Metric compact label="Kritik kontrol" value={data.controls.filter((c) => c.keyControl).length} /></div>
-        <div className="card card-pad"><Metric compact label="Otomatik" value={data.controls.filter((c) => c.execution === 'automated').length} sub={`%${Math.round((data.controls.filter((c) => c.execution === 'automated').length / data.controls.length) * 100)} oran`} /></div>
-        <div className="card card-pad"><Metric compact label="Etkin olmayan" value={data.controls.filter((c) => c.effectiveness === 'ineffective').length} tone="alert" /></div>
-        <div className="card card-pad"><Metric compact label="Kısmen etkin" value={data.controls.filter((c) => c.effectiveness === 'partially_effective').length} tone="warn" /></div>
+        <div className="card card-pad"><Metric compact label="Toplam kontrol" value={activeControls.length} /></div>
+        <div className="card card-pad"><Metric compact label="Kritik kontrol" value={activeControls.filter((c) => c.keyControl).length} /></div>
+        <div className="card card-pad"><Metric compact label="Otomatik" value={activeControls.filter((c) => c.execution === 'automated').length} sub={`%${Math.round((activeControls.filter((c) => c.execution === 'automated').length / Math.max(1, activeControls.length)) * 100)} oran`} /></div>
+        <div className="card card-pad"><Metric compact label="Etkin olmayan" value={activeControls.filter((c) => c.effectiveness === 'ineffective').length} tone="alert" /></div>
+        <div className="card card-pad"><Metric compact label="Kısmen etkin" value={activeControls.filter((c) => c.effectiveness === 'partially_effective').length} tone="warn" /></div>
       </div>
 
       <div className="grid cols-3" style={{ marginBottom: 'var(--s5)' }}>
@@ -257,11 +318,11 @@ export function ControlLibrary() {
             <div className="row between items-baseline">
               <span className="metric-value" style={{ fontSize: 'var(--text-xl)' }}>{n.count}</span>
               <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>
-                {data.controls.filter((c) => c.nature === n.key && c.effectiveness !== 'effective').length} zayıf
+                {activeControls.filter((c) => c.nature === n.key && c.effectiveness !== 'effective').length} zayıf
               </span>
             </div>
             <span className="bar-track" style={{ marginTop: 'var(--s2)' }}>
-              <span style={{ width: `${(n.count / data.controls.length) * 100}%`, background: levelMark.low }} />
+              <span style={{ width: `${(n.count / Math.max(1, activeControls.length)) * 100}%`, background: levelMark.low }} />
             </span>
           </button>
         ))}
@@ -336,9 +397,19 @@ export function ControlLibrary() {
             </tbody>
           </table>
         </div>
-        {!rows.length ? <EmptyState title="Kriterlere uyan kontrol yok" /> : null}
+        {!rows.length ? (
+          <EmptyState
+            title={showArchived ? 'Arşivde kontrol yok' : 'Kriterlere uyan kontrol yok'}
+            hint={showArchived ? undefined : 'Filtreleri gevşetin ya da yeni bir kontrol tanımlayın.'}
+          />
+        ) : null}
       </div>
 
+      <ControlFormModal
+        open={creating}
+        onClose={() => setCreating(false)}
+        onSaved={(id) => navigate(`/kontroller/${id}`)}
+      />
       <SelectionDrawer />
     </div>
   );

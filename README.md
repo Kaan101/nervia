@@ -97,11 +97,63 @@ Aynı süreç altı farklı görünümle incelenebilir (`Süreç Haritası` sayf
 - **Değişiklik Yönetimi** — talep → birim yöneticisi → İç Kontrol / Risk Yönetimi → onay →
   yeni versiyon akışı, alan bazlı eski/yeni değer karşılaştırmasıyla.
 - **Audit Trail** — kim, ne zaman, neyi değiştirdi, eski/yeni değer, gerekçe.
+- **Arşiv görünümleri** — arşivlenen risk, kontrol ve aksiyonların ayrı listesi ve geri alma.
 - **Analiz Asistanı** — doğal dil sorgusu ve süreç analizi (aşağıya bakınız).
 - **Global Arama** — tek terimle süreç, risk, kontrol, prosedür, aksiyon ve KRI sonuçları.
 - **Standart Uyumu** — hangi standart gereksiniminin platformda nerede karşılandığı.
 
 ---
+
+## Veri girişi: ekleme, düzenleme, arşivleme
+
+Sistem yalnızca okuma odaklı değildir; kayıtlar arayüzden yönetilir.
+
+**Ne yapılabilir**
+
+| İşlem | Nereden |
+|---|---|
+| Risk / kontrol / aksiyon **oluşturma** | Kütüphane sayfalarındaki “Yeni …” düğmesi, ya da bir süreç adımının detay panelinden (kayıt o adıma bağlı açılır) |
+| **Düzenleme** | İlgili kaydın detay panelindeki “Düzenle” |
+| **İlişkilendirme** | Risk ↔ kontrol, risk ↔ süreç adımı, kontrol ↔ süreç adımı — detay panelindeki bağlama düğmeleri; bağ iki yönde de kurulur |
+| Kontrol **etkinlik değerlendirmesi** | Kontrol panelinin altı (yalnızca İç Kontrol) |
+| Aksiyon **durum ve ilerleme** | Aksiyon panelinin altı |
+| Süreç **gözden geçirme** işaretleme | Süreç paneli ve Gözden Geçirme sayfası |
+| Değişiklik talebi **onay / ret** | Değişiklik Yönetimi |
+| **Arşivleme / geri alma** | Detay panelinin altı (yalnızca 2. hat ve sistem yöneticisi) |
+
+**Silme yerine arşivleme.** GRC'de kayıt silmek audit izini koparır ve geçmiş
+raporları tutarsızlaştırır. Arşivlenen kayıt listelerden, sayımlardan, ısı
+haritasından, aramadan ve analizden düşer; kütüphanenin “Arşiv” görünümünde ve
+audit trail'de yerinde kalır, geri alınabilir.
+
+**Her değişiklik audit trail'e yazılır** — kim, ne zaman, hangi alan, eski değer,
+yeni değer ve (düzenlemelerde zorunlu) gerekçe.
+
+**Form doğrulamaları** yalnızca boş alan kontrolü değildir; GRC kurallarını da
+uygular. Örnek: artık risk doğal riskten büyük olamaz (kontroller riski
+artırmaz); tamamlandı işaretlenen aksiyon kanıtsız kapatılamaz; kanıtı olmayan
+kontrol tanımlanamaz. Risk iştahı aşıldığında form uyarır.
+
+**Yetkiler kayıt bazlıdır.** Yeni kayıt açmak için süreç sahibi / birim yöneticisi
+/ 2. hat rolü gerekir; düzenleme için kaydın sahibi olmak, biriminden sorumlu
+olmak ya da 2. hatta bulunmak gerekir; arşivleme yalnızca 2. hat ve sistem
+yöneticisindedir. Yetkisi olmayan kullanıcı düğmeleri görmez, gerekçesini görür.
+
+## Kalıcılık
+
+Uygulama arka uçsuz çalışır. Yapılan her değişiklik tarayıcının `localStorage`
+alanında anlık görüntü olarak saklanır ve sayfa yenilendiğinde korunur
+(`src/store/persistence.ts`). Veri yalnızca o tarayıcıda tutulur; başka cihaza
+ya da kullanıcıya taşınmaz.
+
+Snapshot, demo verisinin sürümüyle etiketlenir: seed verisi değiştiğinde
+`SEED_VERSION` artırılır ve uyumsuz snapshot sessizce atılır. **Profilim**
+sayfasındaki *Veri ve kalıcılık* bölümü kayıt durumunu, boyutunu ve son kayıt
+zamanını gösterir; oradan demo verisine sıfırlanabilir.
+
+Kalıcı bir kurumsal kurulum için bu katmanın yerine bir API + veritabanı
+konmalıdır; mağaza arayüzü (`src/store/useData.ts`) bunun için hazırdır —
+mutasyonlar tek noktada toplanmıştır.
 
 ## Analiz katmanı
 
@@ -200,9 +252,15 @@ src/
     selectors.ts          # ağaç, rollup, dağılım, ısı matrisi, trend
     search.ts             # global arama indeksi (Türkçe normalizasyon ile)
     ai.ts                 # kural tabanlı öneri, analiz ve doğal dil sorgusu
-  store/                  # zustand: veri + oturum + arayüz durumu
+    entityMeta.ts         # alan etiketleri, fark hesaplama, kod üretimi
+  store/
+    useData.ts            # veri kümesi ve tüm mutasyonlar (tek yazma noktası)
+    useAuth.ts            # oturum, roller, kayıt bazlı yetkiler
+    useUi.ts              # seçim, görünüm, filtreler
+    persistence.ts        # localStorage anlık görüntüsü ve sürüm koruması
   components/
     common/               # ikonlar ve temel bileşenler
+    forms/                # ekle/düzenle formları, alan bileşenleri, ilişkilendirme
     charts/               # el yazımı SVG grafikler, ısı haritası, ağ grafiği
     layout/               # kabuk, kenar çubuğu, komut paleti
     process/              # süreç görünümleri ve detay panelleri

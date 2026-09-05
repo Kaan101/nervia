@@ -12,6 +12,9 @@ import { IconNetwork } from '@/components/common/Icons';
 
 export function NetworkPage() {
   const data = useData((s) => s.data);
+  const activeRisks = useData((s) => s.activeRisks);
+  const activeControls = useData((s) => s.activeControls);
+  const activeActions = useData((s) => s.activeActions);
   const select = useUi((s) => s.select);
   const [params, setParams] = useSearchParams();
   const [nodeId, setNodeId] = useState(params.get('dugum') ?? '');
@@ -28,12 +31,12 @@ export function NetworkPage() {
     if (!node) return null;
     const ids = new Set([node.id, ...descendants(data.nodes, node.id).map((n) => n.id)]);
     return {
-      risks: data.risks.filter((r) => r.processNodeIds.some((id) => ids.has(id))).length,
-      controls: data.controls.filter((c) => c.processNodeIds.some((id) => ids.has(id))).length,
-      owners: new Set(data.controls.filter((c) => c.processNodeIds.some((id) => ids.has(id))).map((c) => c.ownerId)).size,
-      actions: data.actions.filter((a) => a.processNodeId && ids.has(a.processNodeId)).length,
+      risks: activeRisks.filter((r) => r.processNodeIds.some((id) => ids.has(id))).length,
+      controls: activeControls.filter((c) => c.processNodeIds.some((id) => ids.has(id))).length,
+      owners: new Set(activeControls.filter((c) => c.processNodeIds.some((id) => ids.has(id))).map((c) => c.ownerId)).size,
+      actions: activeActions.filter((a) => a.processNodeId && ids.has(a.processNodeId)).length,
     };
-  }, [data, node]);
+  }, [data, node, activeRisks, activeControls, activeActions]);
 
   return (
     <div className="page">

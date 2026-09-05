@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type {
   ActionItem, Control, GrcDocument, ProcessNode, Risk,
 } from '@/types/grc';
 import { useData } from '@/store/useData';
-import { useAuth, canEditNode } from '@/store/useAuth';
+import {
+  useAuth, canEditNode, canArchiveRecords, canCreateRecords, canEditAction, canEditRecord,
+} from '@/store/useAuth';
 import { useUi } from '@/store/useUi';
 import {
   actionPriorityLabels, actionSourceLabels, actionStatusLabels, controlCategoryLabels,
@@ -28,9 +30,14 @@ import {
   SectionHeading, Tabs, TrendIcon,
 } from '@/components/common/Primitives';
 import { ScoreScale } from '@/components/charts/Charts';
+import { RiskFormModal } from '@/components/forms/RiskForm';
+import { ControlFormModal } from '@/components/forms/ControlForm';
+import { ActionFormModal } from '@/components/forms/ActionForm';
+import { LinkEditorModal, type LinkEditorMode } from '@/components/forms/LinkEditor';
 import {
   IconArrowRight, IconCheck, IconChevronRight, IconClock, IconControl, IconDoc,
-  IconExternal, IconLock, IconMoney, IconRisk, IconShieldAlert, IconSparkles, IconWarning,
+  IconExternal, IconLayers, IconLock, IconMoney, IconPlus, IconRisk, IconSettings,
+  IconShieldAlert, IconSparkles, IconWarning,
 } from '@/components/common/Icons';
 
 /* ================================================================== */
@@ -173,6 +180,57 @@ export function ActionRow({ action, onClick }: { action: ActionItem; onClick?: (
   );
 }
 
+/**
+ * Kayıt araç çubuğu — detay panellerinin altında görünen düzenle / ilişkilendir /
+ * arşivle düğmeleri. Yetkisi olmayan kullanıcıya düğme yerine gerekçe gösterilir.
+ */
+function RecordToolbar({
+  canEdit, canArchive, archived, onEdit, onArchive, extra, deniedNote,
+}: {
+  canEdit: boolean;
+  canArchive: boolean;
+  archived: boolean;
+  onEdit: () => void;
+  onArchive: () => void;
+  extra?: ReactNode;
+  deniedNote: string;
+}) {
+  if (!canEdit && !canArchive) {
+    return <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>{deniedNote}</span>;
+  }
+  return (
+    <div className="row gap-2 wrap">
+      {canEdit ? (
+        <button className="btn btn-sm btn-primary" onClick={onEdit}>
+          <IconSettings size={13} /> Düzenle
+        </button>
+      ) : null}
+      {extra}
+      <span className="spacer" />
+      {canArchive ? (
+        <button className={`btn btn-sm ${archived ? '' : 'btn-danger'}`} onClick={onArchive}>
+          {archived ? 'Arşivden geri al' : 'Arşivle'}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Arşivlenmiş kayıtlarda panelin üstünde gösterilen şerit. */
+function ArchivedNotice({ archived }: { archived?: boolean }) {
+  if (!archived) return null;
+  return (
+    <div className="callout lvl-medium" style={{ marginBottom: 'var(--s4)' }}>
+      <IconWarning size={15} style={{ flex: '0 0 auto', marginTop: 2 }} />
+      <span>
+        <span className="callout-title">Bu kayıt arşivde. </span>
+        Listelerden, sayımlardan, aramadan ve analizden düşürüldü; geçmiş raporlarda ve
+        audit trail’de yerinde duruyor.
+      </span>
+    </div>
+  );
+}
+
 /* ================================================================== */
 /* Süreç / iş adımı detay paneli                                       */
 /* ================================================================== */
@@ -186,6 +244,9 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
   const select = useUi((s) => s.select);
   const [tab, setTab] = useState<ProcessTab>('overview');
   const [openDoc, setOpenDoc] = useState<GrcDocument | null>(null);
+  const [addingRisk, setAddingRisk] = useState(false);
+  const [addingControl, setAddingControl] = useState(false);
+  const [addingAction, setAddingAction] = useState(false);
   const navigate = useNavigate();
 
   const node = data.nodes.find((n) => n.id === nodeId);
@@ -206,6 +267,7 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
 
   if (!node || !info) return null;
   const editable = canEditNode(currentUser, node);
+  const canCreate = canCreateRecords(currentUser);
   const siblings = data.nodes
     .filter((n) => n.parentId === node.parentId)
     .sort((a, b) => a.order - b.order);
@@ -241,6 +303,19 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
             </Badge>
           ) : null}
           <span className="spacer" />
+          {canCreate ? (
+            <>
+              <button className="btn btn-sm" onClick={() => setAddingRisk(true)}>
+                <IconPlus size={13} /> Risk
+              </button>
+              <button className="btn btn-sm" onClick={() => setAddingControl(true)}>
+                <IconPlus size={13} /> Kontrol
+              </button>
+              <button className="btn btn-sm" onClick={() => setAddingAction(true)}>
+                <IconPlus size={13} /> Aksiyon
+              </button>
+            </>
+          ) : null}
           {editable ? (
             <button className="btn btn-sm" onClick={() => markReviewed(node.id, currentUser!.id)}>
               <IconCheck size={14} /> Gözden geçirildi
@@ -380,13 +455,25 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
               {info.controls.map((c) => (
                 <ControlDetailCard key={c.id} control={c} onOpen={() => select('control', c.id)} />
               ))}
+              {canCreate ? (
+                <button className="btn" onClick={() => setAddingControl(true)}>
+                  <IconPlus size={14} /> Bu adıma kontrol tanımla
+                </button>
+              ) : null}
             </div>
           ) : (
-            <EmptyState
-              icon={<IconControl size={28} />}
-              title="Bu adımda tanımlı kontrol yok"
-              hint="Analiz sekmesinde bu adım için önerilen kontrolleri görebilirsiniz."
-            />
+            <div className="stack gap-4">
+              <EmptyState
+                icon={<IconControl size={28} />}
+                title="Bu adımda tanımlı kontrol yok"
+                hint="Analiz sekmesinde bu adım için önerilen kontrolleri görebilirsiniz."
+              />
+              {canCreate ? (
+                <button className="btn btn-primary" style={{ alignSelf: 'center' }} onClick={() => setAddingControl(true)}>
+                  <IconPlus size={14} /> Bu adıma kontrol tanımla
+                </button>
+              ) : null}
+            </div>
           )
         ) : null}
 
@@ -396,9 +483,21 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
               {info.risks.map((r) => (
                 <RiskDetailCard key={r.id} risk={r} onOpen={() => select('risk', r.id)} />
               ))}
+              {canCreate ? (
+                <button className="btn" onClick={() => setAddingRisk(true)}>
+                  <IconPlus size={14} /> Bu adıma risk tanımla
+                </button>
+              ) : null}
             </div>
           ) : (
-            <EmptyState icon={<IconRisk size={28} />} title="Bu adımda tanımlı risk yok" />
+            <div className="stack gap-4">
+              <EmptyState icon={<IconRisk size={28} />} title="Bu adımda tanımlı risk yok" />
+              {canCreate ? (
+                <button className="btn btn-primary" style={{ alignSelf: 'center' }} onClick={() => setAddingRisk(true)}>
+                  <IconPlus size={14} /> Bu adıma risk tanımla
+                </button>
+              ) : null}
+            </div>
           )
         ) : null}
 
@@ -469,6 +568,13 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
       </div>
 
       {openDoc ? <DocumentViewer document={openDoc} onClose={() => setOpenDoc(null)} /> : null}
+      <RiskFormModal open={addingRisk} onClose={() => setAddingRisk(false)} defaultNodeId={node.id} />
+      <ControlFormModal open={addingControl} onClose={() => setAddingControl(false)} defaultNodeId={node.id} />
+      <ActionFormModal
+        open={addingAction}
+        onClose={() => setAddingAction(false)}
+        defaults={{ processNodeId: node.id }}
+      />
     </Drawer>
   );
 }
@@ -699,10 +805,17 @@ export function RiskControlChain({ risk }: { risk: Risk }) {
 
 export function RiskDetail({ riskId, onClose }: { riskId: string; onClose: () => void }) {
   const data = useData((s) => s.data);
+  const setArchived = useData((s) => s.setArchived);
   const select = useUi((s) => s.select);
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const [editing, setEditing] = useState(false);
+  const [linking, setLinking] = useState<LinkEditorMode | null>(null);
+  const [addingAction, setAddingAction] = useState(false);
   const risk = data.risks.find((r) => r.id === riskId);
   if (!risk) return null;
+  const canEdit = canEditRecord(currentUser, risk);
+  const canArchive = canArchiveRecords(currentUser);
   const nodes = risk.processNodeIds.map((id) => data.nodes.find((n) => n.id === id)!).filter(Boolean);
   const actions = actionsOf(data, risk.actionIds);
   const kris = krisOf(data, risk.kriIds);
@@ -725,11 +838,39 @@ export function RiskDetail({ riskId, onClose }: { riskId: string; onClose: () =>
           <ScoreChip assessment={risk.residual} suffix="artık" />
           <Badge tone="plain">Doğal {score(risk.inherent)}</Badge>
           <Badge tone="plain">Hedef {score(risk.target)}</Badge>
+          {risk.archived ? <Badge level="medium">Arşivde</Badge> : null}
           <span className="spacer" />
           <span className="row gap-2"><TrendIcon trend={risk.trend} /><span className="dim" style={{ fontSize: 'var(--text-xs)' }}>{riskTrendLabels[risk.trend]}</span></span>
         </>
       }
+      footer={
+        <RecordToolbar
+          canEdit={canEdit}
+          canArchive={canArchive}
+          archived={Boolean(risk.archived)}
+          onEdit={() => setEditing(true)}
+          onArchive={() => setArchived('risk', risk.id, !risk.archived, currentUser!.id)}
+          deniedNote="Bu riski düzenleme yetkiniz yok. Risk sahibi, birim yöneticisi, Risk Yönetimi veya İç Kontrol düzenleyebilir."
+          extra={
+            canEdit ? (
+              <>
+                <button className="btn btn-sm" onClick={() => setLinking({ kind: 'risk-controls', riskId: risk.id })}>
+                  <IconControl size={13} /> Kontrolleri bağla
+                </button>
+                <button className="btn btn-sm" onClick={() => setLinking({ kind: 'risk-nodes', riskId: risk.id })}>
+                  <IconLayers size={13} /> Süreç adımları
+                </button>
+                <button className="btn btn-sm" onClick={() => setAddingAction(true)}>
+                  <IconPlus size={13} /> Aksiyon aç
+                </button>
+              </>
+            ) : null
+          }
+        />
+      }
     >
+      <ArchivedNotice archived={risk.archived} />
+
       <div className="detail-section">
         <SectionHeading title="Risk – Kontrol İlişkisi" />
         <RiskControlChain risk={risk} />
@@ -799,6 +940,14 @@ export function RiskDetail({ riskId, onClose }: { riskId: string; onClose: () =>
           <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>Bu risk için açılmış aksiyon bulunmuyor.</p>
         )}
       </div>
+
+      <RiskFormModal open={editing} onClose={() => setEditing(false)} riskId={risk.id} />
+      <LinkEditorModal open={Boolean(linking)} onClose={() => setLinking(null)} mode={linking} />
+      <ActionFormModal
+        open={addingAction}
+        onClose={() => setAddingAction(false)}
+        defaults={{ riskId: risk.id, processNodeId: risk.processNodeIds[0] ?? null }}
+      />
     </Drawer>
   );
 }
@@ -860,10 +1009,16 @@ export function ControlDetailCard({ control, onOpen }: { control: Control; onOpe
 export function ControlDetail({ controlId, onClose }: { controlId: string; onClose: () => void }) {
   const data = useData((s) => s.data);
   const updateEffectiveness = useData((s) => s.updateControlEffectiveness);
+  const setArchived = useData((s) => s.setArchived);
   const { currentUser, capabilities } = useAuth();
   const select = useUi((s) => s.select);
+  const [editing, setEditing] = useState(false);
+  const [linking, setLinking] = useState<LinkEditorMode | null>(null);
+  const [addingAction, setAddingAction] = useState(false);
   const control = data.controls.find((c) => c.id === controlId);
   if (!control) return null;
+  const canEdit = canEditRecord(currentUser, control);
+  const canArchive = canArchiveRecords(currentUser);
 
   const risks = sortRisksBySeverity(risksOf(data, control.riskIds));
   const nodes = control.processNodeIds.map((id) => data.nodes.find((n) => n.id === id)!).filter(Boolean);
@@ -890,29 +1045,53 @@ export function ControlDetail({ controlId, onClose }: { controlId: string; onClo
           <Badge level={control.effectiveness === 'effective' ? 'low' : control.effectiveness === 'partially_effective' ? 'medium' : control.effectiveness === 'ineffective' ? 'critical' : undefined}>
             <span className="dot" />{controlEffectivenessLabels[control.effectiveness]}
           </Badge>
+          {control.archived ? <Badge level="medium">Arşivde</Badge> : null}
         </>
       }
       footer={
-        capabilities.assessControls && currentUser ? (
-          <div className="row gap-2 wrap">
-            <span className="eyebrow" style={{ alignSelf: 'center' }}>Etkinlik değerlendirmesi</span>
-            {(['effective', 'partially_effective', 'ineffective'] as const).map((e) => (
-              <button
-                key={e}
-                className={`btn btn-sm ${control.effectiveness === e ? 'btn-primary' : ''}`}
-                onClick={() => updateEffectiveness(control.id, e, currentUser.id, 'İç Kontrol değerlendirmesi')}
-              >
-                {controlEffectivenessLabels[e]}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>
-            Kontrol etkinliğini yalnızca İç Kontrol rolü güncelleyebilir.
-          </span>
-        )
+        <div className="stack gap-3">
+          <RecordToolbar
+            canEdit={canEdit}
+            canArchive={canArchive}
+            archived={Boolean(control.archived)}
+            onEdit={() => setEditing(true)}
+            onArchive={() => setArchived('control', control.id, !control.archived, currentUser!.id)}
+            deniedNote="Bu kontrolü düzenleme yetkiniz yok. Kontrol sahibi, birim yöneticisi veya İç Kontrol düzenleyebilir."
+            extra={
+              canEdit ? (
+                <>
+                  <button className="btn btn-sm" onClick={() => setLinking({ kind: 'control-risks', controlId: control.id })}>
+                    <IconRisk size={13} /> Riskleri bağla
+                  </button>
+                  <button className="btn btn-sm" onClick={() => setLinking({ kind: 'control-nodes', controlId: control.id })}>
+                    <IconLayers size={13} /> Süreç adımları
+                  </button>
+                  <button className="btn btn-sm" onClick={() => setAddingAction(true)}>
+                    <IconPlus size={13} /> Aksiyon aç
+                  </button>
+                </>
+              ) : null
+            }
+          />
+          {capabilities.assessControls && currentUser ? (
+            <div className="row gap-2 wrap" style={{ paddingTop: 'var(--s2)', borderTop: '1px solid var(--border)' }}>
+              <span className="eyebrow" style={{ alignSelf: 'center' }}>Etkinlik değerlendirmesi</span>
+              {(['effective', 'partially_effective', 'ineffective'] as const).map((e) => (
+                <button
+                  key={e}
+                  className={`btn btn-sm ${control.effectiveness === e ? 'btn-primary' : ''}`}
+                  onClick={() => updateEffectiveness(control.id, e, currentUser.id, 'İç Kontrol değerlendirmesi')}
+                >
+                  {controlEffectivenessLabels[e]}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       }
     >
+      <ArchivedNotice archived={control.archived} />
+
       <div className="detail-section">
         <SectionHeading title="Kontrol Tasarımı" />
         <dl className="dl">
@@ -979,6 +1158,14 @@ export function ControlDetail({ controlId, onClose }: { controlId: string; onClo
           <div className="stack gap-2">{actions.map((a) => <ActionRow key={a.id} action={a} />)}</div>
         </div>
       ) : null}
+
+      <ControlFormModal open={editing} onClose={() => setEditing(false)} controlId={control.id} />
+      <LinkEditorModal open={Boolean(linking)} onClose={() => setLinking(null)} mode={linking} />
+      <ActionFormModal
+        open={addingAction}
+        onClose={() => setAddingAction(false)}
+        defaults={{ controlId: control.id, processNodeId: control.processNodeIds[0] ?? null }}
+      />
     </Drawer>
   );
 }
@@ -1044,8 +1231,10 @@ export function DocumentViewer({ document: doc, onClose }: { document: GrcDocume
 export function ActionDetail({ actionId, onClose }: { actionId: string; onClose: () => void }) {
   const data = useData((s) => s.data);
   const updateAction = useData((s) => s.updateAction);
+  const setArchived = useData((s) => s.setArchived);
   const currentUser = useAuth((s) => s.currentUser);
   const select = useUi((s) => s.select);
+  const [editing, setEditing] = useState(false);
   const action = data.actions.find((a) => a.id === actionId);
   if (!action) return null;
 
@@ -1053,7 +1242,8 @@ export function ActionDetail({ actionId, onClose }: { actionId: string; onClose:
   const control = action.controlId ? data.controls.find((c) => c.id === action.controlId) : null;
   const node = action.processNodeId ? data.nodes.find((n) => n.id === action.processNodeId) : null;
   const overdue = (action.status === 'open' || action.status === 'in_progress') && isOverdue(action.dueDate);
-  const canEdit = currentUser && (currentUser.id === action.ownerId || currentUser.roles.some((r) => ['internal_control', 'risk_management', 'system_admin', 'unit_manager'].includes(r)));
+  const canEdit = canEditAction(currentUser, action);
+  const canArchive = canArchiveRecords(currentUser);
 
   return (
     <Drawer
@@ -1079,30 +1269,40 @@ export function ActionDetail({ actionId, onClose }: { actionId: string; onClose:
         </>
       }
       footer={
-        canEdit ? (
-          <div className="row gap-2 wrap">
-            <span className="eyebrow" style={{ alignSelf: 'center' }}>Durum</span>
-            {(['open', 'in_progress', 'completed'] as const).map((s) => (
-              <button key={s} className={`btn btn-sm ${action.status === s ? 'btn-primary' : ''}`}
-                onClick={() => updateAction(action.id, {
-                  status: s,
-                  progress: s === 'completed' ? 100 : action.progress,
-                }, currentUser!.id)}>
-                {actionStatusLabels[s]}
-              </button>
-            ))}
-            <span className="spacer" />
-            {[25, 50, 75].map((p) => (
-              <button key={p} className="btn btn-sm" onClick={() => updateAction(action.id, { progress: p, status: 'in_progress' }, currentUser!.id)}>
-                %{p}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <span className="dim" style={{ fontSize: 'var(--text-xs)' }}>Aksiyonu yalnızca sorumlusu veya İç Kontrol güncelleyebilir.</span>
-        )
+        <div className="stack gap-3">
+          <RecordToolbar
+            canEdit={canEdit}
+            canArchive={canArchive}
+            archived={Boolean(action.archived)}
+            onEdit={() => setEditing(true)}
+            onArchive={() => setArchived('action', action.id, !action.archived, currentUser!.id)}
+            deniedNote="Aksiyonu yalnızca sorumlusu, birim yöneticisi veya İç Kontrol güncelleyebilir."
+          />
+          {canEdit ? (
+            <div className="row gap-2 wrap" style={{ paddingTop: 'var(--s2)', borderTop: '1px solid var(--border)' }}>
+              <span className="eyebrow" style={{ alignSelf: 'center' }}>Hızlı güncelleme</span>
+              {(['open', 'in_progress', 'completed'] as const).map((st) => (
+                <button key={st} className={`btn btn-sm ${action.status === st ? 'btn-primary' : ''}`}
+                  onClick={() => updateAction(action.id, {
+                    status: st,
+                    progress: st === 'completed' ? 100 : action.progress,
+                  }, currentUser!.id)}>
+                  {actionStatusLabels[st]}
+                </button>
+              ))}
+              <span className="spacer" />
+              {[25, 50, 75].map((p) => (
+                <button key={p} className="btn btn-sm" onClick={() => updateAction(action.id, { progress: p, status: 'in_progress' }, currentUser!.id)}>
+                  %{p}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       }
     >
+      <ArchivedNotice archived={action.archived} />
+
       <div className="detail-section">
         <SectionHeading title="İlerleme" />
         <Meter value={action.progress} />
@@ -1166,6 +1366,8 @@ export function ActionDetail({ actionId, onClose }: { actionId: string; onClose:
           ) : null}
         </div>
       </div>
+
+      <ActionFormModal open={editing} onClose={() => setEditing(false)} actionId={action.id} />
     </Drawer>
   );
 }

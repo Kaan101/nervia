@@ -5,8 +5,23 @@ import type {
 } from '@/types/grc';
 import { dataset as seedDataset } from '@/data';
 import { NOW } from '@/data/build';
+import {
+  actionFieldLabels, controlFieldLabels, diffEntity, riskFieldLabels,
+} from '@/lib/entityMeta';
+import { userName } from '@/data/org';
+import { loadSnapshot, saveSnapshot, clearSnapshot, persistenceState } from './persistence';
 
 interface Indexes {
+  /**
+   * Arşivlenmemiş kayıtlar. Sayım, gösterge ve liste ekranları bunları kullanır;
+   * `data.risks` gibi ham listeler yalnızca arşiv görünümü ve geçmiş çözümlemesi
+   * içindir.
+   */
+  activeRisks: Risk[];
+  activeControls: Control[];
+  activeActions: ActionItem[];
+  activeDocuments: GrcDocument[];
+
   nodeById: Map<string, ProcessNode>;
   riskById: Map<string, Risk>;
   controlById: Map<string, Control>;
@@ -26,6 +41,10 @@ function buildIndexes(d: Dataset): Indexes {
   }
   for (const list of childrenOf.values()) list.sort((a, b) => a.order - b.order);
   return {
+    activeRisks: d.risks.filter((r) => !r.archived),
+    activeControls: d.controls.filter((c) => !c.archived),
+    activeActions: d.actions.filter((a) => !a.archived),
+    activeDocuments: d.documents.filter((x) => !x.archived),
     nodeById: new Map(d.nodes.map((n) => [n.id, n])),
     riskById: new Map(d.risks.map((r) => [r.id, r])),
     controlById: new Map(d.controls.map((c) => [c.id, c])),
@@ -39,14 +58,61 @@ function buildIndexes(d: Dataset): Indexes {
 let auditCounter = 0;
 function nextAuditId(): string {
   auditCounter += 1;
-  return `aud-live-${auditCounter}`;
+  return `aud-live-${Date.now().toString(36)}-${auditCounter}`;
 }
+
+function nowIso(): string {
+  return new Date(NOW).toISOString();
+}
+
+function today(): string {
+  return nowIso().slice(0, 10);
+}
+
+export type ArchivableKind = 'risk' | 'control' | 'action' | 'document';
 
 interface DataState extends Indexes {
   data: Dataset;
+
+  /* --- Kayıt --- */
   logAudit: (entry: Omit<AuditEntry, 'id' | 'at'> & { at?: string }) => void;
-  updateAction: (id: string, patch: Partial<ActionItem>, actorId: string) => void;
+
+  /* --- Risk --- */
+  createRisk: (risk: Risk, actorId: string) => void;
+  updateRisk: (id: string, patch: Partial<Risk>, actorId: string, reason?: string) => void;
+  reassessRisk: (
+    riskId: string,
+    residual: { likelihood: number; impact: number },
+    actorId: string,
+    reason: string,
+  ) => void;
+
+  /* --- Kontrol --- */
+  createControl: (control: Control, actorId: string) => void;
+  updateControl: (id: string, patch: Partial<Control>, actorId: string, reason?: string) => void;
+  updateControlEffectiveness: (
+    controlId: string,
+    effectiveness: Control['effectiveness'],
+    actorId: string,
+    reason: string,
+  ) => void;
+
+  /* --- Aksiyon --- */
   createAction: (action: ActionItem, actorId: string) => void;
+  updateAction: (id: string, patch: Partial<ActionItem>, actorId: string) => void;
+
+  /* --- Arşivleme (silme yerine) --- */
+  setArchived: (kind: ArchivableKind, id: string, archived: boolean, actorId: string, reason?: string) => void;
+
+  /* --- İlişkilendirme --- */
+  linkRiskControl: (riskId: string, controlId: string, on: boolean, actorId: string) => void;
+  linkRiskNode: (riskId: string, nodeId: string, on: boolean, actorId: string) => void;
+  linkControlNode: (controlId: string, nodeId: string, on: boolean, actorId: string) => void;
+
+  /* --- Süreç --- */
+  markReviewed: (nodeId: string, actorId: string) => void;
+
+  /* --- Değişiklik yönetimi --- */
   decideChangeRequest: (
     id: string,
     stepOrder: number,
@@ -55,66 +121,201 @@ interface DataState extends Indexes {
     comment: string,
   ) => void;
   createChangeRequest: (request: ChangeRequest, actorId: string) => void;
-  markReviewed: (nodeId: string, actorId: string) => void;
-  updateControlEffectiveness: (
-    controlId: string,
-    effectiveness: Control['effectiveness'],
-    actorId: string,
-    reason: string,
-  ) => void;
-  reassessRisk: (
-    riskId: string,
-    residual: { likelihood: number; impact: number },
-    actorId: string,
-    reason: string,
-  ) => void;
+
+  /* --- Kalıcılık --- */
+  resetToSeed: () => void;
 }
 
 function withIndexes(data: Dataset) {
   return { data, ...buildIndexes(data) };
 }
 
+const initialData = loadSnapshot() ?? seedDataset;
+
+/** Sadece dizi üyeliğini açıp kapatır. */
+function toggle(list: string[], id: string, on: boolean): string[] {
+  if (on) return list.includes(id) ? list : [...list, id];
+  return list.filter((x) => x !== id);
+}
+
 export const useData = create<DataState>((set, get) => ({
-  data: seedDataset,
-  ...buildIndexes(seedDataset),
+  data: initialData,
+  ...buildIndexes(initialData),
 
   logAudit: (entry) =>
     set((state) => ({
       data: {
         ...state.data,
         auditTrail: [
-          { id: nextAuditId(), at: entry.at ?? new Date(NOW).toISOString(), ...entry } as AuditEntry,
+          { id: nextAuditId(), at: entry.at ?? nowIso(), ...entry } as AuditEntry,
           ...state.data.auditTrail,
         ],
       },
     })),
 
-  updateAction: (id, patch, actorId) => {
-    const before = get().actionById.get(id);
-    if (!before) return;
-    const changes: FieldChange[] = [];
-    if (patch.status && patch.status !== before.status) {
-      changes.push({ field: 'status', label: 'Durum', oldValue: before.status, newValue: patch.status });
-    }
-    if (patch.progress !== undefined && patch.progress !== before.progress) {
-      changes.push({
-        field: 'progress', label: 'Tamamlanma', oldValue: `%${before.progress}`, newValue: `%${patch.progress}`,
-      });
-    }
+  /* ---------------- Risk ---------------- */
+
+  createRisk: (risk, actorId) => {
     set((state) => {
-      const actions = state.data.actions.map((a) => (a.id === id ? { ...a, ...patch } : a));
-      return withIndexes({ ...state.data, actions });
+      const nodes = state.data.nodes.map((n) =>
+        risk.processNodeIds.includes(n.id) && !n.riskIds.includes(risk.id)
+          ? { ...n, riskIds: [...n.riskIds, risk.id] }
+          : n,
+      );
+      const controls = state.data.controls.map((c) =>
+        risk.controlIds.includes(c.id) && !c.riskIds.includes(risk.id)
+          ? { ...c, riskIds: [...c.riskIds, risk.id] }
+          : c,
+      );
+      return withIndexes({ ...state.data, risks: [risk, ...state.data.risks], nodes, controls });
     });
     get().logAudit({
       userId: actorId,
+      action: 'create',
+      entityType: 'risk',
+      entityId: risk.id,
+      entityName: risk.name,
+      summary: `Yeni risk tanımlandı (${risk.code}).`,
+    });
+  },
+
+  updateRisk: (id, patch, actorId, reason) => {
+    const before = get().riskById.get(id);
+    if (!before) return;
+    const changes = diffEntity(before, patch, riskFieldLabels, (x) => resolveName(get().data, x));
+    if (!changes.length) return;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        risks: state.data.risks.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
       action: 'update',
-      entityType: 'action',
+      entityType: 'risk',
       entityId: id,
-      entityName: before.title,
-      summary: 'Aksiyon güncellendi.',
+      entityName: patch.name ?? before.name,
+      summary: 'Risk kaydı güncellendi.',
+      reason,
       changes,
     });
   },
+
+  reassessRisk: (riskId, residual, actorId, reason) => {
+    const risk = get().riskById.get(riskId);
+    if (!risk) return;
+    const nextAssessment = new Date(NOW);
+    nextAssessment.setMonth(nextAssessment.getMonth() + 6);
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        risks: state.data.risks.map((r) =>
+          r.id === riskId
+            ? {
+                ...r,
+                residual,
+                lastAssessedAt: today(),
+                nextAssessmentAt: nextAssessment.toISOString().slice(0, 10),
+              }
+            : r,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'risk',
+      entityId: riskId,
+      entityName: risk.name,
+      summary: 'Risk yeniden değerlendirildi.',
+      reason,
+      changes: [
+        {
+          field: 'residual',
+          label: 'Artık risk (olasılık × etki)',
+          oldValue: `${risk.residual.likelihood} × ${risk.residual.impact} = ${risk.residual.likelihood * risk.residual.impact}`,
+          newValue: `${residual.likelihood} × ${residual.impact} = ${residual.likelihood * residual.impact}`,
+        },
+      ],
+    });
+  },
+
+  /* ---------------- Kontrol ---------------- */
+
+  createControl: (control, actorId) => {
+    set((state) => {
+      const nodes = state.data.nodes.map((n) =>
+        control.processNodeIds.includes(n.id) && !n.controlIds.includes(control.id)
+          ? { ...n, controlIds: [...n.controlIds, control.id] }
+          : n,
+      );
+      const risks = state.data.risks.map((r) =>
+        control.riskIds.includes(r.id) && !r.controlIds.includes(control.id)
+          ? { ...r, controlIds: [...r.controlIds, control.id] }
+          : r,
+      );
+      return withIndexes({ ...state.data, controls: [control, ...state.data.controls], nodes, risks });
+    });
+    get().logAudit({
+      userId: actorId,
+      action: 'create',
+      entityType: 'control',
+      entityId: control.id,
+      entityName: control.name,
+      summary: `Yeni kontrol tanımlandı (${control.code}).`,
+    });
+  },
+
+  updateControl: (id, patch, actorId, reason) => {
+    const before = get().controlById.get(id);
+    if (!before) return;
+    const changes = diffEntity(before, patch, controlFieldLabels, (x) => resolveName(get().data, x));
+    if (!changes.length) return;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        controls: state.data.controls.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'control',
+      entityId: id,
+      entityName: patch.name ?? before.name,
+      summary: 'Kontrol kaydı güncellendi.',
+      reason,
+      changes,
+    });
+  },
+
+  updateControlEffectiveness: (controlId, effectiveness, actorId, reason) => {
+    const control = get().controlById.get(controlId);
+    if (!control || control.effectiveness === effectiveness) return;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        controls: state.data.controls.map((c) =>
+          c.id === controlId ? { ...c, effectiveness, lastTestedAt: today() } : c,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'control',
+      entityId: controlId,
+      entityName: control.name,
+      summary: 'Kontrol etkinlik değerlendirmesi güncellendi.',
+      reason,
+      changes: [
+        { field: 'effectiveness', label: 'Etkinlik durumu', oldValue: control.effectiveness, newValue: effectiveness },
+      ],
+    });
+  },
+
+  /* ---------------- Aksiyon ---------------- */
 
   createAction: (action, actorId) => {
     set((state) => {
@@ -142,14 +343,196 @@ export const useData = create<DataState>((set, get) => ({
       entityType: 'action',
       entityId: action.id,
       entityName: action.title,
-      summary: 'Yeni aksiyon oluşturuldu.',
+      summary: `Yeni aksiyon açıldı (${action.code}).`,
     });
   },
+
+  updateAction: (id, patch, actorId) => {
+    const before = get().actionById.get(id);
+    if (!before) return;
+    const changes = diffEntity(before, patch, actionFieldLabels, (x) => resolveName(get().data, x));
+    if (!changes.length) return;
+    const closedAt = patch.status === 'completed' ? (before.closedAt ?? today()) : before.closedAt;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        actions: state.data.actions.map((a) => (a.id === id ? { ...a, ...patch, closedAt } : a)),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'action',
+      entityId: id,
+      entityName: patch.title ?? before.title,
+      summary: 'Aksiyon güncellendi.',
+      changes,
+    });
+  },
+
+  /* ---------------- Arşivleme ---------------- */
+
+  setArchived: (kind, id, archived, actorId, reason) => {
+    const state = get();
+    const record =
+      kind === 'risk' ? state.riskById.get(id)
+        : kind === 'control' ? state.controlById.get(id)
+          : kind === 'action' ? state.actionById.get(id)
+            : state.documentById.get(id);
+    if (!record) return;
+
+    const apply = <T extends { id: string }>(list: T[]) =>
+      list.map((x) => (x.id === id ? { ...x, archived } : x));
+
+    set((s) =>
+      withIndexes({
+        ...s.data,
+        risks: kind === 'risk' ? apply(s.data.risks) : s.data.risks,
+        controls: kind === 'control' ? apply(s.data.controls) : s.data.controls,
+        actions: kind === 'action' ? apply(s.data.actions) : s.data.actions,
+        documents: kind === 'document' ? apply(s.data.documents) : s.data.documents,
+      }),
+    );
+
+    const name = 'name' in record ? record.name : record.title;
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: kind,
+      entityId: id,
+      entityName: name,
+      summary: archived
+        ? 'Kayıt arşivlendi; listelerden düştü, geçmiş kayıtlarda yerinde kaldı.'
+        : 'Kayıt arşivden geri alındı.',
+      reason,
+      changes: [
+        { field: 'archived', label: 'Arşiv durumu', oldValue: archived ? 'Aktif' : 'Arşivde', newValue: archived ? 'Arşivde' : 'Aktif' },
+      ],
+    });
+  },
+
+  /* ---------------- İlişkilendirme ---------------- */
+
+  linkRiskControl: (riskId, controlId, on, actorId) => {
+    const risk = get().riskById.get(riskId);
+    const control = get().controlById.get(controlId);
+    if (!risk || !control) return;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        risks: state.data.risks.map((r) =>
+          r.id === riskId ? { ...r, controlIds: toggle(r.controlIds, controlId, on) } : r,
+        ),
+        controls: state.data.controls.map((c) =>
+          c.id === controlId ? { ...c, riskIds: toggle(c.riskIds, riskId, on) } : c,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'risk',
+      entityId: riskId,
+      entityName: risk.name,
+      summary: on
+        ? `“${control.name}” kontrolü bu riske bağlandı.`
+        : `“${control.name}” kontrolünün bu riskle ilişkisi kaldırıldı.`,
+      changes: [
+        { field: 'controlIds', label: 'İlişkili kontrol', oldValue: on ? '—' : control.code, newValue: on ? control.code : '—' },
+      ],
+    });
+  },
+
+  linkRiskNode: (riskId, nodeId, on, actorId) => {
+    const risk = get().riskById.get(riskId);
+    const node = get().nodeById.get(nodeId);
+    if (!risk || !node) return;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        risks: state.data.risks.map((r) =>
+          r.id === riskId ? { ...r, processNodeIds: toggle(r.processNodeIds, nodeId, on) } : r,
+        ),
+        nodes: state.data.nodes.map((n) =>
+          n.id === nodeId ? { ...n, riskIds: toggle(n.riskIds, riskId, on) } : n,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'risk',
+      entityId: riskId,
+      entityName: risk.name,
+      summary: on
+        ? `Risk “${node.name}” adımına bağlandı.`
+        : `Riskin “${node.name}” adımıyla ilişkisi kaldırıldı.`,
+    });
+  },
+
+  linkControlNode: (controlId, nodeId, on, actorId) => {
+    const control = get().controlById.get(controlId);
+    const node = get().nodeById.get(nodeId);
+    if (!control || !node) return;
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        controls: state.data.controls.map((c) =>
+          c.id === controlId ? { ...c, processNodeIds: toggle(c.processNodeIds, nodeId, on) } : c,
+        ),
+        nodes: state.data.nodes.map((n) =>
+          n.id === nodeId ? { ...n, controlIds: toggle(n.controlIds, controlId, on) } : n,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'control',
+      entityId: controlId,
+      entityName: control.name,
+      summary: on
+        ? `Kontrol “${node.name}” adımına bağlandı.`
+        : `Kontrolün “${node.name}” adımıyla ilişkisi kaldırıldı.`,
+    });
+  },
+
+  /* ---------------- Süreç ---------------- */
+
+  markReviewed: (nodeId, actorId) => {
+    const node = get().nodeById.get(nodeId);
+    if (!node) return;
+    const next = new Date(NOW);
+    next.setMonth(next.getMonth() + node.reviewFrequencyMonths);
+    set((state) =>
+      withIndexes({
+        ...state.data,
+        nodes: state.data.nodes.map((n) =>
+          n.id === nodeId
+            ? { ...n, lastReviewedAt: today(), nextReviewAt: next.toISOString().slice(0, 10), updatedAt: today() }
+            : n,
+        ),
+      }),
+    );
+    get().logAudit({
+      userId: actorId,
+      action: 'review',
+      entityType: 'process',
+      entityId: nodeId,
+      entityName: node.name,
+      summary: 'Periyodik gözden geçirme tamamlandı olarak işaretlendi.',
+      changes: [
+        { field: 'lastReviewedAt', label: 'Son gözden geçirme', oldValue: node.lastReviewedAt, newValue: today() },
+      ],
+    });
+  },
+
+  /* ---------------- Değişiklik yönetimi ---------------- */
 
   decideChangeRequest: (id, stepOrder, decision, approverId, comment) => {
     const request = get().data.changeRequests.find((c) => c.id === id);
     if (!request) return;
-    const at = new Date(NOW).toISOString();
+    const at = nowIso();
     const approvals = request.approvals.map((a) =>
       a.order === stepOrder ? { ...a, decision, approverId, comment, decidedAt: at } : a,
     );
@@ -193,104 +576,36 @@ export const useData = create<DataState>((set, get) => ({
     });
   },
 
-  markReviewed: (nodeId, actorId) => {
-    const node = get().nodeById.get(nodeId);
-    if (!node) return;
-    const today = new Date(NOW).toISOString().slice(0, 10);
-    const next = new Date(NOW);
-    next.setMonth(next.getMonth() + node.reviewFrequencyMonths);
-    set((state) =>
-      withIndexes({
-        ...state.data,
-        nodes: state.data.nodes.map((n) =>
-          n.id === nodeId
-            ? { ...n, lastReviewedAt: today, nextReviewAt: next.toISOString().slice(0, 10), updatedAt: today }
-            : n,
-        ),
-      }),
-    );
-    get().logAudit({
-      userId: actorId,
-      action: 'review',
-      entityType: 'process',
-      entityId: nodeId,
-      entityName: node.name,
-      summary: 'Periyodik gözden geçirme tamamlandı olarak işaretlendi.',
-      changes: [
-        {
-          field: 'lastReviewedAt',
-          label: 'Son gözden geçirme',
-          oldValue: node.lastReviewedAt,
-          newValue: today,
-        },
-      ],
-    });
-  },
+  /* ---------------- Kalıcılık ---------------- */
 
-  updateControlEffectiveness: (controlId, effectiveness, actorId, reason) => {
-    const control = get().controlById.get(controlId);
-    if (!control || control.effectiveness === effectiveness) return;
-    set((state) =>
-      withIndexes({
-        ...state.data,
-        controls: state.data.controls.map((c) =>
-          c.id === controlId
-            ? { ...c, effectiveness, lastTestedAt: new Date(NOW).toISOString().slice(0, 10) }
-            : c,
-        ),
-      }),
-    );
-    get().logAudit({
-      userId: actorId,
-      action: 'update',
-      entityType: 'control',
-      entityId: controlId,
-      entityName: control.name,
-      summary: 'Kontrol etkinlik değerlendirmesi güncellendi.',
-      reason,
-      changes: [
-        { field: 'effectiveness', label: 'Etkinlik durumu', oldValue: control.effectiveness, newValue: effectiveness },
-      ],
-    });
-  },
-
-  reassessRisk: (riskId, residual, actorId, reason) => {
-    const risk = get().riskById.get(riskId);
-    if (!risk) return;
-    const today = new Date(NOW).toISOString().slice(0, 10);
-    const nextAssessment = new Date(NOW);
-    nextAssessment.setMonth(nextAssessment.getMonth() + 6);
-    set((state) =>
-      withIndexes({
-        ...state.data,
-        risks: state.data.risks.map((r) =>
-          r.id === riskId
-            ? {
-                ...r,
-                residual,
-                lastAssessedAt: today,
-                nextAssessmentAt: nextAssessment.toISOString().slice(0, 10),
-              }
-            : r,
-        ),
-      }),
-    );
-    get().logAudit({
-      userId: actorId,
-      action: 'update',
-      entityType: 'risk',
-      entityId: riskId,
-      entityName: risk.name,
-      summary: 'Risk yeniden değerlendirildi.',
-      reason,
-      changes: [
-        {
-          field: 'residual',
-          label: 'Artık risk (olasılık × etki)',
-          oldValue: `${risk.residual.likelihood} × ${risk.residual.impact}`,
-          newValue: `${residual.likelihood} × ${residual.impact}`,
-        },
-      ],
-    });
+  resetToSeed: () => {
+    clearSnapshot();
+    set(withIndexes(seedDataset));
   },
 }));
+
+/** Audit trail'de kimlik değerlerini okunabilir hale getirir. */
+function resolveName(data: Dataset, id: string): string | undefined {
+  if (id.startsWith('usr-')) return userName(id);
+  if (id.startsWith('rsk-')) return data.risks.find((r) => r.id === id)?.code;
+  if (id.startsWith('ctl-')) return data.controls.find((c) => c.id === id)?.code;
+  if (id.startsWith('nd-')) return data.nodes.find((n) => n.id === id)?.name;
+  if (id.startsWith('U-')) return data.units.find((u) => u.id === id)?.name;
+  return undefined;
+}
+
+/* ------------------------------------------------------------------ */
+/* Otomatik kalıcılık                                                  */
+/* ------------------------------------------------------------------ */
+
+let saveTimer: number | undefined;
+useData.subscribe((state, prev) => {
+  if (state.data === prev.data) return;
+  if (typeof window === 'undefined') return;
+  window.clearTimeout(saveTimer);
+  // Art arda gelen değişikliklerde tek yazma yeterli.
+  saveTimer = window.setTimeout(() => saveSnapshot(useData.getState().data), 350);
+});
+
+export { persistenceState };
+export type { FieldChange };

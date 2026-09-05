@@ -11,6 +11,7 @@ import { IconDoc, IconSearch } from '@/components/common/Icons';
 
 export function DocumentsPage() {
   const data = useData((s) => s.data);
+  const activeDocuments = useData((s) => s.activeDocuments);
   const { documentId } = useParams();
   const navigate = useNavigate();
   const [type, setType] = useState<DocumentType | 'all'>('all');
@@ -25,17 +26,17 @@ export function DocumentsPage() {
   }, [documentId, data.documents]);
 
   const rows = useMemo(() => {
-    let list = data.documents;
+    let list = activeDocuments;
     if (type !== 'all') list = list.filter((d) => d.type === type);
     if (query.trim()) {
       const q = query.toLocaleLowerCase('tr-TR');
       list = list.filter((d) => `${d.code} ${d.name} ${d.summary}`.toLocaleLowerCase('tr-TR').includes(q));
     }
     return [...list].sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt));
-  }, [data, type, query]);
+  }, [activeDocuments, type, query]);
 
-  const expired = data.documents.filter((d) => d.status === 'expired');
-  const dueSoon = data.documents.filter((d) => {
+  const expired = activeDocuments.filter((d) => d.status === 'expired');
+  const dueSoon = activeDocuments.filter((d) => {
     const days = daysBetween(new Date('2026-09-04'), d.nextReviewAt);
     return days >= 0 && days <= 90;
   });
@@ -54,20 +55,20 @@ export function DocumentsPage() {
       </div>
 
       <div className="grid cols-4" style={{ marginBottom: 'var(--s5)' }}>
-        <div className="card card-pad"><Metric compact label="Toplam doküman" value={data.documents.length} /></div>
+        <div className="card card-pad"><Metric compact label="Toplam doküman" value={activeDocuments.length} /></div>
         <div className="card card-pad"><Metric compact label="Gözden geçirmesi geçen" value={expired.length} tone={expired.length ? 'alert' : 'default'} /></div>
         <div className="card card-pad"><Metric compact label="90 gün içinde gözden geçirilecek" value={dueSoon.length} tone={dueSoon.length ? 'warn' : 'default'} /></div>
-        <div className="card card-pad"><Metric compact label="Prosedür sayısı" value={data.documents.filter((d) => d.type === 'procedure').length} /></div>
+        <div className="card card-pad"><Metric compact label="Prosedür sayısı" value={activeDocuments.filter((d) => d.type === 'procedure').length} /></div>
       </div>
 
       <Tabs<DocumentType | 'all'>
         value={type}
         onChange={setType}
         tabs={[
-          { id: 'all', label: 'Tümü', count: data.documents.length },
+          { id: 'all', label: 'Tümü', count: activeDocuments.length },
           ...(Object.keys(documentTypeLabels) as DocumentType[])
-            .filter((t) => data.documents.some((d) => d.type === t))
-            .map((t) => ({ id: t, label: documentTypeLabels[t], count: data.documents.filter((d) => d.type === t).length })),
+            .filter((t) => activeDocuments.some((d) => d.type === t))
+            .map((t) => ({ id: t, label: documentTypeLabels[t], count: activeDocuments.filter((d) => d.type === t).length })),
         ]}
       />
 

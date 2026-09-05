@@ -212,7 +212,8 @@ export function Modal({
   if (!open) return null;
   return createPortal(
     <>
-      <div className="overlay" onClick={onClose} />
+      {/* Modal, açık bir detay çekmecesinin de üstünde katmanlanır. */}
+      <div className="overlay overlay-modal" onClick={onClose} />
       <div className="modal" role="dialog" aria-modal="true">
         <header className="card-head">
           <h3>{title}</h3>

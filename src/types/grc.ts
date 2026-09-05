@@ -195,6 +195,12 @@ export interface Risk {
 
   /** İlgili mevzuat / standart referansları. */
   standards?: string[];
+
+  /**
+   * Arşivlenmiş kayıt. GRC'de kayıt silinmez — arşivlenen kayıt listelerden
+   * düşer, geçmiş raporlarda ve audit trail'de yerinde kalır.
+   */
+  archived?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -270,6 +276,9 @@ export interface Control {
 
   /** Kontrolün riski azaltma gücü, 0–1. */
   mitigationStrength: number;
+
+  /** Arşivlenmiş kayıt (bkz. Risk.archived). */
+  archived?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -309,6 +318,9 @@ export interface ActionItem {
 
   evidence: string;
   managerComment: string;
+
+  /** Arşivlenmiş kayıt (bkz. Risk.archived). */
+  archived?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -345,6 +357,9 @@ export interface GrcDocument {
   sections: DocumentSection[];
   processNodeIds: string[];
   controlIds: string[];
+
+  /** Arşivlenmiş kayıt (bkz. Risk.archived). */
+  archived?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
