@@ -150,11 +150,12 @@ gerçekleştiği süreci baştan aşağı değiştirir**:
 
 | | Yurt İçi Hasar | Yurt Dışı Hasar |
 |---|---|---|
-| Tespit | Kendi eksper ağı | Asistans şirketi + yerel muhabir |
-| Evrak | Türkçe, doğrudan | Yabancı dil, yeminli tercüme, apostil |
-| Ödeme | TL, yurt içi havale | Döviz, kur tarihi, SWIFT |
-| Ek riskler | — | Coğrafi kapsam, yaptırım taraması, kur farkı, sahte yabancı fatura |
-| Hedef süre | 15 iş günü | 25 iş günü |
+| Talep sahibi | Zarar gören üçüncü şahıs | Sigortalının kendisi |
+| Teminat kaynağı | Yeşil Kart + yabancı sigortacı | Poliçe teminatı |
+| Tespit | Eksper / bilirkişi ağı | Asistans şirketi + yerel muhabir |
+| Ödeme | Güvence Hesabı veya öz kaynak | Döviz, kur tarihi, SWIFT |
+| Sonrası | Ödenen tutarın ülke bürosundan rücusu, G Call | Rücu yok |
+| Hedef süre | 30 iş günü | 25 iş günü |
 
 Seçimden sonra kırılım:
 
@@ -405,23 +406,49 @@ azaltır) ve etkinlik değerlendirmesi dikkate alınarak yorumlanır
 
 ---
 
-## Demo süreci — Hasar Yönetimi
+## Demo süreci — Yurt İçi Hasar (TMTB akışı)
 
-İlk prototip, uçtan uca bir hasar sürecini tam detayla içerir:
+Yurt içi hasar süreci, **Türkiye Motorlu Taşıt Bürosu**'nun süreç akış
+diyagramından modellenmiştir. Büro, yabancı plakalı araçların Türkiye'de yol
+açtığı zararlarda Yeşil Kart sistemi kapsamında tazminat ödeyen ve ardından
+ilgili ülke bürosundan rücu eden kurumdur. Bu, klasik bir sigorta şirketi
+hasar sürecinden ayrılır:
 
-1. Hasar İhbarı · 2. Dosya Açılışı · 3. Evrak Kontrolü · 4. Eksper Atama ·
-5. Hasar Değerlendirmesi · 6. Tazminat Hesaplama · 7. Ödeme Onayı ·
-8. Muhasebeleştirme · 9. Ödeme · 10. Dosya Kapatma
+- Talep sigortalıdan değil **zarar gören üçüncü şahıstan** gelir
+- Poliçe yerine **Yeşil Kart ve yabancı sigortacı** tespiti yapılır
+- Ödeme **Güvence Hesabı** ya da öz kaynaktan yapılır
+- Ödenen tutar **rücu** edilir; gelmezse **Garanti Çağrısı (G Call)** işletilir
 
-Her adım için açıklama, amaç, süreç sahibi, sorumlu birim, görevli kişiler, kullanılan
-sistem, girdi/çıktı, prosedür, **en az iki risk**, **en az iki kontrol**, kritik noktalar,
-gerçek hayata yakın örnek senaryo, bağlı doküman ve aksiyon tanımlıdır.
+Süreç diyagramdaki üç rol hattına göre bölünmüştür:
 
-Diğer dokuz ana süreç (Mali İşler, Hukuk, Bilgi Teknolojileri, İnsan Kaynakları,
-Satın Alma, İdari İşler, Raporlama, Risk Yönetimi, İç Kontrol) daha sade fakat gerçekçi
-içerikle modellenmiştir.
+| Alt süreç | Faaliyetler |
+|---|---|
+| **1.1 Hasar Destek** | Evrak Yönetimi · Talep Değerlendirme · Dosya Oluşturma · Zarar Gören Girişi · Muallak Girişi |
+| **1.2 Servis Yöneticisi** | Dosya Sorumlu Ataması · Talep Onay · Ödeme Günü Verme |
+| **1.3 Dosya Sorumlusu** | Maddi Hasar İnceleme · Bedeni Hasar İnceleme · ZK Süreci · Talep Girişi · Rücu İşlemleri · Garanti Çağrısı · Ret Değerlendirme · Tramer Değerlendirme · Eksper Başvuruları |
 
----
+### Riskler diyagramdan türetildi
+
+Akış diyagramının üzerindeki not balonları, kurumun kendi tespit ettiği
+zayıflıklardır. Bunlar uydurulmuş risk değil, **belgedeki bulgulardır** ve
+sistemde risk olarak kayda geçmiştir:
+
+| Diyagramdaki not | Karşılık gelen risk |
+|---|---|
+| "Excel'de düzeltme yapılabiliyor / Yapılamamalı" | Ödeme günü listesinin sistem dışında değiştirilebilmesi |
+| "Atama sorunu alt dosya için de atama yapılmazsa raporda görünmüyor" | Alt dosyaların sorumluya atanmadan kalması |
+| "Vekalet alanı eklenmeli, vekalet kapsamı seçilebilir olmalı" | Vekaletin kapsamı doğrulanmadan vekile ödeme yapılması |
+| "YK yoksa evrak kayıt yapılmalı, dosya açılmasın" | Yeşil Kart bulunmayan talepte dosya açılması |
+| "KVKK kapsamında bilgilendirme… sisteme kaydedilecek" | Aydınlatma bildiriminin yapılmaması veya kaydedilmemesi |
+| "Ödemesi gelmeyen dosyaların 60 gün sonunda GC için hatırlatma" | Garanti çağrısı süresinin kaçırılması |
+| "Aktüer raporu sisteme kaydedilmiyor, online görüntüleniyor" | Aktüer raporunun dosyaya kaydedilmemesi |
+| "Sirküler esasında talep tutar kontrolü" | Talep tutarının sirküler sınırlarına aykırı girilmesi |
+| "Aynı konu ile ilgili birden fazla talep gelebiliyor" | Mükerrer ZK dosyası açılması |
+| "Yeni ret nedenleri eklenebilmeli" | Ret yazılarının standart dışı hazırlanması |
+
+Etkinliği **"Etkin Değil"** işaretlenmiş kontroller de bu tespitlerden gelir
+ve aksiyonlarla eşleşir — örneğin Excel ödeme listesi bulgusu, kritik
+öncelikli `AKS-007` aksiyonuna bağlıdır.
 
 ## Tasarım dili
 

@@ -47,27 +47,27 @@ const changeRequests: ChangeRequest[] = [
     id: 'chg-001',
     code: 'DT-2026-014',
     targetType: 'process',
-    targetId: 'nd-HSR-09',
-    targetName: 'Ödeme',
-    title: 'IBAN değişikliğinde geri arama kaydının zorunlu hale getirilmesi',
+    targetId: 'nd-HSR-08',
+    targetName: 'Ödeme Günü Verme (1.2.3)',
+    title: 'Ödeme günü listesinin Excel yerine kilitli çıktı olarak üretilmesi',
     reason:
-      'İç Kontrol 2026-Q2 testinde 25 örneklemin 4’ünde geri arama kaydı bulunamadı. Kontrolün kanıtı sistemde zorunlu alan olarak tutulmalıdır.',
+      'İç Kontrol 2026-Q2 testinde ödeme günü listesinin Excel olarak üretildiği ve muhasebeye iletilmeden önce elle değiştirilebildiği tespit edildi. Sistemdeki kayıtla listenin mutabakatı düzensiz yapılıyor.',
     impact: 'high',
     requestedById: 'usr-08',
     requestedAt: '2026-07-12T10:20:00Z',
     status: 'pending_control',
     changes: [
       {
-        field: 'controls.K-HSR-18.method',
+        field: 'controls.K-HSR-14.method',
         label: 'Kontrol yöntemi',
-        oldValue: 'IBAN değişikliği iş akışı; geri arama kaydı ve ikinci kullanıcı onayı zorunlu.',
+        oldValue: 'Kilitli liste üretimi ve gün sonu mutabakatı.',
         newValue:
-          'IBAN değişikliği iş akışı; ses kaydı referansı zorunlu alan olarak girilmeden iş akışı ilerleyemez, ikinci kullanıcı onayı zorunlu.',
+          'Ödeme günü listesi sistemden yalnızca kilitli PDF olarak üretilir; Excel çıktısı kaldırılır ve gün sonu mutabakatı sistem tarafından otomatik yapılır.',
       },
       {
-        field: 'controls.K-HSR-18.effectiveness',
+        field: 'controls.K-HSR-14.effectiveness',
         label: 'Etkinlik durumu',
-        oldValue: 'Kısmen Etkin',
+        oldValue: 'Etkin Değil',
         newValue: 'Etkin (geliştirme sonrası yeniden test edilecek)',
       },
     ],
@@ -98,10 +98,10 @@ const changeRequests: ChangeRequest[] = [
     code: 'DT-2026-011',
     targetType: 'process',
     targetId: 'nd-HSR-05',
-    targetName: 'Hasar Değerlendirmesi',
-    title: 'İkinci göz eşiğinin 250.000 TL’den risk bazlı modele çevrilmesi',
+    targetName: 'Muallak Girişi (1.1.5)',
+    title: 'Muallak asgari tutarının talep tipine göre farklılaştırılması',
     reason:
-      'Sabit eşik, düşük tutarlı ancak yüksek suistimal riskli dosyaları kapsam dışında bırakıyor. Branş ve suistimal skoruna göre değişken eşik önerilmektedir.',
+      'Tutar bildirilmemiş dosyalarda uygulanan tek bir asgari muallak tutarı, bedeni zarar dosyalarında gerçek yükümlülüğün çok altında kalıyor. Talep tipine göre ayrı parametre önerilmektedir.',
     impact: 'medium',
     requestedById: 'usr-03',
     requestedAt: '2026-06-28T13:05:00Z',
@@ -110,9 +110,10 @@ const changeRequests: ChangeRequest[] = [
       {
         field: 'controls.K-HSR-09.description',
         label: 'Kontrol açıklaması',
-        oldValue: '250.000 TL üzerindeki hasar tutarlarında ikinci göz değerlendirmesi yapılır.',
+        oldValue:
+          'Tutar bildirilmemiş dosyalarda iş akışında tanımlı asgari muallak tutarı sistem tarafından zorunlu kılınır.',
         newValue:
-          'Branş ve suistimal skoruna göre belirlenen dinamik eşiğin üzerindeki dosyalarda ikinci göz değerlendirmesi yapılır.',
+          'Tutar bildirilmemiş dosyalarda talep tipine (maddi-araç, maddi-araç dışı, bedeni) göre ayrı tanımlanmış asgari muallak tutarı sistem tarafından zorunlu kılınır.',
       },
     ],
     approvals: [
@@ -142,20 +143,22 @@ const changeRequests: ChangeRequest[] = [
     code: 'DT-2026-009',
     targetType: 'process',
     targetId: 'nd-HSR-01',
-    targetName: 'Hasar İhbarı',
-    title: 'E-posta kanalının günlük mutabakat kapsamına alınması',
-    reason: 'Kanal mutabakatı e-posta kutusunu kapsamadığı için üç ihbarın kayda geçmediği tespit edildi.',
+    targetName: 'Evrak Yönetimi (1.1.1)',
+    title: 'E-posta kanalında geliş tarihinin ayrı alan olarak zorunlu kılınması',
+    reason:
+      'E-posta ile gelen evrakta geliş tarihi çoğu zaman kayıt tarihiyle aynı giriliyor. Zamanaşımı ve faiz başlangıcı bu tarihe bağlı olduğu için alan kanal bağımsız zorunlu olmalıdır.',
     impact: 'high',
     requestedById: 'usr-23',
     requestedAt: '2026-06-10T09:00:00Z',
     status: 'approved',
     changes: [
       {
-        field: 'controls.K-HSR-02.description',
+        field: 'controls.K-HSR-01.description',
         label: 'Kontrol açıklaması',
-        oldValue: 'Çağrı merkezi, web formu ve acente portalı ihbar adetleri karşılaştırılır.',
+        oldValue:
+          'Fiziki evraka geliş tarihi damgası basılır; DYS’de "geliş tarihi" kayıt tarihinden ayrı zorunlu alandır.',
         newValue:
-          'Çağrı merkezi, web formu, acente portalı ve hasar e-posta kutusundan gelen ihbar adetleri karşılaştırılır.',
+          'Tüm kanallarda (posta, e-posta, elden teslim) geliş tarihi DYS’de ayrı zorunlu alandır; e-postada mesajın sunucuya ulaştığı tarih otomatik doldurulur ve değiştirilemez.',
       },
     ],
     approvals: [
@@ -236,10 +239,10 @@ const handwrittenAudit: AuditEntry[] = [
     userId: 'usr-23',
     action: 'update',
     entityType: 'control',
-    entityId: 'ctl-K-HSR-21',
-    entityName: 'Rücu potansiyeli otomatik taraması',
+    entityId: 'ctl-K-HSR-23',
+    entityName: 'E+60 gün garanti çağrısı hatırlatması',
     summary: 'Kontrol etkinliği “Kısmen Etkin” → “Etkin Değil” olarak güncellendi.',
-    reason: '2026-Q2 kontrol testinde 42 dosyanın 11’inde rücu dosyası açılmadığı tespit edildi.',
+    reason: '2026-Q2 kontrol testinde 60 günü aşan 11 dosyada garanti çağrısının hiç başlatılmadığı tespit edildi.',
     changes: [
       { field: 'effectiveness', label: 'Etkinlik durumu', oldValue: 'Kısmen Etkin', newValue: 'Etkin Değil' },
       { field: 'designAdequacy', label: 'Tasarım yeterliliği', oldValue: 'Yeterli', newValue: 'İyileştirme Gerekli' },
@@ -264,12 +267,13 @@ const handwrittenAudit: AuditEntry[] = [
     action: 'update',
     entityType: 'risk',
     entityId: 'rsk-R-HSR-05',
-    entityName: 'Sahte veya tahrif edilmiş evrak ile işlem yapılması',
-    summary: 'Artık risk skoru 9 → 12 olarak revize edildi.',
-    reason: 'Son altı ayda tespit edilen suistimal girişimlerinde artış gözlendi; trend “artıyor” olarak işaretlendi.',
+    entityName: 'Muallak karşılığının eksik veya fazla ayrılması',
+    summary: 'Artık risk skoru 8 → 12 olarak revize edildi.',
+    reason:
+      'Dönem sonu düzeltme tutarlarının üç çeyrektir artması üzerine etki bir kademe yükseltildi; aylık muallak gözden geçirmesi düzensiz yapılıyor.',
     changes: [
-      { field: 'residual.likelihood', label: 'Artık olasılık', oldValue: '2', newValue: '3' },
-      { field: 'trend', label: 'Trend', oldValue: 'Yatay', newValue: 'Artıyor' },
+      { field: 'residual.impact', label: 'Artık etki', oldValue: '3', newValue: '4' },
+      { field: 'trend', label: 'Trend', oldValue: 'Yatay', newValue: 'Yatay' },
     ],
   },
   {
@@ -300,8 +304,8 @@ const handwrittenAudit: AuditEntry[] = [
     action: 'approve',
     entityType: 'change_request',
     entityId: 'chg-003',
-    entityName: 'DT-2026-009 — E-posta kanalının mutabakata alınması',
-    summary: 'İç Kontrol onayı verildi; PRS-HSR-01 prosedürü 3.1 sürümüyle yayımlandı.',
+    entityName: 'DT-2026-009 — Evrak geliş tarihinin zorunlu kılınması',
+    summary: 'İç Kontrol onayı verildi; PRS-HSR-01 Evrak Yönetimi Prosedürü 3.1 sürümüyle yayımlandı.',
     changes: [{ field: 'version', label: 'Doküman versiyonu', oldValue: '3.0', newValue: '3.1' }],
   },
   {
@@ -332,10 +336,10 @@ const handwrittenAudit: AuditEntry[] = [
     action: 'update',
     entityType: 'document',
     entityId: 'doc-PRS-HSR-09',
-    entityName: 'Hasar Ödeme Prosedürü',
-    summary: 'Prosedür 5.1 → 5.2 sürümüne güncellendi.',
-    reason: 'IBAN değişiklik taleplerinde geri arama ve ikinci onay adımı eklendi.',
-    changes: [{ field: 'version', label: 'Versiyon', oldValue: '5.1', newValue: '5.2' }],
+    entityName: 'Maddi Hasar Dosya İnceleme Prosedürü',
+    summary: 'Prosedür 2.3 → 2.4 sürümüne güncellendi.',
+    reason: 'Eksper raporunun ikinci uzman tarafından kontrol edileceği eşik ve rapor takip adımı eklendi.',
+    changes: [{ field: 'version', label: 'Versiyon', oldValue: '2.3', newValue: '2.4' }],
   },
   {
     id: 'aud-010',

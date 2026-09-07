@@ -40,7 +40,8 @@ import { DocumentFormModal } from '@/components/forms/DocumentForm';
 const featuredPairs: { title: string; hint: string; codes: string[] }[] = [
   {
     title: 'Hasar Yönetimi',
-    hint: 'Hasarın nerede gerçekleştiği süreci baştan aşağı değiştirir. Hangisini açmak istiyorsunuz?',
+    hint: 'Hasarın nerede gerçekleştiği süreci baştan aşağı değiştirir — tespit, evrak, ödeme ve rücu '
+      + 'farklı işler. Hangisini açmak istiyorsunuz?',
     codes: ['HSR', 'HSD'],
   },
 ];
