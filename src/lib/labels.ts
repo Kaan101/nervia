@@ -213,6 +213,8 @@ export const entityTypeLabels: Record<EntityType, string> = {
   document: 'Doküman',
   kri: 'KRI',
   change_request: 'Değişiklik Talebi',
+  account: 'Kullanıcı Hesabı',
+  role: 'Rol',
   session: 'Oturum',
 };
 

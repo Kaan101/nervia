@@ -285,3 +285,25 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .toast.info .toast-mark { background: var(--brand-400); }
 .toast button { border: 0; background: none; color: #8fa4bd; padding: 0; cursor: pointer; }
 .toast button:hover { color: #fff; }
+
+/* ---- Uyarı kutusu tonları ---- */
+.callout.good { --lvl-line: var(--risk-low-line, var(--border)); --lvl-bg: var(--risk-low-bg, var(--surface-sunken)); }
+.callout.warn { --lvl-line: var(--risk-high-line, var(--border)); --lvl-bg: var(--risk-high-bg, var(--surface-sunken)); }
+.callout.danger { --lvl-line: var(--risk-critical-line, var(--border)); --lvl-bg: var(--risk-critical-bg, var(--surface-sunken)); }
+
+/* ---- Giriş formu ---- */
+.login-form {
+  display: flex; flex-direction: column; gap: var(--s4);
+  margin-top: var(--s5); max-width: 380px;
+}
+.login-form .btn { justify-content: center; margin-top: var(--s2); }
+
+/* ---- Yetki yönetimi ---- */
+/* Rol listesi solda, izin matrisi sağda; dar ekranda alt alta düşer. */
+.split-2 { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: var(--s6); align-items: start; }
+@media (max-width: 1080px) { .split-2 { grid-template-columns: minmax(0, 1fr); } }
+
+.input-sm { padding: 4px 6px; font-size: var(--text-xs); }
+
+/* Matris hücrelerindeki açılır listeler dar kalsın, tablo taşmasın. */
+table.data td .input-sm { width: 100%; min-width: 96px; }

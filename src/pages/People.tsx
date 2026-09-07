@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { formatDateTime } from '@/lib/riskMath';
 import { useData } from '@/store/useData';
 import { persistenceState, snapshotSizeKb } from '@/store/persistence';
-import { useAuth, capabilitiesOf, demoPersonas } from '@/store/useAuth';
+import { useAuth, capabilitiesOf } from '@/store/useAuth';
+import { users } from '@/data/org';
 import { roleDescriptions, roleLabels } from '@/lib/labels';
 import { unitName, userById, userName } from '@/data/org';
 import { Avatar, Badge, EmptyState, Metric, Modal, SectionHeading } from '@/components/common/Primitives';
@@ -144,7 +145,10 @@ export function UsersPage() {
 export function ProfilePage() {
   const data = useData((s) => s.data);
   const resetToSeed = useData((s) => s.resetToSeed);
-  const { currentUser, capabilities, login, logout } = useAuth();
+  const { currentUser, capabilities, loginAs, logout } = useAuth();
+  // Gösterim geçişi için yetki farkı en belirgin personalar.
+  const personaChoices = users.filter((u) =>
+    ['usr-01', 'usr-02', 'usr-04', 'usr-08', 'usr-20', 'usr-22', 'usr-24', 'usr-25'].includes(u.id));
   const [confirmReset, setConfirmReset] = useState(false);
   if (!currentUser) return null;
 
@@ -314,8 +318,8 @@ export function ProfilePage() {
           Gösterim ortamında rol bazlı yetkilendirmenin etkisini görmek için başka bir kullanıcıya geçebilirsiniz.
         </p>
         <div className="grid auto">
-          {demoPersonas.map((u) => (
-            <button className="persona" key={u.id} onClick={() => login(u.id)}
+          {personaChoices.map((u) => (
+            <button className="persona" key={u.id} onClick={() => loginAs(u.id)}
               style={u.id === currentUser.id ? { borderColor: 'var(--brand-400)' } : undefined}>
               <Avatar user={u} />
               <span className="stack grow" style={{ minWidth: 0 }}>

@@ -1,3 +1,5 @@
+import type { Account, Role } from './rbac';
+
 /**
  * Nervia — GRC alan modeli.
  *
@@ -401,7 +403,9 @@ export type EntityType =
   | 'document'
   | 'kri'
   | 'change_request'
-  | 'session';
+  | 'session'
+  | 'account'
+  | 'role';
 
 export interface FieldChange {
   field: string;
@@ -496,4 +500,8 @@ export interface Dataset {
   kris: Kri[];
   changeRequests: ChangeRequest[];
   auditTrail: AuditEntry[];
+  /** Düzenlenebilir rol tanımları — yetki matrisinin kaynağı. */
+  roles: Role[];
+  /** Kimlik ve yetki kayıtları; kullanıcı başına bir hesap. */
+  accounts: Account[];
 }

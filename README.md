@@ -32,22 +32,97 @@ npm test           # tip kontrolü + derleme + uçtan uca doğrulama
 Uygulama tamamen istemci tarafında çalışır; arka uç gerektirmez. Demo veri kümesi
 `src/data/` altında tanımlıdır ve her yüklemede deterministik olarak üretilir.
 
-### Giriş
+### Giriş ve yetkilendirme
 
-Giriş ekranında bir persona seçilir. Rol bazlı yetkilendirme gerçekten uygulanır —
-gördüğünüz menüler ve yapabildiğiniz işlemler role göre değişir:
+Giriş **e-posta + parola** ile yapılır. Demo hesaplarının tamamının parolası
+`Nervia2026!`, e-postalar `ad.soyad@nervia.example` biçimindedir.
+
+> **Güvenlik notu.** Arka uç olmadığı için doğrulama tarayıcıda yapılır ve
+> parola özetleri istemcide durur. Bu **gerçek bir güvenlik sınırı değildir** —
+> konsolu açan biri atlatabilir. Amaç yetkilendirme modelinin doğru
+> kurulması; gerçek kullanımda doğrulama sunucuya, parola saklama Argon2id
+> veya bcrypt gibi yavaş bir algoritmaya taşınmalıdır.
+
+Parolalar hiçbir yerde düz metin tutulmaz (SHA-256 + kullanıcıya özel salt),
+art arda 5 hatalı denemede hesap 15 dakika kilitlenir, ve hesabın var olup
+olmadığı hata mesajından anlaşılamaz.
+
+Gösterim için parolasız hızlı geçiş de vardır; giriş ekranındaki
+"Parolasız hızlı geçiş" düğmesi personaları listeler.
 
 | Persona | Rol | Ne yapabilir |
 |---|---|---|
 | Elif Karaca | Üst Yönetim | Kurumsal risk profilini ve audit trail'i izler |
-| Mert Aydın | Birim Yöneticisi · Süreç Sahibi | Kendi süreçlerini günceller, değişiklikleri ilk kademede onaylar |
-| Zeynep Aksoy | Süreç Sahibi | Ödeme süreçlerini yönetir |
-| Sinem Aktaş | İç Kontrol | Kontrol etkinliğini değerlendirir, tüm süreçleri görür |
+| Mert Aydın | Birim Yöneticisi · Süreç Sahibi | Kendi biriminin kayıtlarını yönetir, birinci kademe onayı verir |
+| Barış Öztürk | Çalışan | Yalnızca okur; kendi aksiyonlarını günceller |
+| Sinem Aktaş | İç Kontrol | Kontrol etkinliğini değerlendirir, ikinci kademe onayı verir |
 | Pelin Yavuz | Risk Yönetimi | Risk skorlarını revize eder |
-| Ceren Balcı | İç Denetim | Bağımsız güvence; tüm kayıtları ve audit trail'i görür |
-| Volkan Ateş | Sistem Yöneticisi | Kullanıcı ve yetki yönetimi |
+| Ceren Balcı | İç Denetim | Bağımsız güvence; her şeyi görür, hiçbir şeyi değiştirmez |
+| Volkan Ateş | Sistem Yöneticisi | Rolleri, izinleri ve hesapları yönetir |
 
-Oturum `localStorage`'da tutulur; profil ekranından persona değiştirilebilir.
+Oturum `localStorage`'da tutulur.
+
+---
+
+## Yetkilendirme modeli
+
+Yetkiler koda gömülü değil, **veride** tanımlıdır ve yönetici arayüzden
+değiştirir. Üç katman:
+
+```
+İZİN            KAPSAM                    ROL
+risk.update  ×  all / unit / own / none = düzenlenebilir yetki demeti
+menu.riskler
+audit.view
+```
+
+**İzin** atomiktir: `kaynak.eylem` (`risk.update`), sistem yetkisi
+(`audit.view`, `admin.roles`) ya da menü erişimi (`menu.riskler`).
+Kaynaklar: süreç, risk, kontrol, aksiyon, doküman, KRI, gözden geçirme.
+Eylemler: okuma, ekleme, güncelleme, arşivleme.
+
+**Kapsam** iznin hangi kayıtlarda geçerli olduğunu söyler:
+
+| Kapsam | Anlamı |
+|---|---|
+| `all` | Organizasyonun tamamı |
+| `unit` | Kullanıcının birimi, **alt birimleri** ve hesabına eklenmiş ek birimler |
+| `own` | Yalnızca sahibi olduğu kayıtlar |
+| `none` | Yetki yok |
+
+**Rol** izin + kapsam demetidir. Sekiz yerleşik rol vardır (Çalışan, Süreç
+Sahibi, Birim Yöneticisi, İç Kontrol, Risk Yönetimi, İç Denetim, Üst
+Yönetim, Sistem Yöneticisi); yerleşik roller silinemez ama izinleri
+düzenlenebilir. Organizasyon kendi rollerini de tanımlayabilir —
+mevcut bir rolden kopyalayarak başlamak mümkündür.
+
+Bir kullanıcı birden çok rol taşıyabilir; roller birleşirken **geniş kapsam
+kazanır**.
+
+### Kullanıcıya özel istisnalar
+
+Rolü bozmadan tek kişiye yetki vermek ya da almak için:
+
+```
+İZİN  + kapsam  → rolün verdiğini genişletir
+YASAK           → rol izin verse bile yetkiyi tamamen kaldırır
+```
+
+**Ret her zaman kazanır.** Vekâlet, geçici kısıtlama gibi durumlar rol
+tanımını kirletmeden çözülür; her istisna gerekçesiyle birlikte saklanır.
+
+### Menü ve rota denetimi
+
+Menü izni hem kenar çubuğunu hem rotayı yönetir. Kapalı bir sayfa yalnızca
+gizlenmez — adres çubuğuna yazıldığında da açılmaz; kullanıcıya hangi iznin
+eksik olduğunu söyleyen bir ekran çıkar. Menü tanımı `src/lib/navigation.ts`
+içinde tek yerdedir, kenar çubuğu ve rota koruması aynı kaynaktan okur.
+
+### Etki anında
+
+Yönetici bir rolün iznini değiştirdiğinde, o rolü taşıyan oturumdaki
+kullanıcıların menüsü ve yetkileri **anında** değişir; yeniden giriş
+gerekmez. Rol, hesap ve parola değişikliklerinin hepsi denetim izine yazılır.
 
 ---
 
@@ -200,8 +275,8 @@ yöneticisindedir. Yetkisi olmayan kullanıcı düğmeleri görmez, gerekçesini
 
 ## Doğrulama
 
-Üç uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
-düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 50 kontrol.
+Dört uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
+düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 74 kontrol.
 
 ```bash
 npm run build
@@ -214,6 +289,7 @@ npm run test:e2e
 | `faz1-kayit-yonetimi` | Kayıt oluşturma, düzenleme, risk–kontrol bağlama, arşivleme, kalıcılık, rol bazlı yetki reddi | 16 |
 | `faz2-surec-yapisi` | Ana süreç → alt süreç → faaliyet ağacı, sıralama, kritik nokta, doküman bağlama, süreç arşivleme | 15 |
 | `faz3-onay-mekanizmasi` | Kritik alan tespiti, talep üretimi, kendi talebini onaylayamama, iki kademeli zincir, uygulama | 19 |
+| `faz4-yetkilendirme` | Giriş, hatalı parola, menü filtresi, rota koruması, rol düzenleme, kullanıcı istisnası, pasif hesap | 24 |
 
 Ortam değişkenleri:
 
@@ -331,8 +407,11 @@ Animasyonlar profesyonel ve kısa tutulmuştur; `prefers-reduced-motion` destekl
 ```
 src/
   types/grc.ts            # GRC alan modeli
+  types/rbac.ts           # izin, kapsam, rol ve hesap modeli
   data/
     org.ts                # birimler ve kullanıcılar
+    roles.ts              # yerleşik rol tanımları
+    accounts.ts           # kimlik kayıtları (özetlenmiş parolalar)
     spec.ts               # bildirimsel süreç tanımı (DSL)
     build.ts              # spec → normalize edilmiş varlık grafiği
     processes/            # ana süreç tanımları
@@ -344,9 +423,12 @@ src/
     search.ts             # global arama indeksi (Türkçe normalizasyon ile)
     ai.ts                 # kural tabanlı öneri, analiz ve doğal dil sorgusu
     entityMeta.ts         # alan etiketleri, fark hesaplama, kod üretimi
+    access.ts             # yetki motoru: izin birleştirme, kapsam çözümlemesi
+    password.ts           # parola özetleme ve kural denetimi
+    navigation.ts         # menü ↔ rota eşlemesi (tek kaynak)
   store/
     useData.ts            # veri kümesi ve tüm mutasyonlar (tek yazma noktası)
-    useAuth.ts            # oturum, roller, kayıt bazlı yetkiler
+    useAuth.ts            # oturum, kimlik doğrulama, yetki sorguları
     useUi.ts              # seçim, görünüm, filtreler
     persistence.ts        # localStorage anlık görüntüsü ve sürüm koruması
   components/
@@ -363,6 +445,7 @@ tests/
   faz1-kayit-yonetimi.mjs # kalıcılık, CRUD, ilişkilendirme, arşivleme
   faz2-surec-yapisi.mjs   # süreç ağacı, sıralama, doküman yönetimi
   faz3-onay-mekanizmasi.mjs # kritik alan → onay zinciri → uygulama
+  faz4-yetkilendirme.mjs  # giriş, menü/rota denetimi, rol ve istisna yönetimi
   run-all.mjs             # üç süiti sırayla koşan toplu koşucu
 ```
 

@@ -33,7 +33,12 @@ function pair([likelihood, impact]: Pair) {
   return { likelihood, impact };
 }
 
-export interface BuildResult extends Dataset {
+/**
+ * Süreç ağacından türetilen varlıklar. Roller ve hesaplar süreç
+ * tanımından gelmediği için burada üretilmez; veri kümesi birleştirilirken
+ * eklenir.
+ */
+export interface BuildResult extends Omit<Dataset, 'roles' | 'accounts'> {
   /** kod → id eşlemeleri (referanslar için). */
   nodeByCode: Map<string, ProcessNode>;
 }

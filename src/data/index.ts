@@ -4,6 +4,8 @@ import { buildDataset } from './build';
 import { hasarYonetimi } from './processes/hasar';
 import { bilgiTeknolojileri, hukuk, insanKaynaklari, maliIsler } from './processes/others-a';
 import { icKontrol, idariIsler, raporlama, riskYonetimi, satinAlma } from './processes/others-b';
+import { builtInRoles } from './roles';
+import { accounts } from './accounts';
 
 const organization: NodeSpec = {
   code: 'ORG',
@@ -364,6 +366,8 @@ function derivedAudit(nodes: ProcessNode[]): AuditEntry[] {
 
 export const dataset: Dataset = {
   ...built,
+  roles: builtInRoles,
+  accounts,
   changeRequests,
   auditTrail: [...handwrittenAudit, ...derivedAudit(built.nodes)].sort(
     (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),

@@ -3,6 +3,7 @@ import type {
   ActionItem, ApprovalStep, AuditEntry, ChangeRequest, Control, Dataset, FieldChange,
   GrcDocument, Kri, ProcessNode, Risk, RoleId,
 } from '@/types/grc';
+import type { Account, Role } from '@/types/rbac';
 import { dataset as seedDataset } from '@/data';
 import { NOW } from '@/data/build';
 import {
@@ -160,6 +161,15 @@ interface DataState extends Indexes {
   }) => SaveOutcome;
 
   /* --- Kalıcılık --- */
+  /* --- Kimlik ve yetki --- */
+  registerFailedLogin: (userId: string, maxAttempts: number, lockMinutes: number) => void;
+  registerSuccessfulLogin: (userId: string) => void;
+  setPassword: (userId: string, salt: string, hash: string, actorId: string, forceChange: boolean) => void;
+  updateAccount: (userId: string, patch: Partial<Account>, actorId: string, reason?: string) => void;
+  createRole: (role: Role, actorId: string) => void;
+  updateRole: (roleId: string, patch: Partial<Role>, actorId: string, reason?: string) => void;
+  deleteRole: (roleId: string, actorId: string) => void;
+
   resetToSeed: () => void;
 }
 
@@ -911,6 +921,161 @@ export const useData = create<DataState>((set, get) => ({
   },
 
   /* ---------------- Kalıcılık ---------------- */
+
+  /* ---------------- Kimlik ve yetki ---------------- */
+
+  registerFailedLogin: (userId, maxAttempts, lockMinutes) =>
+    set((state) => ({
+      data: {
+        ...state.data,
+        accounts: state.data.accounts.map((a) => {
+          if (a.userId !== userId) return a;
+          const failedAttempts = a.failedAttempts + 1;
+          // Kilit yalnızca eşiğe ulaşıldığında konur; sayaç başarılı
+          // girişte sıfırlanır.
+          const lockedUntil = failedAttempts >= maxAttempts
+            ? new Date(Date.now() + lockMinutes * 60000).toISOString()
+            : a.lockedUntil;
+          return { ...a, failedAttempts, lockedUntil };
+        }),
+      },
+    })),
+
+  registerSuccessfulLogin: (userId) =>
+    set((state) => ({
+      data: {
+        ...state.data,
+        accounts: state.data.accounts.map((a) =>
+          a.userId === userId
+            ? { ...a, failedAttempts: 0, lockedUntil: null, lastLoginAt: nowIso() }
+            : a),
+      },
+    })),
+
+  setPassword: (userId, salt, hash, actorId, forceChange) => {
+    set((state) => ({
+      data: {
+        ...state.data,
+        accounts: state.data.accounts.map((a) =>
+          a.userId === userId
+            ? {
+              ...a,
+              passwordSalt: salt,
+              passwordHash: hash,
+              mustChangePassword: forceChange,
+              failedAttempts: 0,
+              lockedUntil: null,
+            }
+            : a),
+      },
+    }));
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'account',
+      entityId: userId,
+      entityName: userName(userId),
+      // Parolanın kendisi hiçbir zaman kaydedilmez; yalnızca olay kaydedilir.
+      summary: actorId === userId ? 'Parola değiştirildi.' : 'Parola sistem yöneticisi tarafından sıfırlandı.',
+    });
+  },
+
+  updateAccount: (userId, patch, actorId, reason) => {
+    const before = get().data.accounts.find((a) => a.userId === userId);
+    if (!before) return;
+    set((state) => ({
+      data: {
+        ...state.data,
+        accounts: state.data.accounts.map((a) => (a.userId === userId ? { ...a, ...patch } : a)),
+      },
+    }));
+    const bits: string[] = [];
+    if (patch.roleIds) {
+      const names = patch.roleIds
+        .map((id) => get().data.roles.find((r) => r.id === id)?.name ?? id)
+        .join(', ');
+      bits.push(`Roller: ${names || 'yok'}`);
+    }
+    if (patch.active !== undefined && patch.active !== before.active) {
+      bits.push(patch.active ? 'Hesap etkinleştirildi' : 'Hesap pasife alındı');
+    }
+    if (patch.overrides) bits.push(`${patch.overrides.length} kullanıcı istisnası`);
+    if (patch.extraUnitIds) {
+      bits.push(`Ek birim: ${patch.extraUnitIds.length || 'yok'}`);
+    }
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'account',
+      entityId: userId,
+      entityName: userName(userId),
+      summary: `Yetki kaydı güncellendi. ${bits.join(' · ')}`.trim(),
+      reason,
+    });
+  },
+
+  createRole: (role, actorId) => {
+    set((state) => ({ data: { ...state.data, roles: [...state.data.roles, role] } }));
+    get().logAudit({
+      userId: actorId,
+      action: 'create',
+      entityType: 'role',
+      entityId: role.id,
+      entityName: role.name,
+      summary: `Yeni rol tanımlandı: ${role.name}.`,
+    });
+  },
+
+  updateRole: (roleId, patch, actorId, reason) => {
+    const before = get().data.roles.find((r) => r.id === roleId);
+    if (!before) return;
+    set((state) => ({
+      data: {
+        ...state.data,
+        roles: state.data.roles.map((r) => (r.id === roleId ? { ...r, ...patch } : r)),
+      },
+    }));
+    let summary = `Rol güncellendi: ${before.name}.`;
+    if (patch.permissions) {
+      const oncesi = Object.keys(before.permissions).length;
+      const sonrasi = Object.keys(patch.permissions).length;
+      summary = `Rol izinleri güncellendi: ${before.name} (${oncesi} → ${sonrasi} izin).`;
+    }
+    get().logAudit({
+      userId: actorId,
+      action: 'update',
+      entityType: 'role',
+      entityId: roleId,
+      entityName: before.name,
+      summary,
+      reason,
+    });
+  },
+
+  deleteRole: (roleId, actorId) => {
+    const role = get().data.roles.find((r) => r.id === roleId);
+    // Yerleşik roller silinemez: sistemin varsayılan davranışı bunlara bağlı.
+    if (!role || role.builtIn) return;
+    set((state) => ({
+      data: {
+        ...state.data,
+        roles: state.data.roles.filter((r) => r.id !== roleId),
+        // Rol silinince kimsede askıda kalmasın.
+        accounts: state.data.accounts.map((a) =>
+          a.roleIds.includes(roleId)
+            ? { ...a, roleIds: a.roleIds.filter((id) => id !== roleId) }
+            : a),
+      },
+    }));
+    get().logAudit({
+      userId: actorId,
+      action: 'delete',
+      entityType: 'role',
+      entityId: roleId,
+      entityName: role.name,
+      summary: `Rol silindi: ${role.name}. Bu role sahip kullanıcılardan kaldırıldı.`,
+    });
+  },
 
   resetToSeed: () => {
     clearSnapshot();

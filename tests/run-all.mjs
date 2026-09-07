@@ -13,6 +13,7 @@ const suites = [
   ['Faz 1 — kayıt yönetimi', 'faz1-kayit-yonetimi.mjs'],
   ['Faz 2 — süreç yapısı', 'faz2-surec-yapisi.mjs'],
   ['Faz 3 — onay mekanizması', 'faz3-onay-mekanizmasi.mjs'],
+  ['Faz 4 — yetkilendirme', 'faz4-yetkilendirme.mjs'],
 ];
 
 const run = (file) =>

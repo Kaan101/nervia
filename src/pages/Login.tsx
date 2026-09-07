@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { demoPersonas, useAuth } from '@/store/useAuth';
+import { useAuth } from '@/store/useAuth';
+import { useData } from '@/store/useData';
 import { users } from '@/data/org';
-import { roleDescriptions, roleLabels } from '@/lib/labels';
+import { DEMO_PASSWORD } from '@/data/accounts';
 import { Avatar, Badge } from '@/components/common/Primitives';
 import { IconArrowRight } from '@/components/common/Icons';
 
@@ -12,10 +13,37 @@ const principles = [
   'Kimin sorumlu olduğunu ve mevcut risk seviyesini gör.',
 ];
 
+/** Giriş ekranında öne çıkarılan personalar — yetki farkları en belirgin olanlar. */
+const featured = ['usr-01', 'usr-02', 'usr-04', 'usr-20', 'usr-22', 'usr-24', 'usr-25'];
+
 export function Login() {
-  const login = useAuth((s) => s.login);
-  const [showAll, setShowAll] = useState(false);
-  const list = showAll ? users : demoPersonas;
+  const { login, loginAs } = useAuth();
+  const roles = useData((s) => s.data.roles);
+  const accounts = useData((s) => s.data.accounts);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setBusy(true);
+    const result = await login(email, password);
+    setBusy(false);
+    if (!result.ok) setError(result.error);
+  };
+
+  /** Personanın rollerini hesabından okur; rol adları artık veriden geliyor. */
+  const roleNamesOf = (userId: string): string[] => {
+    const account = accounts.find((a) => a.userId === userId);
+    if (!account) return [];
+    return account.roleIds.map((id) => roles.find((r) => r.id === id)?.name ?? id);
+  };
+
+  const demoList = showDemo ? users : users.filter((u) => featured.includes(u.id));
 
   return (
     <div className="login">
@@ -52,34 +80,79 @@ export function Login() {
 
       <main className="login-panel">
         <span className="eyebrow">Oturum aç</span>
-        <h2 style={{ marginTop: 'var(--s2)' }}>Kullanıcı hesabınızı seçin</h2>
-        <p className="muted" style={{ marginTop: 'var(--s2)', maxWidth: '52ch' }}>
-          Bu bir gösterim ortamıdır. Rol bazlı yetkilendirmenin nasıl çalıştığını görmek için
-          farklı personalarla giriş yapabilirsiniz — gördüğünüz ekranlar ve yapabildikleriniz role göre değişir.
-        </p>
+        <h2 style={{ marginTop: 'var(--s2)' }}>Hesabınıza giriş yapın</h2>
 
-        <div className="persona-list">
-          {list.map((user) => (
-            <button key={user.id} className="persona" onClick={() => login(user.id)}>
-              <Avatar user={user} size="lg" />
-              <span className="stack grow" style={{ minWidth: 0 }}>
-                <span className="who">{user.name}</span>
-                <span className="role truncate">{user.title} · {user.department}</span>
-                <span className="row gap-1 wrap" style={{ marginTop: 4 }}>
-                  {user.roles.map((r) => (
-                    <Badge key={r} tone="plain" title={roleDescriptions[r]}>{roleLabels[r]}</Badge>
-                  ))}
-                </span>
-              </span>
-              <IconArrowRight className="go" />
-            </button>
-          ))}
+        <form className="login-form" onSubmit={submit}>
+          <div className="field">
+            <label className="field-label" htmlFor="login-email">E-posta</label>
+            <input
+              id="login-email"
+              className="input"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ad.soyad@nervia.example"
+              required
+            />
+          </div>
+
+          <div className="field">
+            <label className="field-label" htmlFor="login-password">Parola</label>
+            <input
+              id="login-password"
+              className="input"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error ? <div className="callout danger" role="alert">{error}</div> : null}
+
+          <button className="btn btn-primary" type="submit" disabled={busy}>
+            {busy ? 'Doğrulanıyor…' : 'Giriş yap'}
+          </button>
+        </form>
+
+        <div className="callout" style={{ marginTop: 'var(--s5)' }}>
+          <strong>Gösterim ortamı.</strong> Tüm demo hesaplarının parolası{' '}
+          <code>{DEMO_PASSWORD}</code>. E-posta adresleri{' '}
+          <code>ad.soyad@nervia.example</code> biçimindedir. Kimlik doğrulama
+          tarayıcıda yapıldığı için bu gerçek bir güvenlik sınırı değildir;
+          amaç yetkilendirmenin nasıl çalıştığını göstermektir.
         </div>
 
-        <button className="btn btn-ghost" style={{ marginTop: 'var(--s4)', alignSelf: 'flex-start' }}
-          onClick={() => setShowAll((v) => !v)}>
-          {showAll ? 'Yalnızca öne çıkan personaları göster' : `Tüm kullanıcıları göster (${users.length})`}
+        <button
+          className="btn btn-ghost"
+          style={{ marginTop: 'var(--s4)', alignSelf: 'flex-start' }}
+          onClick={() => setShowDemo((v) => !v)}
+          type="button"
+        >
+          {showDemo ? 'Hızlı geçişi gizle' : 'Parolasız hızlı geçiş (gösterim)'}
         </button>
+
+        {showDemo ? (
+          <div className="persona-list">
+            {demoList.map((user) => (
+              <button key={user.id} className="persona" onClick={() => loginAs(user.id)} type="button">
+                <Avatar user={user} size="lg" />
+                <span className="stack grow" style={{ minWidth: 0 }}>
+                  <span className="who">{user.name}</span>
+                  <span className="role truncate">{user.title} · {user.department}</span>
+                  <span className="row gap-1 wrap" style={{ marginTop: 4 }}>
+                    {roleNamesOf(user.id).map((name) => (
+                      <Badge key={name} tone="plain">{name}</Badge>
+                    ))}
+                  </span>
+                </span>
+                <IconArrowRight className="go" />
+              </button>
+            ))}
+          </div>
+        ) : null}
       </main>
     </div>
   );
