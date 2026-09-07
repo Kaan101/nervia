@@ -39,6 +39,7 @@ import { LinkEditorModal, type LinkEditorMode } from '@/components/forms/LinkEdi
 import { NodeFormModal } from '@/components/forms/NodeForm';
 import { NodeStructurePanel } from '@/components/forms/NodeStructure';
 import { DocumentFormModal } from '@/components/forms/DocumentForm';
+import { AttachmentList } from '@/components/forms/AttachmentInput';
 import {
   IconArrowRight, IconChange, IconCheck, IconChevronRight, IconClock, IconControl, IconDoc,
   IconExternal, IconLayers, IconLock, IconMoney, IconPlus, IconRisk, IconSettings,
@@ -465,6 +466,13 @@ export function NodeDetail({ nodeId, onClose }: { nodeId: string; onClose: () =>
               <div className="detail-section">
                 <SectionHeading title="Kritik Noktalar" count={node.criticalPoints.length} />
                 <CriticalPoints node={node} />
+              </div>
+            ) : null}
+
+            {node.attachments?.length ? (
+              <div className="detail-section">
+                <SectionHeading title="Ekler" count={node.attachments.length} />
+                <AttachmentList items={node.attachments} />
               </div>
             ) : null}
 
@@ -1028,6 +1036,13 @@ export function RiskDetail({ riskId, onClose }: { riskId: string; onClose: () =>
         )}
       </div>
 
+      {risk.attachments?.length ? (
+        <div className="detail-section">
+          <SectionHeading title="Ekler" count={risk.attachments.length} />
+          <AttachmentList items={risk.attachments} />
+        </div>
+      ) : null}
+
       <RiskFormModal open={editing} onClose={() => setEditing(false)} riskId={risk.id} />
       <LinkEditorModal open={Boolean(linking)} onClose={() => setLinking(null)} mode={linking} />
       <ActionFormModal
@@ -1247,6 +1262,13 @@ export function ControlDetail({ controlId, onClose }: { controlId: string; onClo
         </div>
       ) : null}
 
+      {control.attachments?.length ? (
+        <div className="detail-section">
+          <SectionHeading title="Ekler" count={control.attachments.length} />
+          <AttachmentList items={control.attachments} />
+        </div>
+      ) : null}
+
       <ControlFormModal open={editing} onClose={() => setEditing(false)} controlId={control.id} />
       <LinkEditorModal open={Boolean(linking)} onClose={() => setLinking(null)} mode={linking} />
       <ActionFormModal
@@ -1340,6 +1362,13 @@ export function DocumentViewer({ document: doc, onClose }: { document: GrcDocume
             hint="Bu kayıt yalnızca künye olarak takip ediliyor. Düzenle diyerek bölüm ekleyebilirsiniz." />
         )}
       </div>
+
+      {doc.attachments?.length ? (
+        <div className="detail-section">
+          <SectionHeading title="Ekler" count={doc.attachments.length} />
+          <AttachmentList items={doc.attachments} />
+        </div>
+      ) : null}
 
       <DocumentFormModal open={editing} onClose={() => setEditing(false)} documentId={doc.id} />
       <LinkEditorModal open={Boolean(linking)} onClose={() => setLinking(null)} mode={linking} />
@@ -1489,6 +1518,13 @@ export function ActionDetail({ actionId, onClose }: { actionId: string; onClose:
           ) : null}
         </div>
       </div>
+
+      {action.attachments?.length ? (
+        <div className="detail-section">
+          <SectionHeading title="Ekler" count={action.attachments.length} />
+          <AttachmentList items={action.attachments} />
+        </div>
+      ) : null}
 
       <ActionFormModal open={editing} onClose={() => setEditing(false)} actionId={action.id} />
     </Drawer>

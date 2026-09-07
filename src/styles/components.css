@@ -435,3 +435,16 @@ table.data td .input-sm { width: 100%; min-width: 96px; }
   .canvas-inspector .grid.cols-4 { grid-template-columns: minmax(0, 1fr); }
   .grid.cols-2 { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---- Ek bağlantıları ---- */
+.attachment-row {
+  align-items: center; padding: var(--s2) var(--s3);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+/* Ekleme satırı: dar ekranda alt alta düşer, geniş ekranda tek satır. */
+.attachment-add {
+  display: flex; flex-wrap: wrap; gap: var(--s2); align-items: flex-end;
+}
+.attachment-add .field { min-width: 150px; }
+.attachment-add .field.grow { flex: 1 1 180px; }

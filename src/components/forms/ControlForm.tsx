@@ -19,6 +19,7 @@ import {
   ChipMultiSelect, DateInput, FormGrid, FormSection, SelectInput, TextArea, TextInput, Toggle,
   UserSelect,
 } from './Fields';
+import { AttachmentInput } from './AttachmentInput';
 
 const designLabels = {
   adequate: 'Yeterli',
@@ -220,6 +221,14 @@ export function ControlFormModal({
           label="Test sonucu" value={draft.testResult ?? ''} rows={2}
           hint="Varsa test bulgusunu yazın; kontrol kartında uyarı olarak gösterilir."
           onChange={(testResult) => setDraft({ ...draft, testResult: testResult || undefined })}
+        />
+      </FormSection>
+
+      <FormSection title="Ekler">
+        <AttachmentInput
+          value={draft.attachments ?? []}
+          hint="Kontrol kanıtının saklandığı adres — imzalı form, sistem çıktısı, kontrol listesi."
+          onChange={(attachments) => setDraft({ ...draft, attachments })}
         />
       </FormSection>
 

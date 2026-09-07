@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type {
-  ActionItem, ApprovalStep, AuditEntry, ChangeRequest, Control, Dataset, FieldChange,
+  ActionItem, ApprovalStep, Attachment, AuditEntry, ChangeRequest, Control, Dataset, FieldChange,
   GrcDocument, Kri, ProcessNode, Risk, RoleId,
 } from '@/types/grc';
 import type { Account, Role } from '@/types/rbac';
@@ -145,6 +145,7 @@ interface DataState extends Indexes {
     decision: 'approved' | 'rejected',
     approverId: string,
     comment: string,
+    attachments?: Attachment[],
   ) => void;
   createChangeRequest: (request: ChangeRequest, actorId: string) => void;
 
@@ -801,7 +802,7 @@ export const useData = create<DataState>((set, get) => ({
 
   /* ---------------- Değişiklik yönetimi ---------------- */
 
-  decideChangeRequest: (id, stepOrder, decision, approverId, comment) => {
+  decideChangeRequest: (id, stepOrder, decision, approverId, comment, attachments) => {
     const request = get().data.changeRequests.find((c) => c.id === id);
     if (!request) return;
     // Kimse kendi talebini onaylayamaz.
@@ -809,7 +810,9 @@ export const useData = create<DataState>((set, get) => ({
 
     const at = nowIso();
     const approvals = request.approvals.map((a) =>
-      a.order === stepOrder ? { ...a, decision, approverId, comment, decidedAt: at } : a,
+      a.order === stepOrder
+        ? { ...a, decision, approverId, comment, decidedAt: at, attachments: attachments?.length ? attachments : a.attachments }
+        : a,
     );
 
     let status: ChangeRequest['status'] = request.status;

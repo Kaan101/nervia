@@ -8,6 +8,8 @@ import { userName } from '@/data/org';
 import { Avatar, Badge, EmptyState, Metric, Modal, Tabs } from '@/components/common/Primitives';
 import { userById } from '@/data/org';
 import { IconArrowRight, IconCheck, IconClose } from '@/components/common/Icons';
+import { AttachmentInput, AttachmentList } from '@/components/forms/AttachmentInput';
+import type { Attachment } from '@/types/grc';
 
 type Filter = ChangeRequestStatus | 'all' | 'pending';
 
@@ -18,6 +20,7 @@ export function ChangeManagementPage() {
   const [filter, setFilter] = useState<Filter>('pending');
   const [decision, setDecision] = useState<{ request: ChangeRequest; step: number; kind: 'approved' | 'rejected' } | null>(null);
   const [comment, setComment] = useState('');
+  const [evidence, setEvidence] = useState<Attachment[]>([]);
 
   const pending = data.changeRequests.filter((c) => c.status === 'pending_manager' || c.status === 'pending_control');
 
@@ -182,6 +185,9 @@ export function ChangeManagementPage() {
                         {a.decidedAt ? (
                           <div className="dim" style={{ fontSize: 'var(--text-2xs)', marginTop: 2 }}>{formatDateTime(a.decidedAt)}</div>
                         ) : null}
+                        {a.attachments?.length ? (
+                          <div style={{ marginTop: 6 }}><AttachmentList items={a.attachments} /></div>
+                        ) : null}
                         {a.comment ? (
                           <div style={{ fontSize: 'var(--text-xs)', marginTop: 4, color: 'var(--ink-700)' }}>“{a.comment}”</div>
                         ) : null}
@@ -228,10 +234,10 @@ export function ChangeManagementPage() {
                     Sıradaki onay: <strong>{step.label}</strong>
                   </span>
                   <span className="spacer" />
-                  <button className="btn btn-sm btn-danger" onClick={() => { setDecision({ request, step: step.order, kind: 'rejected' }); setComment(''); }}>
+                  <button className="btn btn-sm btn-danger" onClick={() => { setDecision({ request, step: step.order, kind: 'rejected' }); setComment(''); setEvidence([]); }}>
                     <IconClose size={13} /> Reddet
                   </button>
-                  <button className="btn btn-sm btn-primary" onClick={() => { setDecision({ request, step: step.order, kind: 'approved' }); setComment(''); }}>
+                  <button className="btn btn-sm btn-primary" onClick={() => { setDecision({ request, step: step.order, kind: 'approved' }); setComment(''); setEvidence([]); }}>
                     <IconCheck size={13} /> Onayla
                   </button>
                 </div>
@@ -257,7 +263,7 @@ export function ChangeManagementPage() {
               className={`btn btn-sm ${decision?.kind === 'approved' ? 'btn-primary' : 'btn-danger'}`}
               onClick={() => {
                 if (decision && currentUser) {
-                  decide(decision.request.id, decision.step, decision.kind, currentUser.id, comment);
+                  decide(decision.request.id, decision.step, decision.kind, currentUser.id, comment, evidence);
                 }
                 setDecision(null);
               }}
@@ -281,6 +287,14 @@ export function ChangeManagementPage() {
                 placeholder={decision.kind === 'approved'
                   ? 'Örn. Kontrol tasarımı güçlendiği için uygundur.'
                   : 'Örn. Kontrol ortamını zayıflattığı için uygun bulunmamıştır.'}
+              />
+            </div>
+            <div className="field">
+              <span className="field-label">Dayanak ekleri</span>
+              <AttachmentInput
+                value={evidence}
+                onChange={setEvidence}
+                hint="Kararın dayanağı bir dosyaysa adresini ekleyin: SharePoint bağlantısı, ağ paylaşımı ya da sunucu yolu."
               />
             </div>
             <p className="dim" style={{ fontSize: 'var(--text-xs)' }}>

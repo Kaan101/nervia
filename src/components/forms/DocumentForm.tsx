@@ -13,6 +13,7 @@ import { useUi } from '@/store/useUi';
 import {
   DateInput, FormGrid, FormSection, RepeaterRow, SelectInput, TextArea, TextInput, UserSelect,
 } from './Fields';
+import { AttachmentInput } from './AttachmentInput';
 import { IconPlus } from '@/components/common/Icons';
 
 const typePrefix: Record<DocumentType, string> = {
@@ -215,6 +216,14 @@ export function DocumentFormModal({ open, onClose, documentId, defaultNodeId, on
         >
           <IconPlus size={14} /> Bölüm ekle
         </button>
+      </FormSection>
+
+      <FormSection title="Ekler">
+        <AttachmentInput
+          value={draft.attachments ?? []}
+          hint="Dokümanın kaynak dosyası. Metin burada özetlenir; asıl dosya SharePoint kütüphanesinde, ağ paylaşımında ya da sunucu dizininde kalır."
+          onChange={(attachments) => setDraft({ ...draft, attachments })}
+        />
       </FormSection>
 
       {existing ? (

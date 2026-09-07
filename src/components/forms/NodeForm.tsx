@@ -17,6 +17,7 @@ import {
   DateInput, FormGrid, FormSection, ListInput, MaturityInput, MultiUserSelect, RepeaterRow,
   SelectInput, TextArea, TextInput, UserSelect,
 } from './Fields';
+import { AttachmentInput } from './AttachmentInput';
 import { IconPlus } from '@/components/common/Icons';
 
 const criticalKinds: Record<CriticalPoint['kind'], string> = criticalPointLabels as Record<
@@ -344,6 +345,14 @@ export function NodeFormModal({ open, onClose, nodeId, parentId, onSaved }: Prop
         >
           <IconPlus size={14} /> Örnek senaryo ekle
         </button>
+      </FormSection>
+
+      <FormSection title="Ekler">
+        <AttachmentInput
+          value={draft.attachments ?? []}
+          hint="Bu adıma ait akış şeması, form örneği ya da talimat dosyasının adresi."
+          onChange={(attachments) => setDraft({ ...draft, attachments })}
+        />
       </FormSection>
 
       {existing ? (

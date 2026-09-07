@@ -52,6 +52,33 @@ export interface User {
 }
 
 /* ------------------------------------------------------------------ */
+/* Ek bağlantıları                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Ekin nerede durduğu. */
+export type AttachmentSource = 'sharepoint' | 'web' | 'network' | 'server' | 'other';
+
+/**
+ * Kayda iliştirilen dosya bağlantısı.
+ *
+ * Dosyanın kendisi değil, ona giden adres tutulur: SharePoint bağlantısı,
+ * ağ paylaşımı yolu (\\sunucu\pay) ya da sunucudaki bir adres. Böylece
+ * kaynak sistem tek doğru olarak kalır.
+ */
+export interface Attachment {
+  id: string;
+  /** Listede görünen ad. */
+  label: string;
+  /** Bağlantı hedefi. */
+  href: string;
+  source: AttachmentSource;
+  /** Bu ekin neden iliştirildiği. */
+  note?: string;
+  addedById: string;
+  addedAt: string;
+}
+
+/* ------------------------------------------------------------------ */
 /* Süreç hiyerarşisi                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -124,6 +151,8 @@ export interface ProcessNode {
   customer?: string;
   /** Hedef süre (iş günü). */
   slaDays?: number;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -203,6 +232,8 @@ export interface Risk {
    * düşer, geçmiş raporlarda ve audit trail'de yerinde kalır.
    */
   archived?: boolean;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -281,6 +312,8 @@ export interface Control {
 
   /** Arşivlenmiş kayıt (bkz. Risk.archived). */
   archived?: boolean;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -323,6 +356,8 @@ export interface ActionItem {
 
   /** Arşivlenmiş kayıt (bkz. Risk.archived). */
   archived?: boolean;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -362,6 +397,8 @@ export interface GrcDocument {
 
   /** Arşivlenmiş kayıt (bkz. Risk.archived). */
   archived?: boolean;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -429,6 +466,8 @@ export interface ApprovalStep {
   decision: 'pending' | 'approved' | 'rejected';
   comment: string;
   decidedAt: string | null;
+  /** Karara dayanak gösterilen dosya bağlantıları. */
+  attachments?: Attachment[];
 }
 
 export interface ChangeRequest {

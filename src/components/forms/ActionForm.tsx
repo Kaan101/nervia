@@ -10,6 +10,7 @@ import { Modal } from '@/components/common/Primitives';
 import {
   DateInput, FormGrid, FormSection, PercentInput, SelectInput, TextArea, TextInput, UserSelect,
 } from './Fields';
+import { AttachmentInput } from './AttachmentInput';
 
 interface Props {
   open: boolean;
@@ -177,6 +178,14 @@ export function ActionFormModal({ open, onClose, actionId, defaults, onSaved }: 
           label="İlgili süreç adımı" value={draft.processNodeId ?? ''}
           options={[{ value: '', label: '— seçilmedi —' }, ...nodes.map((n) => ({ value: n.id, label: `${n.code} · ${n.name}` }))]}
           onChange={(processNodeId) => setDraft({ ...draft, processNodeId: processNodeId || null })}
+        />
+      </FormSection>
+
+      <FormSection title="Ekler">
+        <AttachmentInput
+          value={draft.attachments ?? []}
+          hint="Aksiyonun kanıt dosyası: talimat, ekran görüntüsü, onay yazısı."
+          onChange={(attachments) => setDraft({ ...draft, attachments })}
         />
       </FormSection>
     </Modal>

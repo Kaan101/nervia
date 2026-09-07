@@ -15,6 +15,7 @@ import { useUi } from '@/store/useUi';
 import {
   AssessmentPicker, FormGrid, FormSection, SelectInput, TextArea, TextInput, UserSelect,
 } from './Fields';
+import { AttachmentInput } from './AttachmentInput';
 
 interface Props {
   open: boolean;
@@ -210,6 +211,14 @@ export function RiskFormModal({ open, onClose, riskId, defaultNodeId, onSaved }:
             </span>
           </div>
         ) : null}
+      </FormSection>
+
+      <FormSection title="Ekler">
+        <AttachmentInput
+          value={draft.attachments ?? []}
+          hint="Risk değerlendirme raporu, toplantı tutanağı ya da kanıt dosyasının adresi. Dosya SharePoint’te, ağ paylaşımında veya sunucu dizininde durabilir."
+          onChange={(attachments) => setDraft({ ...draft, attachments })}
+        />
       </FormSection>
 
       {existing ? (

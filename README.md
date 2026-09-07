@@ -242,6 +242,7 @@ Sistem yalnızca okuma odaklı değildir; kayıtlar arayüzden yönetilir.
 | **Yapı düzenleme** | Yapı sekmesi: akıştaki sırayı değiştirme (yukarı/aşağı), başka bir üst sürecin altına taşıma, alt kayıt ve kardeş ekleme |
 | **İlişkilendirme** | Risk ↔ kontrol, risk ↔ süreç adımı, kontrol ↔ süreç adımı, doküman ↔ süreç adımı, doküman ↔ kontrol — bağ iki yönde de kurulur |
 | **Onay** | Kritik alan değişiklikleri Değişiklik Yönetimi’nde onaylanır; onay tamamlanınca yama uygulanır ve yeni versiyon yayımlanır |
+| **Dosya bağlantısı ekleme** | Risk, kontrol, aksiyon, doküman ve süreç formlarındaki *Ekler* bölümü; onay/ret kararında *Dayanak ekleri* |
 | Kontrol **etkinlik değerlendirmesi** | Kontrol panelinin altı (yalnızca İç Kontrol) |
 | Aksiyon **durum ve ilerleme** | Aksiyon panelinin altı |
 | Süreç **gözden geçirme** işaretleme | Süreç paneli ve Gözden Geçirme sayfası |
@@ -270,6 +271,43 @@ kontrol tanımlanamaz. Risk iştahı aşıldığında form uyarır.
 **Taşıma güvenliği.** Bir süreç yalnızca aynı türde kayıt alabilen düğümlerin
 altına taşınabilir ve kendi alt ağacının içine taşınamaz; döngü oluşması
 engellenir. Taşıma altındaki tüm yapıyı birlikte götürür ve gerekçe ister.
+
+## Dosya bağlantıları (Ekler)
+
+Kayda iliştirilen dosya **uygulamanın içine kopyalanmaz**; ona giden adres
+tutulur. Kurumsal ortamda dosya zaten bir yerde durur — SharePoint
+kütüphanesinde, ağ paylaşımında ya da bir sunucu dizininde — ve kopya
+üretmek "hangi nüsha doğru?" sorusunu doğurur. Ek, kaynak sistemi tek doğru
+olarak bırakır.
+
+Ek alanı şu formlarda vardır: **risk, kontrol, aksiyon, doküman, süreç
+adımı** ve değişiklik talebi **onay/ret kararı**. Kanvastan “Bu seviyeye
+ekle” ile açılan formlar aynı modalleri kullandığı için ek alanını da taşır.
+
+Her ekte görünen ad, adres, kaynak türü, not, ekleyen kişi ve zaman tutulur.
+Kaynak türü adresten otomatik çıkarılır ve gerekirse elle düzeltilir:
+
+| Adres biçimi | Kaynak |
+|---|---|
+| `https://…sharepoint.com/…`, `/sites/…`, `/personal/…` | SharePoint |
+| `\\sunucu\pay\dosya.pdf`, `C:\Klasor\dosya.pdf`, `file://…` | Ağ / Dizin |
+| `http(s)://intranet/…`, özel ağ adresleri (10.x, 192.168.x …) | Sunucu |
+| Diğer `http(s)` adresleri | Web |
+
+**Bilinen sınır — açılamayan adresler.** Tarayıcılar güvenlik gereği bir web
+sayfasından `file://` ya da UNC (`\\sunucu\pay`) adresine tıklamayla
+gitmeye izin vermez. Arayüz bunu gizlemez: `http(s)` adresleri **Aç**
+düğmesiyle yeni sekmede (`rel="noopener noreferrer"`) açılır, ağ ve dosya
+yolları **Yolu kopyala** ile panoya alınır ve kullanıcı Windows Gezgini'ne
+yapıştırır. Form, açılamayacak bir adres girildiğinde bunu yazar.
+
+`javascript:`, `data:` ve `vbscript:` şemaları reddedilir — bir bağlantı
+alanına girilen çalıştırılabilir içerik, o bağlantıya tıklayan herkes için
+risktir (`src/lib/attachments.ts`).
+
+Ek eklemek ve kaldırmak **kritik alan değildir**: onay zincirine girmez,
+doğrudan kaydedilir. Değişiklik yine de audit trail'e *Ekler* alan adıyla,
+eski ve yeni ek listesiyle yazılır.
 
 ## Onay mekanizması
 
@@ -321,8 +359,8 @@ yöneticisindedir. Yetkisi olmayan kullanıcı düğmeleri görmez, gerekçesini
 
 ## Doğrulama
 
-Beş uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
-düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 96 kontrol.
+Altı uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
+düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 108 kontrol.
 
 ```bash
 npm run build
@@ -337,6 +375,7 @@ npm run test:e2e
 | `faz3-onay-mekanizmasi` | Kritik alan tespiti, talep üretimi, kendi talebini onaylayamama, iki kademeli zincir, uygulama | 19 |
 | `faz4-yetkilendirme` | Giriş, hatalı parola, menü filtresi, rota koruması, rol düzenleme, kullanıcı istisnası, pasif hesap | 24 |
 | `faz5-kanvas` | Varyant seçimi, kırılım, sayaçlar, bağlantı okları, kırıntı yolu, yerinde ekleme, yetki denetimi | 22 |
+| `faz6-ekler` | Ek ekleme, kaynak tespiti, açılabilir/kopyalanabilir ayrımı, zararlı şema reddi, kalıcılık, audit izi | 12 |
 
 Ortam değişkenleri:
 

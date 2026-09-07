@@ -13,7 +13,7 @@ import type { Dataset } from '@/types/grc';
 const STORAGE_KEY = 'nervia.dataset';
 
 /** Seed verisi her değiştiğinde artırılır. */
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 
 interface Snapshot {
   seedVersion: number;

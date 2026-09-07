@@ -36,6 +36,7 @@ export const riskFieldLabels: Record<string, string> = {
   lastAssessedAt: 'Son değerlendirme',
   nextAssessmentAt: 'Sonraki değerlendirme',
   archived: 'Arşiv durumu',
+  attachments: 'Ekler',
 };
 
 export const nodeFieldLabels: Record<string, string> = {
@@ -61,6 +62,7 @@ export const nodeFieldLabels: Record<string, string> = {
   order: 'Sıra',
   criticalPoints: 'Kritik noktalar',
   examples: 'Örnek senaryolar',
+  attachments: 'Ekler',
 };
 
 export const documentFieldLabels: Record<string, string> = {
@@ -78,6 +80,7 @@ export const documentFieldLabels: Record<string, string> = {
   processNodeIds: 'İlişkili süreç adımları',
   controlIds: 'İlişkili kontroller',
   archived: 'Arşiv durumu',
+  attachments: 'Ekler',
 };
 
 export const controlFieldLabels: Record<string, string> = {
@@ -103,6 +106,7 @@ export const controlFieldLabels: Record<string, string> = {
   riskIds: 'Yönettiği riskler',
   processNodeIds: 'Uygulandığı süreç adımları',
   archived: 'Arşiv durumu',
+  attachments: 'Ekler',
 };
 
 export const actionFieldLabels: Record<string, string> = {
@@ -121,6 +125,7 @@ export const actionFieldLabels: Record<string, string> = {
   controlId: 'İlgili kontrol',
   processNodeId: 'İlgili süreç adımı',
   archived: 'Arşiv durumu',
+  attachments: 'Ekler',
 };
 
 const designAdequacyLabels: Record<string, string> = {
@@ -160,7 +165,13 @@ export function describeValue(
   if (Array.isArray(value)) {
     if (!value.length) return '—';
     return value
-      .map((v) => (typeof v === 'string' ? (resolveId?.(v) ?? translate(v)) : String(v)))
+      .map((v) => {
+        if (typeof v === 'string') return resolveId?.(v) ?? translate(v);
+        // Ek bağlantıları audit trail'de adıyla görünür; adres notta saklı kalır.
+        const a = v as { label?: string; href?: string };
+        if (typeof a.label === 'string' && typeof a.href === 'string') return a.label;
+        return String(v);
+      })
       .join(', ');
   }
   if (typeof value === 'object') {

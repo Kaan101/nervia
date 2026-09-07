@@ -1,4 +1,4 @@
-// Üç doğrulama süitini sırayla koşar ve toplu sonuç üretir.
+// Doğrulama süitlerini sırayla koşar ve toplu sonuç üretir.
 //
 // Her süit ayrı bir Node süreci olarak çalışır: biri çökse bile diğerleri
 // koşar ve rapor eksiksiz olur. Süitler kalıcı veriyi (localStorage)
@@ -15,6 +15,7 @@ const suites = [
   ['Faz 3 — onay mekanizması', 'faz3-onay-mekanizmasi.mjs'],
   ['Faz 4 — yetkilendirme', 'faz4-yetkilendirme.mjs'],
   ['Faz 5 — süreç kanvası', 'faz5-kanvas.mjs'],
+  ['Faz 6 — dosya ekleri', 'faz6-ekler.mjs'],
 ];
 
 const run = (file) =>

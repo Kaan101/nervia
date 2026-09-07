@@ -1,4 +1,4 @@
-import type { AuditEntry, ChangeRequest, Dataset, ProcessNode } from '@/types/grc';
+import type { Attachment, AuditEntry, ChangeRequest, Dataset, ProcessNode } from '@/types/grc';
 import type { NodeSpec } from './spec';
 import { buildDataset } from './build';
 import { hasarYonetimi } from './processes/hasar';
@@ -370,8 +370,64 @@ function derivedAudit(nodes: ProcessNode[]): AuditEntry[] {
     }));
 }
 
+/* ------------------------------------------------------------------ */
+/* Örnek ek bağlantıları                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ekler kaydın kendisinde değil, kaynak sisteminde durur. Demo verisinde
+ * üç tipik kaynağı da gösteriyoruz: SharePoint kütüphanesi, ağ paylaşımı
+ * ve kurum içi sunucu. Ağ yolları tarayıcıdan açılamaz; arayüz bunları
+ * kopyalanabilir gösterir.
+ */
+const seedAttachments: Record<string, Attachment[]> = {
+  'doc-PRS-HSR-01': [
+    {
+      id: 'att-seed-01',
+      label: 'Evrak Yönetimi Prosedürü v3.0 (imzalı PDF)',
+      href: 'https://tmtb.sharepoint.com/sites/IcKontrol/Prosedurler/PRS-HSR-01-v3.pdf',
+      source: 'sharepoint',
+      note: 'Yürürlükteki imzalı nüsha; kâğıt kopya Hasar Destek arşivindedir.',
+      addedById: 'usr-05',
+      addedAt: '2026-03-05T08:20:00Z',
+    },
+  ],
+  'ctl-K-HSR-01': [
+    {
+      id: 'att-seed-02',
+      label: 'Günlük evrak kontrol listesi (Ağustos 2026)',
+      href: '\\\\dosya01\\Hasar\\Kontroller\\K-HSR-01\\2026-08.xlsx',
+      source: 'network',
+      note: 'Kontrol kanıtı; her ay yeni dosya açılır.',
+      addedById: 'usr-05',
+      addedAt: '2026-08-03T06:40:00Z',
+    },
+  ],
+  'rsk-R-HSR-09': [
+    {
+      id: 'att-seed-03',
+      label: 'Muallak yeterlilik analizi 2026-Q2',
+      href: 'https://intranet/raporlar/hasar/muallak-analiz-2026Q2',
+      source: 'server',
+      note: 'Risk değerlendirmesinde kullanılan rapor.',
+      addedById: 'usr-03',
+      addedAt: '2026-07-14T12:05:00Z',
+    },
+  ],
+};
+
+/** Örnek ekleri ilgili kayıtlara iliştirir. */
+function withSeedAttachments<T extends { id: string; attachments?: Attachment[] }>(items: T[]): T[] {
+  return items.map((item) =>
+    seedAttachments[item.id] ? { ...item, attachments: seedAttachments[item.id] } : item,
+  );
+}
+
 export const dataset: Dataset = {
   ...built,
+  documents: withSeedAttachments(built.documents),
+  controls: withSeedAttachments(built.controls),
+  risks: withSeedAttachments(built.risks),
   roles: builtInRoles,
   accounts,
   changeRequests,
