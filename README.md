@@ -148,14 +148,22 @@ Sürecin tıkladıkça derinleşen kutu görünümü. Giriş ekranı hangi süre
 açacağınızı sorar; hasarda iki varyant vardır çünkü **hasarın nerede
 gerçekleştiği süreci baştan aşağı değiştirir**:
 
-| | Yurt İçi Hasar | Yurt Dışı Hasar |
+İkisi de TMTB'nin gerçek akış diyagramlarından modellenmiştir ve **birbirinin
+aynası değildir** — yön tersine döner:
+
+| | Yurt İçi Hasar (1.0) | Yurt Dışı Hasar (2.0) |
 |---|---|---|
-| Talep sahibi | Zarar gören üçüncü şahıs | Sigortalının kendisi |
-| Teminat kaynağı | Yeşil Kart + yabancı sigortacı | Poliçe teminatı |
-| Tespit | Eksper / bilirkişi ağı | Asistans şirketi + yerel muhabir |
-| Ödeme | Güvence Hesabı veya öz kaynak | Döviz, kur tarihi, SWIFT |
-| Sonrası | Ödenen tutarın ülke bürosundan rücusu, G Call | Rücu yok |
-| Hedef süre | 30 iş günü | 25 iş günü |
+| Olay | Yabancı araç Türkiye'de zarar verir | Türk aracı yurt dışında zarar verir |
+| Talep sahibi | Zarar gören üçüncü şahıs | Yurt dışı büro / muhabir |
+| Ödeyen | TMTB öder | İlgili ülke bürosu öder, TMTB karşılar |
+| Tespit | Eksper / bilirkişi ağı | Muhabir + destek (eksper, aktüer, tıbbi bilirkişi, araştırmacı) |
+| Ödeme kaynağı | Güvence Hesabı veya öz kaynak | Üye şirket mahsuplaşması |
+| Ağırlık merkezi | Tazminat tespiti ve ödeme | Muhabir koordinasyonu ve **mali mutabakat** |
+| Sonrası | Ülke bürosundan rücu, G Call | SBM mutabakatı, dekont, reasürans ihbarı, sigortalıya rücu |
+| Hedef süre | 30 iş günü | 45 iş günü |
+
+Akışta ikisi birbirine bağlanır: yurt dışı hattında "yurt dışı mı?" kararı
+olumsuzsa dosya **yurt içi hasar sürecine devredilir**.
 
 Seçimden sonra kırılım:
 

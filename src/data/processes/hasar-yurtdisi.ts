@@ -1,300 +1,231 @@
 import type { NodeSpec } from '../spec';
 
 /**
- * YURT DIŞI HASAR YÖNETİMİ
+ * YURT DIŞI HASAR — 2.0
  *
- * Yurt içi hasardan farkı kozmetik değil: hasar yurt dışında gerçekleştiği
- * için sigortacı olay yerinde değildir. Süreç bir asistans şirketi ve yerel
- * muhabir/eksper ağı üzerinden yürür; evraklar yabancı dilde ve çoğu zaman
- * konsolosluk/apostil onaylıdır; tazminat döviz cinsinden hesaplanıp
- * uluslararası transferle ödenir. Bunların her biri yurt içinde
- * bulunmayan riskler doğurur — kur farkı, sahte yabancı evrak, asistans
- * şirketinin performansı, yaptırım (sanctions) taraması gibi.
+ * Türkiye Motorlu Taşıt Bürosu'nun yurt dışı hasar akış diyagramından
+ * modellenmiştir. Yurt içi hasarın aynası değildir; yön tersine döner:
+ *
+ *   Yurt içi  → yabancı araç Türkiye'de zarar verir, büro öder ve
+ *               yabancı bürodan rücu eder.
+ *   Yurt dışı → Türk plakalı araç yurt dışında zarar verir; ilgili
+ *               ülkenin bürosu/muhabiri öder, TMTB karşılar ve üye
+ *               şirketlerle ay sonu mutabakatıyla mahsuplaşır.
+ *
+ * Bu yüzden akışın ağırlık merkezi tazminat ödemesi değil, muhabir
+ * koordinasyonu ve mali mutabakattır: dekont üretimi, SBM kayıtları,
+ * ay kapama, reasürans ihbarı ve Yeşil Kart teminatı geçersizse
+ * sigortalıya rücu.
+ *
+ * Diyagramdaki karar noktaları (yurt dışı mı, YK/ZK, geçici/gerçek,
+ * TMTB mi muhabir mi, sahtecilik, kabul/red) süreç adımlarına;
+ * belirsiz bırakılan eşikler ve takipsiz kalan adımlar risklere
+ * dönüştürülmüştür.
  */
 export const yurtDisiHasar: NodeSpec = {
   code: 'HSD',
   name: 'Yurt Dışı Hasar Yönetimi',
   unit: 'U-HSR',
   owner: 'usr-02',
-  participants: ['usr-02', 'usr-03', 'usr-05'],
+  participants: ['usr-02', 'usr-03', 'usr-05', 'usr-08', 'usr-09'],
   processClass: 'core',
-  standards: ['COSO', 'ISO 31000', 'ISO 9001', 'SEDDK Hasar Yönetmeliği', 'MASAK'],
+  standards: ['COSO', 'ISO 31000', 'ISO 9001', 'Yeşil Kart Sistemi', 'Reasürans Sözleşmesi'],
   description:
-    'Sigortalının yurt dışında uğradığı hasarın asistans şirketi ve yerel muhabir ağı üzerinden '
-    + 'tespit edilmesinden, döviz cinsinden tazminatın uluslararası transferle ödenmesine kadar geçen süreç.',
+    'Türk plakalı araçların yurt dışında yol açtığı zararlarda ilgili ülke bürosu veya muhabiri '
+    + 'üzerinden yürütülen dosyanın açılmasından, tazminatın karşılanmasına ve üye şirketlerle '
+    + 'ay sonu mutabakatına kadar geçen süreç.',
   purpose:
-    'Yurt dışında gerçekleşen hasarlarda sigortalıya olay yerinde destek sağlamak ve tazminatı '
-    + 'doğru kur, doğru teminat ve mevzuata uygun evrakla ödemek.',
-  customer: 'Yurt dışındaki sigortalı / hak sahibi',
-  slaDays: 25,
+    'Yeşil Kart sistemi kapsamında yurt dışında doğan yükümlülüğün doğru karşılanmasını, üye '
+    + 'şirketlere doğru yansıtılmasını ve teminat dışı hâllerde sigortalıya rücu edilmesini sağlamak.',
+  customer: 'Üye sigorta şirketleri / yurt dışı büro ve muhabirler',
+  slaDays: 45,
   maturity: 3,
-  version: '2.4',
-  lastReviewedAt: '2026-01-22',
+  version: '1.0',
+  lastReviewedAt: '2026-03-05',
   reviewFrequencyMonths: 12,
-  updatedAt: '2026-08-14',
-  systems: ['HasarNet', 'PoliçeCore', 'AsistansPortal', 'DocVault', 'SWIFT Gateway', 'TCMB Kur Servisi'],
-  inputs: ['Yurt dışı hasar ihbarı', 'Seyahat/nakliyat poliçesi', 'Yabancı dil hasar evrakı'],
-  outputs: ['Döviz cinsinden tazminat ödemesi', 'Kapatılmış yurt dışı hasar dosyası', 'Muallak karşılık kaydı'],
+  updatedAt: '2026-08-30',
+  systems: ['Büro Hasar Sistemi', 'SBM', 'DYS', 'Oracle', 'Outlook'],
+  inputs: ['Yurt dışı hasar ihbarı (faks/e-posta)', 'Poliçe kaydı', 'Muhabir dosyası'],
+  outputs: ['Karşılanmış tazminat', 'Üye şirket dekontu', 'Rücu dosyası', 'Reasürans ihbarı'],
 
   children: [
     /* ============================================================ */
-    /* ALT SÜREÇ A — İhbar ve Asistans Koordinasyonu                 */
+    /* A — İHBAR VE DOSYA AÇILIŞI                                    */
     /* ============================================================ */
     {
       code: 'HSD-A',
-      name: 'İhbar ve Asistans Koordinasyonu',
-      owner: 'usr-03',
+      name: 'İhbar ve Dosya Açılışı',
+      owner: 'usr-05',
       description:
-        'Yurt dışından gelen ihbarın alınması, teminat ve coğrafi kapsam doğrulaması ve '
-        + 'asistans şirketinin devreye alınması.',
+        'Hasar ihbarının kayda alınması, yurt içi/yurt dışı ve teminat türü ayrımının yapılması, '
+        + 'dosyanın TMTB direkt başvuru ya da muhabir dosyası olarak açılması ve muallak girişi.',
       purpose:
-        'Sigortalının bulunduğu ülkede en kısa sürede desteğe ulaşmasını ve dosyanın doğru '
-        + 'teminatla açılmasını sağlamak.',
-      systems: ['AsistansPortal', 'PoliçeCore', 'HasarNet'],
-      inputs: ['Uluslararası çağrı', 'Poliçe ve teminat bilgisi'],
-      outputs: ['Açılmış yurt dışı hasar dosyası', 'Asistans görev numarası'],
+        'İhbarın doğru hatta yönlendirilmesini ve yükümlülüğün baştan doğru tutarla kayda geçmesini sağlamak.',
+      systems: ['Büro Hasar Sistemi', 'DYS', 'Outlook'],
+      inputs: ['Faks / e-posta ihbarı', 'Poliçe kaydı'],
+      outputs: ['Açılmış dijital dosya', 'Muallak kaydı'],
       maturity: 3,
-      slaDays: 1,
+      slaDays: 3,
 
       children: [
-        /* ---------- 1. Yurt Dışı İhbarın Alınması ---------- */
+        /* ---------- Hasar İhbarının Alınması ---------- */
         {
           code: 'HSD-01',
-          name: 'Yurt Dışı İhbarın Alınması',
-          owner: 'usr-03',
+          name: 'Hasar İhbarının Alınması ve Kaydı',
+          owner: 'usr-05',
           participants: ['usr-04'],
           description:
-            'Sigortalının yurt dışından 7/24 uluslararası hattı arayarak ya da mobil uygulamadan '
-            + 'yaptığı hasar bildiriminin alınması; olay ülkesi, saat dilimi ve iletişim bilgisinin kaydı.',
-          purpose: 'İhbarın saat dilimi farkına rağmen kesintisiz alınmasını ve doğru kaydedilmesini sağlamak.',
-          systems: ['AsistansPortal', 'CRM360'],
-          inputs: ['Sigortalı beyanı', 'Poliçe numarası', 'Olay ülkesi ve tarihi'],
-          outputs: ['Yurt dışı ihbar kaydı', 'Geri arama planı'],
+            'Yurt dışında gerçekleşen hasara ilişkin ihbarın faks veya e-posta ile alınması, poliçe '
+            + 'kaydıyla eşleştirilmesi ve başvurana bilgi verilmesi.',
+          purpose: 'Her ihbarın kayda geçmesini ve poliçeyle doğru eşleşmesini sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'Outlook'],
+          inputs: ['Faks / e-posta ihbarı', 'Poliçe numarası'],
+          outputs: ['İhbar kaydı', 'Başvurana bilgilendirme'],
           maturity: 3,
           slaDays: 1,
-          lastReviewedAt: '2026-01-22',
+          lastReviewedAt: '2026-03-05',
           critical: [
-            ['regulatory', 'Mevzuat Gerekliliği',
-              'Seyahat sağlık poliçelerinde acil tıbbi durum ihbarı anında değerlendirilmek zorundadır; gecikme sağlık riskine dönüşür.'],
-            ['privacy', 'Veri Gizliliği',
-              'Yurt dışı sağlık hasarlarında tedavi bilgisi özel nitelikli kişisel veridir; sınır ötesi veri aktarımı KVKK m.9 kapsamındadır.'],
+            ['control', 'Kontrol Noktası',
+              'İhbar faks ve e-posta gibi yapılandırılmamış kanallardan geldiği için kayda alınmama riski yüksektir.'],
           ],
           examples: [
             {
-              title: 'Saat dilimi farkı nedeniyle geri dönülemeyen ihbar',
+              title: 'E-posta ile gelen ihbarın kayda geçmemesi',
               scenario:
-                'Sigortalı Türkiye saatiyle gece 03:00’te Bangkok’tan arıyor; nöbetçi ekip ihbarı alıyor ama '
-                + 'geri arama saatini yerel saate göre değil Türkiye saatine göre planlıyor.',
-              risk: 'Sigortalı yerel saatle gece yarısı aranıyor, ulaşılamıyor ve tedavi süreci onaysız ilerliyor.',
-              control: 'İhbar formunda olay ülkesinin seçilmesi ve geri arama saatinin sistem tarafından yerel saate çevrilmesi.',
-              controlType: 'Önleyici — otomatik sistem kontrolü',
-              evidence: 'AsistansPortal geri arama planı ve saat dilimi logu',
-              criticalNote: 'Ülke seçilmeden ihbar kaydedilemez.',
+                'Muhabir bürodan gelen ihbar e-postası, izinli personelin kutusuna düşüyor. Ortak kutuya '
+                + 'yönlendirme tanımlı olmadığı için ihbar iki hafta kimseye ulaşmıyor.',
+              risk: 'Muhabire zamanında dönülmüyor; büro sistem kuralları çerçevesinde gecikme faizi ödüyor.',
+              control: 'Yurt dışı ihbarlarının yalnızca ortak kutu üzerinden alınması ve günlük kayıt mutabakatı.',
+              controlType: 'Önleyici — kanal tekilleştirme',
+              evidence: 'Ortak kutu kayıt listesi ve günlük mutabakat',
+              criticalNote: 'Kişisel kutuya gelen ihbar aynı gün ortak kutuya aktarılır.',
             },
           ],
           risks: [
             {
               code: 'R-HSD-01',
-              name: 'Olay ülkesinin poliçe coğrafi kapsamı dışında olması',
+              name: 'Yapılandırılmamış kanaldan gelen ihbarın kayda alınmaması',
               description:
-                'Sigortalının hasarı, poliçenin teminat verdiği coğrafi bölge dışında bir ülkede gerçekleşmiş '
-                + 'olmasına rağmen dosyanın açılması ve asistans hizmetinin başlatılması.',
-              cause: 'Coğrafi kapsamın ihbar anında sorgulanmaması; poliçe metnindeki bölge tanımının yoruma açık olması.',
-              consequence: 'Teminat dışı hizmetin sigortacı tarafından üstlenilmesi ve geri alınamayan asistans maliyeti.',
+                'Faks veya kişisel e-posta kutusuna düşen yurt dışı hasar ihbarının sisteme hiç '
+                + 'kaydedilmemesi ya da geç kaydedilmesi.',
+              cause: 'İhbar kanallarının tekilleştirilmemiş olması ve günlük kayıt mutabakatının bulunmaması.',
+              consequence:
+                'Muhabire geç dönüş, sistem kuralları gereği gecikme faizi ve büro itibarının zedelenmesi.',
               category: 'operational',
               inherent: [4, 4],
-              residual: [2, 4],
+              residual: [3, 4],
               target: [2, 3],
               appetite: 'minimal',
               treatment: 'mitigate',
               trend: 'stable',
-              owner: 'usr-03',
-              identifiedAt: '2025-04-11',
-              lastAssessedAt: '2026-01-22',
-              standards: ['COSO', 'ISO 31000'],
-            },
-            {
-              code: 'R-HSD-02',
-              name: 'Yaptırım kapsamındaki ülkeye ödeme yapılması',
-              description:
-                'Hasarın, uluslararası yaptırım listesinde bulunan bir ülkede gerçekleşmesi ve '
-                + 'ödemenin yaptırım taraması yapılmadan sürece girmesi.',
-              cause: 'Ülke ve taraf taramasının ihbar aşamasında değil ödeme aşamasında yapılması.',
-              consequence: 'Muhabir bankanın işlemi bloke etmesi, MASAK bildirimi ve itibar kaybı.',
-              category: 'compliance',
-              inherent: [3, 5],
-              residual: [2, 5],
-              target: [1, 5],
-              appetite: 'averse',
-              treatment: 'mitigate',
-              trend: 'up',
-              owner: 'usr-22',
-              identifiedAt: '2025-09-02',
-              lastAssessedAt: '2026-01-22',
-              standards: ['MASAK', 'COSO'],
+              owner: 'usr-05',
+              identifiedAt: '2025-04-18',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO', 'ISO 9001'],
             },
           ],
           controls: [
             {
               code: 'K-HSD-01',
-              name: 'Coğrafi kapsam otomatik doğrulaması',
+              name: 'Ortak kutu üzerinden ihbar kabulü ve günlük mutabakat',
               description:
-                'İhbar formunda seçilen olay ülkesi, poliçenin coğrafi teminat bölgesiyle sistem tarafından '
-                + 'karşılaştırılır; kapsam dışıysa dosya açılamaz, istisna onayı istenir.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['system'],
-              frequency: 'per_transaction',
-              method: 'PoliçeCore coğrafi bölge tablosu ile olay ülkesinin eşleştirilmesi.',
-              evidence: 'Sistem doğrulama logu ve istisna onay kaydı',
+                'Yurt dışı hasar ihbarları yalnızca ortak e-posta kutusu ve merkezi faks üzerinden '
+                + 'kabul edilir; gelen adet ile sisteme kaydedilen adet her gün karşılaştırılır.',
+              nature: 'detective',
+              execution: 'semi_automated',
+              categories: ['reconciliation', 'monitoring'],
+              frequency: 'daily',
+              method: 'Kanal adedi ile sistem kaydı adedinin günlük karşılaştırılması.',
+              evidence: 'Günlük mutabakat listesi',
               mitigates: ['R-HSD-01'],
-              owner: 'usr-03',
+              owner: 'usr-05',
               key: true,
-              coso: 'control_activities',
-              design: 'adequate',
-              effectiveness: 'effective',
-              strength: 4,
-              lastPerformedAt: '2026-08-14',
-              lastTestedAt: '2026-05-20',
-              testResult: '120 örnek ihbarda kapsam dışı 6 vaka tespit edildi, tamamı bloke edildi.',
-            },
-            {
-              code: 'K-HSD-02',
-              name: 'İhbar anında yaptırım ve ülke taraması',
-              description:
-                'Olay ülkesi ve sigortalı bilgileri, dosya açılışında uluslararası yaptırım listelerine karşı taranır; '
-                + 'eşleşme hâlinde dosya Uyum birimine yönlendirilir.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['system', 'authorization'],
-              frequency: 'per_transaction',
-              method: 'Yaptırım listesi servisine ülke ve taraf sorgusu.',
-              evidence: 'Tarama sonucu ekran görüntüsü ve Uyum yönlendirme kaydı',
-              mitigates: ['R-HSD-02'],
-              owner: 'usr-22',
-              key: true,
-              coso: 'control_activities',
+              coso: 'monitoring',
               design: 'adequate',
               effectiveness: 'partially_effective',
               strength: 3,
-              lastPerformedAt: '2026-08-14',
-              lastTestedAt: '2026-06-10',
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-06-11',
               testResult:
-                'Tarama çalışıyor ancak liste güncelleme sıklığı haftalık; gün içi güncellemeler yakalanmıyor.',
-            },
-          ],
-          docs: [
-            {
-              code: 'PRS-HSD-01',
-              name: 'Yurt Dışı Hasar İhbar Kabul Prosedürü',
-              type: 'procedure',
-              version: '2.1',
-              owner: 'usr-03',
-              publishedAt: '2025-06-01',
-              updatedAt: '2026-01-22',
-              nextReviewAt: '2027-01-22',
-              summary:
-                'Yurt dışından gelen hasar ihbarının alınması, coğrafi kapsam ve yaptırım kontrolü ile '
-                + 'asistans şirketine devri.',
-              sections: [
-                {
-                  heading: 'Kapsam',
-                  body: [
-                    'Seyahat sağlık, yurt dışı nakliyat ve yeşil kart kapsamındaki tüm hasar ihbarlarını kapsar.',
-                    'Yurt içinde gerçekleşen hasarlar bu prosedürün kapsamı dışındadır.',
-                  ],
-                },
-                {
-                  heading: 'İhbarın Alınması',
-                  body: [
-                    'Uluslararası hat 7/24 açıktır; ihbar alan personel olay ülkesini ve yerel saati kaydeder.',
-                    'Geri arama saati sigortalının bulunduğu ülkenin yerel saatine göre planlanır.',
-                    'Acil tıbbi durumlarda asistans şirketi ihbar anında hatta alınır.',
-                  ],
-                },
-                {
-                  heading: 'Kapsam ve Yaptırım Kontrolü',
-                  body: [
-                    'Olay ülkesi poliçenin coğrafi teminat bölgesiyle karşılaştırılır.',
-                    'Kapsam dışı ihbarlar birim yöneticisi onayı olmadan açılamaz.',
-                    'Yaptırım listesi eşleşmesinde dosya Uyum birimine yönlendirilir ve süreç durdurulur.',
-                  ],
-                },
-              ],
-              controlCodes: ['K-HSD-01', 'K-HSD-02'],
+                'Mutabakat yapılıyor ancak kişisel kutulara gelen ihbarlar kapsam dışı; 3 ihbar geç kaydedilmiş.',
             },
           ],
           children: [
             {
               code: 'HSD-01-1',
-              name: 'Uluslararası çağrının karşılanması',
-              description: '7/24 uluslararası hattan gelen çağrının alınması ve sigortalının konumunun tespiti.',
-              systems: ['AsistansPortal'],
-              inputs: ['Sigortalı çağrısı'],
-              outputs: ['Ham ihbar kaydı', 'Konum bilgisi'],
+              name: 'İhbarın alınması',
+              description: 'Faks veya e-posta ile gelen hasar ihbarının teslim alınması.',
+              systems: ['Outlook'],
+              inputs: ['İhbar mesajı'],
+              outputs: ['Ham ihbar'],
             },
             {
               code: 'HSD-01-2',
-              name: 'Coğrafi kapsam ve yaptırım sorgusu',
-              description: 'Olay ülkesinin poliçe teminat bölgesinde olup olmadığının ve yaptırım listesinin sorgulanması.',
-              systems: ['PoliçeCore', 'AsistansPortal'],
-              inputs: ['Olay ülkesi', 'Poliçe numarası'],
-              outputs: ['Kapsam teyidi', 'Yaptırım tarama sonucu'],
-              controlRefs: ['K-HSD-01', 'K-HSD-02'],
+              name: 'Poliçe eşleştirmesi ve kayıt',
+              description: 'İhbarın poliçe kaydıyla eşleştirilerek sisteme kaydedilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Ham ihbar', 'Poliçe kaydı'],
+              outputs: ['İhbar kaydı'],
+              controlRefs: ['K-HSD-01'],
             },
             {
               code: 'HSD-01-3',
-              name: 'Dosyanın açılması ve bilgilendirme',
-              description: 'Yurt dışı hasar dosyasının açılması ve sigortalıya dosya numarasının iletilmesi.',
-              systems: ['HasarNet'],
-              inputs: ['Doğrulanmış ihbar'],
-              outputs: ['Dosya numarası', 'Bilgilendirme mesajı'],
+              name: 'Başvurana bilgi verilmesi',
+              description: 'Başvurana ihbarın alındığına dair otomatik bilgilendirme yapılması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['İhbar kaydı'],
+              outputs: ['Bilgilendirme kaydı'],
             },
           ],
         },
 
-        /* ---------- 2. Asistans Şirketine Devir ---------- */
+        /* ---------- Yönlendirme ve Kapsam Kararı ---------- */
         {
           code: 'HSD-02',
-          name: 'Asistans Şirketine Devir',
+          name: 'Yönlendirme ve Kapsam Kararı',
           owner: 'usr-05',
           description:
-            'Dosyanın anlaşmalı asistans şirketine aktarılması, görev numarası alınması ve '
-            + 'sigortalıya olay yerinde destek sağlanmasının takibi.',
-          purpose: 'Sigortalının bulunduğu ülkede yetkin bir hizmet sağlayıcıya en kısa sürede bağlanmasını sağlamak.',
-          systems: ['AsistansPortal', 'HasarNet'],
-          inputs: ['Açılmış dosya', 'Sigortalı konum ve iletişim bilgisi'],
-          outputs: ['Asistans görev numarası', 'Hizmet başlangıç teyidi'],
+            'Dört ardışık karar: hasar yurt dışında mı, teminat Yeşil Kart mı Zorunlu Karşılama mı, '
+            + 'poliçe geçici mi gerçek mi, dosyayı TMTB mi muhabir mi yönetecek.',
+          purpose:
+            'Dosyanın en baştan doğru süreçte ve doğru sorumlulukla ilerlemesini sağlamak.',
+          systems: ['Büro Hasar Sistemi'],
+          inputs: ['İhbar kaydı', 'Poliçe ve teminat bilgisi'],
+          outputs: ['Yönlendirme kararı', 'Dosya tipi'],
           maturity: 3,
           slaDays: 1,
-          lastReviewedAt: '2026-01-22',
+          lastReviewedAt: '2026-03-05',
           critical: [
-            ['financial', 'Finansal Etki',
-              'Asistans şirketinin ön ödeme yaptığı tutarlar sigortacıya rücu edilir; teminat dışı hizmet doğrudan zarardır.'],
+            ['regulatory', 'Mevzuat Gerekliliği',
+              'Yeşil Kart ile Zorunlu Karşılama farklı yükümlülük doğurur; ayrım yanlış yapılırsa ödeme dayanaksız kalır.'],
+            ['control', 'Kontrol Noktası',
+              'Yurt dışı olmayan ihbarlar yurt içi hasar sürecine devredilir; yanlış yönlendirme dosyayı iki süreç arasında kaybettirir.'],
           ],
           examples: [
             {
-              title: 'Asistans şirketinin teminat dışı hizmet vermesi',
+              title: 'Geçici poliçenin gerçek poliçe gibi işlenmesi',
               scenario:
-                'Sigortalı Roma’da hastaneye kaldırılıyor. Asistans şirketi teminat limitini teyit etmeden '
-                + 'özel oda ve refakatçi hizmetini onaylıyor.',
-              risk: 'Poliçe limitini aşan 4.200 EUR’luk fatura sigortacıya yansıyor.',
-              control: 'Asistans şirketinin her hizmet onayı öncesi portal üzerinden teminat limiti sorgulaması.',
-              controlType: 'Önleyici — sistem üzerinden limit teyidi',
-              evidence: 'AsistansPortal limit sorgu logu ve hizmet onay kaydı',
-              criticalNote: 'Limit sorgusu yapılmadan verilen hizmetin bedeli asistans şirketinde kalır.',
+                'Sınır kapısında düzenlenen geçici Yeşil Kart poliçesi, sistemde gerçek poliçe gibi '
+                + 'kaydediliyor. Teminat süresi ve kapsamı farklı olduğu hâlde standart akış işletiliyor.',
+              risk: 'Teminat dışı bir dönem için yükümlülük üstleniliyor; üye şirkete yansıtılamıyor.',
+              control: 'Poliçe tipinin (geçici/gerçek) sistemde zorunlu alan olması ve akışı belirlemesi.',
+              controlType: 'Önleyici — koşullu akış',
+              evidence: 'Poliçe tipi alanı ve akış logu',
+              criticalNote: 'Geçici poliçelerde teminat süresi ayrıca doğrulanır.',
             },
           ],
           risks: [
             {
-              code: 'R-HSD-03',
-              name: 'Asistans şirketinin teminat limitini aşan hizmet onaylaması',
+              code: 'R-HSD-02',
+              name: 'Teminat türü veya poliçe tipi ayrımının hatalı yapılması',
               description:
-                'Anlaşmalı asistans şirketinin, poliçe teminat limitini sorgulamadan sigortalıya hizmet '
-                + 'onayı vermesi ve maliyetin sigortacıya yansıması.',
-              cause: 'Limit sorgusunun sözleşmede zorunlu tutulmaması; acil durumlarda sorgunun atlanması.',
-              consequence: 'Teminat dışı maliyetin üstlenilmesi ve hasar/prim oranının bozulması.',
-              category: 'operational',
+                'Yeşil Kart / Zorunlu Karşılama ve geçici / gerçek poliçe ayrımlarının yanlış '
+                + 'belirlenmesi ve dosyanın hatalı akışta ilerlemesi.',
+              cause:
+                'Ayrımların serbest seçim olarak bırakılması, poliçe kaydından otomatik türetilmemesi.',
+              consequence:
+                'Dayanaksız yükümlülük üstlenilmesi, üye şirkete yansıtılamayan tutar ve düzeltme iş yükü.',
+              category: 'compliance',
               inherent: [4, 4],
               residual: [3, 4],
               target: [2, 3],
@@ -302,203 +233,175 @@ export const yurtDisiHasar: NodeSpec = {
               treatment: 'mitigate',
               trend: 'stable',
               owner: 'usr-05',
-              identifiedAt: '2025-03-19',
-              lastAssessedAt: '2026-01-22',
-              standards: ['COSO', 'ISO 31000'],
+              identifiedAt: '2025-06-05',
+              lastAssessedAt: '2026-03-05',
+              standards: ['Yeşil Kart Sistemi', 'COSO'],
             },
             {
-              code: 'R-HSD-04',
-              name: 'Asistans şirketine geç devir nedeniyle sigortalının mağdur olması',
+              code: 'R-HSD-11',
+              name: 'Yurt içine ait ihbarın yurt dışı hattında kalması',
               description:
-                'Dosyanın asistans şirketine aktarılmasında yaşanan gecikme sebebiyle sigortalının '
-                + 'yurt dışında desteksiz kalması.',
-              cause: 'Mesai dışı devir akışının tanımsız olması; nöbetçi ekipte yetki bulunmaması.',
-              consequence: 'Sigortalının kendi imkânıyla masraf yapması, şikâyet ve itibar kaybı.',
-              category: 'reputational',
-              inherent: [4, 4],
-              residual: [3, 3],
+                'Yurt dışı olmadığı anlaşılan ihbarın yurt içi hasar sürecine devredilmemesi ve '
+                + 'iki süreç arasında takipsiz kalması.',
+              cause: 'Devir işleminin sistemsel bir aktarım yerine e-postayla yapılması.',
+              consequence: 'Dosyanın hiçbir ekipte sahiplenilmemesi ve gecikme.',
+              category: 'operational',
+              inherent: [3, 4],
+              residual: [2, 4],
               target: [2, 3],
-              appetite: 'minimal',
+              appetite: 'cautious',
               treatment: 'mitigate',
-              trend: 'down',
+              trend: 'stable',
               owner: 'usr-03',
-              identifiedAt: '2025-05-30',
-              lastAssessedAt: '2026-01-22',
+              identifiedAt: '2025-09-12',
+              lastAssessedAt: '2026-03-05',
               standards: ['ISO 9001'],
             },
           ],
           controls: [
             {
-              code: 'K-HSD-03',
-              name: 'Asistans hizmet onayında teminat limiti sorgusu',
+              code: 'K-HSD-02',
+              name: 'Teminat ve poliçe tipinin poliçe kaydından türetilmesi',
               description:
-                'Asistans şirketi, her hizmet onayı öncesinde portal üzerinden kalan teminat limitini sorgulamak '
-                + 'zorundadır; sorgusuz onaylanan hizmetin bedeli sözleşme gereği sağlayıcıda kalır.',
+                'Yeşil Kart / Zorunlu Karşılama ve geçici / gerçek ayrımı poliçe kaydından otomatik '
+                + 'getirilir; kullanıcı değiştiremez, istisna yönetici onayına bağlıdır.',
               nature: 'preventive',
               execution: 'automated',
-              categories: ['system', 'authorization'],
+              categories: ['system', 'data_validation'],
               frequency: 'per_transaction',
-              method: 'AsistansPortal limit sorgu servisi ve sözleşmesel yaptırım maddesi.',
-              evidence: 'Limit sorgu logu ve aylık sağlayıcı mutabakatı',
-              mitigates: ['R-HSD-03'],
+              method: 'Poliçe kaydından teminat ve tip alanlarının otomatik doldurulması.',
+              evidence: 'Alan kaynağı logu ve istisna onayları',
+              mitigates: ['R-HSD-02'],
               owner: 'usr-05',
               key: true,
               coso: 'control_activities',
-              design: 'adequate',
+              design: 'needs_improvement',
               effectiveness: 'partially_effective',
-              strength: 3,
-              lastPerformedAt: '2026-08-13',
-              lastTestedAt: '2026-04-18',
+              strength: 2,
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-06-14',
               testResult:
-                'Sorgu oranı %91. Acil vakalarda atlanabiliyor; sözleşmedeki istisna maddesi geniş yorumlanıyor.',
+                'Teminat türü otomatik geliyor; geçici/gerçek ayrımı hâlâ elle seçiliyor. 30 dosyanın 4’ünde hatalı seçim.',
             },
             {
-              code: 'K-HSD-04',
-              name: 'Mesai dışı nöbetçi devir kontrolü',
+              code: 'K-HSD-03',
+              name: 'Süreçler arası sistemsel dosya devri',
               description:
-                'Mesai dışında açılan yurt dışı dosyalarının 60 dakika içinde asistans şirketine devredilip '
-                + 'devredilmediği nöbet listesi üzerinden izlenir; devredilmeyenler eskalasyona düşer.',
-              nature: 'detective',
-              execution: 'semi_automated',
-              categories: ['monitoring'],
+                'Yurt içi hasara devredilen ihbarlar sistem üzerinden aktarılır; devir alınana kadar '
+                + 'dosya devreden ekipte açık kalır ve günlük listede görünür.',
+              nature: 'preventive',
+              execution: 'automated',
+              categories: ['system', 'monitoring'],
               frequency: 'daily',
-              method: 'Devir süresi raporunun her sabah nöbet devriyle birlikte gözden geçirilmesi.',
-              evidence: 'Devir süresi raporu ve eskalasyon kaydı',
-              mitigates: ['R-HSD-04'],
+              method: 'Sistemsel devir kuyruğu ve devralınmayan dosya listesi.',
+              evidence: 'Devir kaydı ve bekleyen devir listesi',
+              mitigates: ['R-HSD-11'],
               owner: 'usr-03',
-              coso: 'monitoring',
+              coso: 'control_activities',
               design: 'adequate',
               effectiveness: 'effective',
               strength: 4,
-              lastPerformedAt: '2026-08-14',
-              lastTestedAt: '2026-06-25',
-              testResult: 'Son 90 günde ortalama devir süresi 34 dakika; 3 eskalasyon kaydı mevcut.',
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-06-24',
+              testResult: 'Son çeyrekte devredilen 18 dosyanın tamamı 1 gün içinde devralınmış.',
             },
           ],
           docs: [
             {
-              code: 'TLM-HSD-02',
-              name: 'Asistans Şirketi Koordinasyon Talimatı',
-              type: 'instruction',
-              version: '1.6',
+              code: 'PRS-HSD-02',
+              name: 'Yurt Dışı Hasar Dosya Açılış Prosedürü',
+              type: 'procedure',
+              version: '2.1',
               owner: 'usr-05',
-              publishedAt: '2025-07-15',
-              updatedAt: '2026-01-22',
-              nextReviewAt: '2027-01-15',
+              publishedAt: '2025-03-20',
+              updatedAt: '2026-03-05',
+              nextReviewAt: '2027-03-20',
               summary:
-                'Dosyanın asistans şirketine devri, hizmet onayı ve mesai dışı nöbet akışı.',
+                'İhbarın alınması, yurt içi/yurt dışı ayrımı, teminat türü ve poliçe tipi belirleme, '
+                + 'TMTB/muhabir sorumluluk kararı ve dosya açılışı.',
               sections: [
                 {
-                  heading: 'Devir Süresi',
+                  heading: 'Karar Sırası',
                   body: [
-                    'Mesai içinde açılan dosyalar 30 dakika, mesai dışında açılanlar 60 dakika içinde devredilir.',
-                    'Devredilemeyen dosyalar nöbetçi yöneticiye eskalasyon edilir.',
+                    'Önce hasarın yurt dışında gerçekleşip gerçekleşmediği belirlenir; değilse dosya yurt içi hasara devredilir.',
+                    'Teminat türü (Yeşil Kart / Zorunlu Karşılama) poliçe kaydından okunur.',
+                    'Poliçe tipi (geçici / gerçek) doğrulanır; geçici poliçelerde teminat süresi ayrıca kontrol edilir.',
+                    'Dosyayı TMTB’nin mi muhabirin mi yöneteceği ülke anlaşmalarına göre belirlenir.',
                   ],
                 },
                 {
-                  heading: 'Hizmet Onayı',
+                  heading: 'Dijital Dosya',
                   body: [
-                    'Asistans şirketi her hizmet için kalan teminat limitini portal üzerinden sorgular.',
-                    'Limit aşımı gerektiren acil tıbbi durumlarda yazılı yönetici onayı alınır.',
+                    'Açılan her dosya için dijital dosya oluşturulur.',
+                    'Süreç boyunca tüm belge ve yazışmalar bu dosyaya kaydedilir.',
+                    'Dosya numarası yazışma konu satırında kullanılır.',
                   ],
                 },
               ],
-              controlCodes: ['K-HSD-03', 'K-HSD-04'],
+              controlCodes: ['K-HSD-02', 'K-HSD-03', 'K-HSD-04'],
             },
           ],
           children: [
             {
               code: 'HSD-02-1',
-              name: 'Asistans şirketinin bilgilendirilmesi',
-              description: 'Dosya bilgilerinin asistans portalı üzerinden sağlayıcıya aktarılması.',
-              systems: ['AsistansPortal'],
-              inputs: ['Dosya numarası', 'Sigortalı konumu'],
-              outputs: ['Asistans görev numarası'],
-            },
-            {
-              code: 'HSD-02-2',
-              name: 'Teminat limitinin paylaşılması',
-              description: 'Kalan teminat limitinin sağlayıcıya bildirilmesi ve hizmet sınırının netleştirilmesi.',
-              systems: ['PoliçeCore', 'AsistansPortal'],
-              inputs: ['Poliçe teminat bilgisi'],
-              outputs: ['Limit teyidi'],
+              name: 'Yurt içi / yurt dışı ayrımı',
+              description: 'Hasarın yurt dışında gerçekleşip gerçekleşmediğinin belirlenmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['İhbar kaydı'],
+              outputs: ['Yönlendirme kararı'],
               controlRefs: ['K-HSD-03'],
             },
             {
+              code: 'HSD-02-2',
+              name: 'Teminat türü ve poliçe tipi belirleme',
+              description: 'Yeşil Kart / Zorunlu Karşılama ve geçici / gerçek poliçe ayrımının yapılması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Poliçe kaydı'],
+              outputs: ['Teminat türü', 'Poliçe tipi'],
+              controlRefs: ['K-HSD-02'],
+            },
+            {
               code: 'HSD-02-3',
-              name: 'Hizmet başlangıcının teyidi',
-              description: 'Sigortalıya olay yerinde hizmet verildiğinin sağlayıcıdan teyit edilmesi.',
-              systems: ['AsistansPortal'],
-              inputs: ['Sağlayıcı geri bildirimi'],
-              outputs: ['Hizmet başlangıç kaydı'],
-              controlRefs: ['K-HSD-04'],
+              name: 'TMTB / muhabir sorumluluk kararı',
+              description: 'Dosyayı TMTB’nin mi yoksa ilgili ülke muhabirinin mi yöneteceğinin kararı.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Olay ülkesi', 'Muhabir anlaşmaları'],
+              outputs: ['Dosya tipi'],
             },
           ],
         },
-      ],
-    },
 
-    /* ============================================================ */
-    /* ALT SÜREÇ B — Yurt Dışı Tespit ve Evrak                       */
-    /* ============================================================ */
-    {
-      code: 'HSD-B',
-      name: 'Yurt Dışı Tespit ve Evrak',
-      owner: 'usr-05',
-      description:
-        'Hasarın yerel muhabir/eksper ağı üzerinden tespiti ve yabancı dildeki evrakın '
-        + 'çevirisi, onayı ve doğrulanması.',
-      purpose:
-        'Olay yerinde bulunulamayan bir hasarda tespitin güvenilir, evrakın hukuken geçerli olmasını sağlamak.',
-      systems: ['AsistansPortal', 'DocVault', 'HasarNet'],
-      inputs: ['Asistans raporu', 'Yabancı dil hasar evrakı'],
-      outputs: ['Doğrulanmış hasar tespiti', 'Tercüme ve onaylı evrak seti'],
-      maturity: 3,
-      slaDays: 10,
-
-      children: [
-        /* ---------- 3. Yerel Eksper Tespiti ---------- */
+        /* ---------- Dosya Açılışı ---------- */
         {
           code: 'HSD-03',
-          name: 'Yerel Eksper Tespiti',
+          name: 'Dosya Açılışı ve Dijital Dosya',
           owner: 'usr-05',
           description:
-            'Hasarın gerçekleştiği ülkedeki muhabir şirket veya bağımsız eksper aracılığıyla '
-            + 'tespit yapılması ve raporun alınması.',
-          purpose: 'Sigortacının fiziksel olarak bulunamadığı yerde hasarın bağımsız biçimde tespitini sağlamak.',
-          systems: ['AsistansPortal', 'DocVault'],
-          inputs: ['Asistans görev kaydı', 'Hasar yeri bilgisi'],
-          outputs: ['Yerel eksper raporu', 'Fotoğraf ve tespit dosyası'],
+            'TMTB direkt başvuru dosyası ya da muhabir dosyasının açılması; dijital dosyanın '
+            + 'oluşturulması ve süreç boyunca tüm belge ve yazışmaların bu dosyaya kaydedilmesi.',
+          purpose:
+            'Dosyaya ait her belgenin ve yazışmanın tek yerde, denetlenebilir biçimde toplanmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'DYS'],
+          inputs: ['Yönlendirme kararı'],
+          outputs: ['Dijital dosya', 'Dosya numarası'],
           maturity: 3,
-          slaDays: 7,
-          lastReviewedAt: '2026-01-22',
+          slaDays: 1,
+          lastReviewedAt: '2026-03-05',
           critical: [
-            ['financial', 'Finansal Etki',
-              'Yerel eksper raporu tazminat tutarının tek dayanağıdır; hatalı tespit doğrudan ödeme hatasına dönüşür.'],
-          ],
-          examples: [
-            {
-              title: 'Muhabir şirketin yetkinliği doğrulanmadan görevlendirilmesi',
-              scenario:
-                'Gürcistan’daki bir nakliyat hasarında, listede bulunmayan yerel bir firma acil olduğu '
-                + 'gerekçesiyle görevlendiriliyor. Firma emtia hasarında deneyimsiz.',
-              risk: 'Hasar tutarı %40 eksik tespit ediliyor; sigortalı itiraz ediyor ve dosya yeniden açılıyor.',
-              control: 'Yalnızca onaylı muhabir listesinden görevlendirme; liste dışı atamanın yönetici onayına bağlanması.',
-              controlType: 'Önleyici — yetkilendirme kontrolü',
-              evidence: 'Muhabir listesi ve görevlendirme onay kaydı',
-              criticalNote: 'Liste dışı görevlendirme sistem tarafından engellenir.',
-            },
+            ['control', 'Kontrol Noktası',
+              'Yazışmaların dosya dışında (kişisel e-posta) kalması denetim izini kopartır.'],
           ],
           risks: [
             {
-              code: 'R-HSD-05',
-              name: 'Yetkin olmayan yerel eksperin görevlendirilmesi',
+              code: 'R-HSD-03',
+              name: 'Yazışma ve belgelerin dijital dosyaya kaydedilmemesi',
               description:
-                'Hasarın türüne uygun uzmanlığı bulunmayan bir yerel eksper veya muhabir şirketin '
-                + 'görevlendirilmesi ve tespitin hatalı yapılması.',
-              cause: 'Onaylı muhabir listesinin güncel olmaması; acil durumlarda liste dışına çıkılması.',
-              consequence: 'Eksik veya fazla tazminat, dosyanın yeniden açılması, sigortalı itirazı.',
-              category: 'operational',
+                'Muhabir ve başvuranla yapılan yazışmaların kişisel e-posta kutusunda kalması ve '
+                + 'dijital dosyaya işlenmemesi.',
+              cause: 'Kaydın el ile yapılması ve e-posta ile dosya arasında entegrasyon bulunmaması.',
+              consequence:
+                'Kararın dayanağının gösterilememesi, personel değişiminde bilgi kaybı ve denetim bulgusu.',
+              category: 'compliance',
               inherent: [4, 4],
               residual: [3, 4],
               target: [2, 3],
@@ -506,158 +409,184 @@ export const yurtDisiHasar: NodeSpec = {
               treatment: 'mitigate',
               trend: 'stable',
               owner: 'usr-05',
-              identifiedAt: '2025-02-14',
-              lastAssessedAt: '2026-01-22',
+              identifiedAt: '2025-05-27',
+              lastAssessedAt: '2026-03-05',
               standards: ['COSO', 'ISO 9001'],
-            },
-            {
-              code: 'R-HSD-06',
-              name: 'Yabancı dildeki evrakın hatalı tercüme edilmesi',
-              description:
-                'Tıbbi rapor, polis tutanağı veya fatura gibi belgelerin yeminli olmayan tercümeyle '
-                + 'işlenmesi ve içeriğin yanlış anlaşılması.',
-              cause: 'Maliyet ve süre baskısıyla yeminli tercüme yerine serbest çeviri kullanılması.',
-              consequence: 'Teminat kapsamının yanlış değerlendirilmesi ve hukuken savunulamayan ödeme kararı.',
-              category: 'compliance',
-              inherent: [4, 4],
-              residual: [2, 4],
-              target: [2, 3],
-              appetite: 'minimal',
-              treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-09',
-              identifiedAt: '2025-06-08',
-              lastAssessedAt: '2026-01-22',
-              standards: ['ISO 9001', 'SEDDK Hasar Yönetmeliği'],
             },
           ],
           controls: [
             {
-              code: 'K-HSD-05',
-              name: 'Onaylı muhabir listesinden görevlendirme',
+              code: 'K-HSD-04',
+              name: 'Dosya numarası ile e-posta eşleştirme',
               description:
-                'Yerel eksper görevlendirmesi yalnızca hasar türüne göre onaylanmış muhabir listesinden '
-                + 'yapılabilir; liste dışı atama birim yöneticisi onayı gerektirir.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['authorization', 'system'],
-              frequency: 'per_transaction',
-              method: 'AsistansPortal görevlendirme ekranında liste kısıtı ve onay akışı.',
-              evidence: 'Görevlendirme kaydı ve istisna onayı',
-              mitigates: ['R-HSD-05'],
-              owner: 'usr-05',
-              key: true,
-              coso: 'control_activities',
-              design: 'adequate',
-              effectiveness: 'effective',
-              strength: 4,
-              lastPerformedAt: '2026-08-12',
-              lastTestedAt: '2026-05-28',
-              testResult: '60 görevlendirmenin tamamı listeden yapılmış; 2 istisna onayı usulüne uygun.',
-            },
-            {
-              code: 'K-HSD-06',
-              name: 'Yeminli tercüme zorunluluğu',
-              description:
-                'Tazminat kararına dayanak olan yabancı dildeki belgeler, yeminli tercüman onayı olmadan '
-                + 'dosyaya eklenemez; DocVault yükleme sırasında onay bilgisini zorunlu tutar.',
-              nature: 'preventive',
+                'Dosyaya ait yazışmalar konu satırındaki dosya numarası ile otomatik olarak dijital '
+                + 'dosyaya iliştirilir; iliştirilemeyen yazışmalar haftalık listede raporlanır.',
+              nature: 'detective',
               execution: 'semi_automated',
-              categories: ['data_validation', 'authorization'],
-              frequency: 'per_transaction',
-              method: 'DocVault belge yükleme formunda yeminli tercüman ve onay tarihi alanının zorunlu olması.',
-              evidence: 'Tercüme onay kaydı ve belge meta verisi',
-              mitigates: ['R-HSD-06'],
-              owner: 'usr-09',
-              key: true,
-              coso: 'control_activities',
-              design: 'adequate',
-              effectiveness: 'effective',
-              strength: 4,
-              lastPerformedAt: '2026-08-11',
-              lastTestedAt: '2026-06-02',
-              testResult: '45 belgede yeminli tercüme oranı %100.',
-            },
-          ],
-          docs: [
-            {
-              code: 'PRS-HSD-03',
-              name: 'Yurt Dışı Eksper Görevlendirme ve Evrak Prosedürü',
-              type: 'procedure',
-              version: '1.9',
-              owner: 'usr-05',
-              publishedAt: '2025-03-10',
-              updatedAt: '2026-01-22',
-              nextReviewAt: '2027-03-10',
-              summary:
-                'Yerel eksper seçimi, görevlendirme onayı ve yabancı dildeki evrakın tercüme ve onay kuralları.',
-              sections: [
-                {
-                  heading: 'Eksper Seçimi',
-                  body: [
-                    'Görevlendirme, hasar türüne göre onaylanmış muhabir listesinden yapılır.',
-                    'Liste dışı görevlendirme yalnızca birim yöneticisi yazılı onayıyla mümkündür.',
-                  ],
-                },
-                {
-                  heading: 'Evrak ve Tercüme',
-                  body: [
-                    'Tazminat kararına dayanak olacak belgeler yeminli tercümanca çevrilir.',
-                    'Polis tutanağı ve resmî belgelerde apostil veya konsolosluk onayı aranır.',
-                    'Onaysız belge dosyaya eklenemez.',
-                  ],
-                },
-              ],
-              controlCodes: ['K-HSD-05', 'K-HSD-06'],
-            },
-            {
-              code: 'CHK-HSD-03',
-              name: 'Yurt Dışı Hasar Evrak Kontrol Listesi',
-              type: 'checklist',
-              version: '1.3',
-              owner: 'usr-05',
-              publishedAt: '2025-08-20',
-              nextReviewAt: '2026-12-31',
-              summary: 'Dosya kapanmadan önce bulunması gereken yurt dışı evrak seti.',
-              sections: [
-                {
-                  heading: 'Zorunlu Belgeler',
-                  body: [
-                    'Yerel eksper raporu (imzalı ve tarihli).',
-                    'Yeminli tercüme edilmiş tıbbi rapor veya polis tutanağı.',
-                    'Orijinal fatura ve ödeme belgesi.',
-                    'Apostil veya konsolosluk onayı (resmî belgelerde).',
-                  ],
-                },
-              ],
+              categories: ['system', 'monitoring'],
+              frequency: 'weekly',
+              method: 'Konu satırı eşleştirmesi ve eşleşmeyen yazışma raporu.',
+              evidence: 'Eşleştirme logu ve haftalık istisna listesi',
+              mitigates: ['R-HSD-03'],
+              owner: 'usr-11',
+              coso: 'monitoring',
+              design: 'needs_improvement',
+              effectiveness: 'partially_effective',
+              strength: 2,
+              lastPerformedAt: '2026-08-25',
+              lastTestedAt: '2026-06-17',
+              testResult:
+                'Eşleştirme yalnızca ortak kutuda çalışıyor; kişisel kutulardaki yazışmalar kapsam dışı.',
             },
           ],
           children: [
             {
               code: 'HSD-03-1',
-              name: 'Muhabir seçimi ve görevlendirme',
-              description: 'Hasar türüne uygun yerel muhabirin onaylı listeden seçilip görevlendirilmesi.',
-              systems: ['AsistansPortal'],
-              inputs: ['Hasar türü', 'Olay ülkesi'],
-              outputs: ['Görevlendirme kaydı'],
-              controlRefs: ['K-HSD-05'],
+              name: 'Dosya açılış kararı',
+              description: 'Dosyanın açılıp açılamayacağının değerlendirilmesi ve başvurana bilgi verilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Yönlendirme kararı'],
+              outputs: ['Açılış kararı'],
             },
             {
               code: 'HSD-03-2',
-              name: 'Tespit raporunun alınması',
-              description: 'Yerel eksperin hazırladığı tespit raporunun ve görsellerin dosyaya alınması.',
-              systems: ['DocVault'],
-              inputs: ['Eksper raporu', 'Fotoğraflar'],
-              outputs: ['Tespit dosyası'],
+              name: 'TMTB veya muhabir dosyasının açılması',
+              description: 'Dosya tipine göre TMTB direkt başvuru ya da muhabir dosyasının açılması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Dosya tipi'],
+              outputs: ['Dosya numarası'],
             },
             {
               code: 'HSD-03-3',
-              name: 'Evrak tercümesi ve onayı',
-              description: 'Yabancı dildeki belgelerin yeminli tercümesi ve resmî belgelerde apostil kontrolü.',
-              systems: ['DocVault'],
-              inputs: ['Yabancı dil belgeler'],
-              outputs: ['Onaylı tercüme seti'],
-              controlRefs: ['K-HSD-06'],
+              name: 'Dijital dosyanın oluşturulması',
+              description: 'Belge ve yazışmaların toplanacağı dijital dosyanın kurulması.',
+              systems: ['DYS'],
+              inputs: ['Dosya numarası'],
+              outputs: ['Dijital dosya'],
+              controlRefs: ['K-HSD-04'],
+            },
+          ],
+        },
+
+        /* ---------- Muallak Girişi ve Eskalasyon ---------- */
+        {
+          code: 'HSD-04',
+          name: 'Muallak Girişi ve Eskalasyon',
+          owner: 'usr-06',
+          participants: ['usr-02'],
+          description:
+            'Muallak tutarının dosyaya girilmesi; tutar belirlenen eşiğin üzerindeyse koordinatöre '
+            + 've üst yönetime bilgi verilmesi.',
+          purpose:
+            'Yükümlülüğün mali tabloda doğru görünmesini ve büyük tutarlı dosyaların yönetimce bilinmesini sağlamak.',
+          systems: ['Büro Hasar Sistemi'],
+          inputs: ['Dosya bilgileri', 'Tahmini zarar tutarı'],
+          outputs: ['Muallak kaydı', 'Eskalasyon bildirimi'],
+          maturity: 2,
+          slaDays: 2,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['financial', 'Finansal Etki',
+              'Muallak doğrudan mali tabloya girer; büyük tutarlı dosyaların yönetimce bilinmemesi karar riskidir.'],
+          ],
+          examples: [
+            {
+              title: 'Eskalasyon eşiğinin tanımsız olması',
+              scenario:
+                'Süreçte "tutar büyükse üst yönetime bilgi verilir" deniyor ama "büyük" tanımlanmamış. '
+                + 'Bir dosyada 1,2 milyon TL muallak girilmesine rağmen bildirim yapılmıyor.',
+              risk: 'Üst yönetim önemli bir yükümlülükten dönem sonunda haberdar oluyor.',
+              control: 'Eskalasyon eşiğinin sayısal olarak tanımlanması ve bildirimin sistemce üretilmesi.',
+              controlType: 'Önleyici — parametrik eşik',
+              evidence: 'Eşik parametresi ve bildirim kaydı',
+              criticalNote: 'Eşik üzeri dosyalarda bildirim yapılmadan muallak kaydedilemez.',
+            },
+          ],
+          risks: [
+            {
+              code: 'R-HSD-04',
+              name: 'Muallak eskalasyon eşiğinin tanımsız olması',
+              description:
+                'Büyük tutarlı dosyalarda koordinatör ve üst yönetim bildiriminin sayısal bir eşiğe '
+                + 'bağlanmaması ve kişisel takdire bırakılması.',
+              cause: 'Süreçte "tutar büyükse" ifadesinin parametreye dönüştürülmemiş olması.',
+              consequence:
+                'Önemli yükümlülüklerin yönetime geç ulaşması, dönem sonu sürprizleri ve karar gecikmesi.',
+              category: 'financial',
+              inherent: [4, 4],
+              residual: [3, 4],
+              target: [2, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-06',
+              identifiedAt: '2025-02-26',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO', 'ISO 31000'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-05',
+              name: 'Parametrik muallak eskalasyon eşiği',
+              description:
+                'Muallak tutarı tanımlı eşiği aştığında sistem koordinatöre ve üst yönetime otomatik '
+                + 'bildirim üretir; bildirim yapılmadan kayıt tamamlanamaz.',
+              nature: 'preventive',
+              execution: 'automated',
+              categories: ['system', 'authorization'],
+              frequency: 'per_transaction',
+              method: 'Eşik parametresi ve otomatik bildirim tetikleyicisi.',
+              evidence: 'Eşik tablosu ve bildirim kaydı',
+              mitigates: ['R-HSD-04'],
+              owner: 'usr-06',
+              key: true,
+              coso: 'control_activities',
+              design: 'inadequate',
+              effectiveness: 'ineffective',
+              strength: 1,
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-06-20',
+              testResult:
+                'Eşik tanımlı değil; bildirim tamamen personelin takdirine bağlı. Eşik üzeri 6 dosyanın 4’ünde bildirim yok.',
+            },
+          ],
+          actions: [
+            {
+              code: 'AKS-010',
+              title: 'Muallak eskalasyon eşiğinin tanımlanması ve otomatikleştirilmesi',
+              description:
+                'Koordinatör ve üst yönetim bildirimi için sayısal eşiklerin belirlenmesi, sisteme '
+                + 'parametre olarak girilmesi ve bildirimin otomatik üretilmesi.',
+              riskCode: 'R-HSD-04',
+              controlCode: 'K-HSD-05',
+              owner: 'usr-06',
+              dueDate: '2026-11-15',
+              priority: 'high',
+              status: 'open',
+              progress: 0,
+              source: 'internal_control',
+              createdAt: '2026-07-30',
+              createdBy: 'usr-22',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-04-1',
+              name: 'Muallak tutarının belirlenmesi',
+              description: 'Tahmini zarar ve muhabir bilgisine göre muallak tutarının hesaplanması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Tahmini zarar'],
+              outputs: ['Muallak tutarı'],
+            },
+            {
+              code: 'HSD-04-2',
+              name: 'Eşik kontrolü ve eskalasyon',
+              description: 'Tutarın eşikle karşılaştırılması ve gerekiyorsa yönetime bildirim.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Muallak tutarı'],
+              outputs: ['Eskalasyon bildirimi'],
+              controlRefs: ['K-HSD-05'],
             },
           ],
         },
@@ -665,87 +594,50 @@ export const yurtDisiHasar: NodeSpec = {
     },
 
     /* ============================================================ */
-    /* ALT SÜREÇ C — Döviz Değerlendirme ve Ödeme                    */
+    /* B — İNCELEME VE KARAR                                         */
     /* ============================================================ */
     {
-      code: 'HSD-C',
-      name: 'Döviz Değerlendirme ve Ödeme',
-      owner: 'usr-08',
+      code: 'HSD-B',
+      name: 'İnceleme ve Karar',
+      owner: 'usr-03',
       description:
-        'Tazminatın döviz cinsinden hesaplanması, kur tarihinin belirlenmesi ve '
-        + 'uluslararası transferle ödenmesi.',
-      purpose:
-        'Tazminatın doğru kurla hesaplanmasını ve mevzuata uygun biçimde yurt dışına transferini sağlamak.',
-      systems: ['HasarNet', 'TCMB Kur Servisi', 'SWIFT Gateway', 'SAP FI'],
-      inputs: ['Doğrulanmış tespit', 'Onaylı evrak seti', 'Sigortalı banka bilgisi'],
-      outputs: ['Döviz tazminat hesabı', 'Uluslararası transfer kaydı'],
+        'Sahtecilik değerlendirmesi, muhabir koordinasyonu, destek hizmetleriyle zarar tespiti, '
+        + 'belge kontrolü ve talebin kabul/red kararı.',
+      purpose: 'Karşılanacak tutarın belgeye dayalı, doğrulanmış ve savunulabilir olmasını sağlamak.',
+      systems: ['Büro Hasar Sistemi', 'DYS', 'Outlook'],
+      inputs: ['Açılmış dosya', 'Muhabir belgeleri', 'Destek raporları'],
+      outputs: ['Kabul/red kararı', 'Zarar raporu'],
       maturity: 3,
-      slaDays: 12,
+      slaDays: 25,
 
       children: [
-        /* ---------- 4. Döviz Tazminat Hesabı ---------- */
+        /* ---------- Sahtecilik Değerlendirmesi ---------- */
         {
-          code: 'HSD-04',
-          name: 'Döviz Tazminat Hesabı',
-          owner: 'usr-08',
+          code: 'HSD-05',
+          name: 'Sahtecilik Değerlendirmesi',
+          owner: 'usr-04',
           description:
-            'Yabancı para cinsinden faturaların değerlendirilmesi, uygulanacak kur tarihinin '
-            + 'belirlenmesi ve tazminat tutarının hesaplanması.',
-          purpose: 'Kur farkından doğan hak kaybını veya fazla ödemeyi önlemek.',
-          systems: ['HasarNet', 'TCMB Kur Servisi'],
-          inputs: ['Yabancı para fatura', 'Poliçe kur şartı'],
-          outputs: ['Hesaplanmış tazminat tutarı', 'Kur uygulama kaydı'],
-          maturity: 3,
-          slaDays: 5,
-          lastReviewedAt: '2026-01-22',
+            'Hem TMTB hem muhabir hattında, dosyanın sahtecilik belirtileri açısından değerlendirilmesi.',
+          purpose: 'Suistimal girişimlerinin ödeme yapılmadan önce yakalanmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi'],
+          inputs: ['Dosya belgeleri', 'Kaza beyanı'],
+          outputs: ['Sahtecilik değerlendirme notu'],
+          maturity: 2,
+          slaDays: 3,
+          lastReviewedAt: '2026-03-05',
           critical: [
-            ['financial', 'Finansal Etki',
-              'Kur tarihi seçimi tazminat tutarını doğrudan değiştirir; poliçe şartına aykırı kur uygulaması hak kaybı doğurur.'],
-            ['regulatory', 'Mevzuat Gerekliliği',
-              'Poliçede kur tarihi tanımlıysa buna uyulması zorunludur; aksi hâlde SEDDK şikâyeti gündeme gelir.'],
-          ],
-          examples: [
-            {
-              title: 'Ödeme günü kuru yerine olay günü kurunun uygulanması',
-              scenario:
-                'Poliçe “ödeme tarihindeki TCMB efektif satış kuru” diyor. Uzman, alışkanlıkla olay '
-                + 'tarihindeki kuru uyguluyor. Aradaki 4 ay içinde kur %12 yükselmiş.',
-              risk: 'Sigortalıya 6.800 TL eksik ödeme yapılıyor; şikâyet ve faiz yükümlülüğü doğuyor.',
-              control: 'Kur tarihinin poliçe şartından sistem tarafından okunması ve kullanıcının değiştirememesi.',
-              controlType: 'Önleyici — otomatik parametre kontrolü',
-              evidence: 'Kur uygulama logu ve poliçe şart kaydı',
-              criticalNote: 'Kur tarihi elle değiştirilemez; istisna yalnızca Mali İşler onayıyla açılır.',
-            },
+            ['control', 'Kontrol Noktası',
+              'Sahtecilik kontrolü akışta iki ayrı yerde geçer; ikisinde de aynı ölçütlerin uygulanması gerekir.'],
           ],
           risks: [
             {
-              code: 'R-HSD-07',
-              name: 'Yanlış kur tarihi uygulanarak eksik/fazla ödeme yapılması',
+              code: 'R-HSD-05',
+              name: 'Sahtecilik değerlendirmesinin ölçütsüz yapılması',
               description:
-                'Poliçe şartında tanımlı kur tarihi yerine farklı bir tarihin kuru kullanılarak '
-                + 'tazminatın hatalı hesaplanması.',
-              cause: 'Kur tarihinin elle seçilebilmesi ve poliçe şartının sistemde parametrik olmaması.',
-              consequence: 'Sigortalı aleyhine eksik ödeme ve faiz yükümlülüğü ya da sigortacı aleyhine fazla ödeme.',
-              category: 'financial',
-              inherent: [4, 4],
-              residual: [2, 4],
-              target: [1, 4],
-              appetite: 'averse',
-              treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-08',
-              identifiedAt: '2025-01-30',
-              lastAssessedAt: '2026-01-22',
-              standards: ['COSO', 'SEDDK Hasar Yönetmeliği'],
-            },
-            {
-              code: 'R-HSD-08',
-              name: 'Yabancı para faturanın sahte veya şişirilmiş olması',
-              description:
-                'Yurt dışında düzenlenen faturanın gerçeği yansıtmaması; tutarın şişirilmesi ya da '
-                + 'hiç yapılmamış bir hizmetin faturalandırılması.',
-              cause: 'Yabancı ülkedeki hizmet sağlayıcının doğrulanmasının güç olması.',
-              consequence: 'Haksız tazminat ödemesi ve suistimal kaybı.',
+                'Sahtecilik kontrolünün tanımlı gösterge listesi olmadan, personelin sezgisine bırakılarak '
+                + 'yapılması ve TMTB ile muhabir hattında farklı ölçütler uygulanması.',
+              cause: 'Sahtecilik göstergelerinin yazılı ölçüte ve sistemsel skora bağlanmamış olması.',
+              consequence: 'Suistimalin gözden kaçması ve karşılanan tutarın geri alınamaması.',
               category: 'financial',
               inherent: [4, 5],
               residual: [3, 5],
@@ -754,163 +646,1268 @@ export const yurtDisiHasar: NodeSpec = {
               treatment: 'mitigate',
               trend: 'up',
               owner: 'usr-22',
-              identifiedAt: '2025-10-05',
-              lastAssessedAt: '2026-01-22',
-              standards: ['COSO', 'MASAK'],
+              identifiedAt: '2025-08-19',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-06',
+              name: 'Sahtecilik gösterge listesi ve zorunlu değerlendirme',
+              description:
+                'Dosya kapanmadan önce tanımlı sahtecilik göstergeleri (mükerrer kaza, kısa süreli poliçe, '
+                + 'tutarsız beyan, yüksek tutarlı geçici poliçe) listesi üzerinden değerlendirme yapılır.',
+              nature: 'detective',
+              execution: 'manual',
+              categories: ['monitoring', 'data_validation'],
+              frequency: 'per_transaction',
+              method: 'Gösterge listesi üzerinden zorunlu değerlendirme ve not kaydı.',
+              evidence: 'Değerlendirme notu ve gösterge işaretlemeleri',
+              mitigates: ['R-HSD-05'],
+              owner: 'usr-22',
+              key: true,
+              coso: 'control_activities',
+              design: 'needs_improvement',
+              effectiveness: 'partially_effective',
+              strength: 2,
+              lastPerformedAt: '2026-08-27',
+              lastTestedAt: '2026-06-13',
+              testResult:
+                'Değerlendirme yapılıyor ama gösterge listesi yazılı değil; 25 dosyanın 8’inde not tek cümle.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-05-1',
+              name: 'Gösterge taraması',
+              description: 'Dosyanın tanımlı sahtecilik göstergelerine karşı taranması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Dosya belgeleri'],
+              outputs: ['Gösterge sonucu'],
+              controlRefs: ['K-HSD-06'],
+            },
+            {
+              code: 'HSD-05-2',
+              name: 'Değerlendirme notunun kaydı',
+              description: 'Sahtecilik değerlendirmesinin gerekçesiyle dosyaya kaydedilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Gösterge sonucu'],
+              outputs: ['Değerlendirme notu'],
+            },
+          ],
+        },
+
+        /* ---------- Muhabir Koordinasyonu ---------- */
+        {
+          code: 'HSD-06',
+          name: 'Muhabir Koordinasyonu',
+          owner: 'usr-05',
+          description:
+            'Muhabire bilgi, onay ve referans numarası verilmesi; kaza ile ilgili bilgi ve belgelerin '
+            + 'muhabirden talep edilmesi ve sigortalıdan kaza beyan formunun istenmesi.',
+          purpose:
+            'Yurt dışındaki dosyanın büro adına doğru referansla ve izlenebilir biçimde yürütülmesini sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'Outlook'],
+          inputs: ['Açılmış muhabir dosyası'],
+          outputs: ['Muhabir referans numarası', 'Kaza beyan formu'],
+          maturity: 3,
+          slaDays: 5,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['financial', 'Finansal Etki',
+              'Referans numarası verilmeden muhabirin yaptığı masraf büroya bağlanamaz; mutabakatta askıda kalır.'],
+          ],
+          examples: [
+            {
+              title: 'Referans numarası verilmeden muhabirin işlem başlatması',
+              scenario:
+                'Muhabir, acil olduğu gerekçesiyle onay ve referans numarası beklemeden eksper görevlendiriyor '
+                + 've masraf yapıyor.',
+              risk: 'Masraf dosyayla eşleşmiyor; ay sonu mutabakatında askıda kalan tutar oluşuyor.',
+              control: 'Muhabire onay ve referans numarası verilmeden masraf kabul edilmemesi.',
+              controlType: 'Önleyici — referans zorunluluğu',
+              evidence: 'Referans numarası kaydı ve muhabir yazışması',
+              criticalNote: 'Referanssız masraflar mutabakat öncesi ayrı listede incelenir.',
+            },
+          ],
+          risks: [
+            {
+              code: 'R-HSD-06',
+              name: 'Muhabire referans numarası verilmeden işlem başlatılması',
+              description:
+                'Muhabirin onay ve referans numarası almadan masraf yapması ve bu masrafın dosyayla '
+                + 'eşleştirilememesi.',
+              cause: 'Referans verme adımının sistemsel ön koşul olmaması.',
+              consequence: 'Ay sonu mutabakatında askıda tutar, üye şirkete yansıtılamayan masraf.',
+              category: 'financial',
+              inherent: [4, 4],
+              residual: [3, 4],
+              target: [2, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-05',
+              identifiedAt: '2025-07-08',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
             },
           ],
           controls: [
             {
               code: 'K-HSD-07',
-              name: 'Kur tarihinin poliçe şartından otomatik uygulanması',
+              name: 'Muhabir referans numarası ön koşulu',
               description:
-                'Uygulanacak kur tarihi poliçe şartından okunur ve TCMB servisinden çekilir; kullanıcı '
-                + 'bu alanı değiştiremez, istisna Mali İşler onayına bağlıdır.',
+                'Muhabir masrafları yalnızca büro tarafından verilmiş referans numarasıyla kabul edilir; '
+                + 'referanssız gelen masraflar ayrı listede incelenir ve yönetici onayına sunulur.',
               nature: 'preventive',
-              execution: 'automated',
-              categories: ['system', 'data_validation'],
+              execution: 'semi_automated',
+              categories: ['authorization', 'reconciliation'],
               frequency: 'per_transaction',
-              method: 'HasarNet kur alanının poliçe parametresine bağlanması ve salt okunur olması.',
-              evidence: 'Kur uygulama logu ve istisna onay kaydı',
-              mitigates: ['R-HSD-07'],
-              owner: 'usr-08',
+              method: 'Referans numarası eşleştirmesi ve referanssız masraf listesi.',
+              evidence: 'Referans kaydı ve istisna listesi',
+              mitigates: ['R-HSD-06'],
+              owner: 'usr-05',
               key: true,
               coso: 'control_activities',
               design: 'adequate',
-              effectiveness: 'effective',
-              strength: 5,
-              lastPerformedAt: '2026-08-14',
-              lastTestedAt: '2026-07-01',
-              testResult: '80 dosyanın tamamında kur tarihi poliçe şartıyla uyumlu.',
-            },
-            {
-              code: 'K-HSD-08',
-              name: 'Yurt dışı fatura doğrulama ve eşik kontrolü',
-              description:
-                'Belirlenen eşiği aşan yabancı para faturalar, hizmet sağlayıcının varlığı ve '
-                + 'faturanın gerçekliği açısından muhabir üzerinden teyit edilir.',
-              nature: 'detective',
-              execution: 'manual',
-              categories: ['monitoring', 'authorization'],
-              frequency: 'per_transaction',
-              method: '5.000 EUR üzeri faturalarda muhabir teyidi ve sağlayıcı kayıt sorgusu.',
-              evidence: 'Muhabir teyit yazışması ve sorgu çıktısı',
-              mitigates: ['R-HSD-08'],
-              owner: 'usr-22',
-              coso: 'control_activities',
-              design: 'needs_improvement',
               effectiveness: 'partially_effective',
-              strength: 2,
-              lastPerformedAt: '2026-08-08',
-              lastTestedAt: '2026-06-30',
+              strength: 3,
+              lastPerformedAt: '2026-08-28',
+              lastTestedAt: '2026-06-27',
               testResult:
-                'Eşik üzeri 22 faturanın 16’sında teyit yapılmış. Teyit süresi ortalama 9 gün; SLA’yı zorluyor.',
+                'Referans verme adımı uygulanıyor; acil vakalarda atlanabiliyor. Son çeyrekte 5 referanssız masraf.',
             },
           ],
           docs: [
             {
-              code: 'PRS-HSD-04',
-              name: 'Döviz Cinsinden Tazminat Hesaplama Prosedürü',
-              type: 'procedure',
-              version: '2.2',
-              owner: 'usr-08',
-              publishedAt: '2025-02-01',
-              updatedAt: '2026-01-22',
-              nextReviewAt: '2027-02-01',
-              summary: 'Kur tarihinin belirlenmesi, döviz tazminat hesabı ve fatura doğrulama eşikleri.',
+              code: 'TLM-HSD-06',
+              name: 'Muhabir Koordinasyon Talimatı',
+              type: 'instruction',
+              version: '1.7',
+              owner: 'usr-05',
+              publishedAt: '2025-05-05',
+              updatedAt: '2026-03-05',
+              nextReviewAt: '2027-05-05',
+              summary:
+                'Muhabire onay ve referans numarası verilmesi, belge talebi ve masraf kabulü kuralları.',
               sections: [
                 {
-                  heading: 'Kur Tarihi',
+                  heading: 'Referans Numarası',
                   body: [
-                    'Uygulanacak kur tarihi poliçe genel ve özel şartlarından okunur.',
-                    'Poliçede tanım yoksa ödeme tarihindeki TCMB efektif satış kuru uygulanır.',
-                    'Kur tarihi elle değiştirilemez; istisna Mali İşler onayına tabidir.',
+                    'Muhabir hiçbir masrafı büro referans numarası almadan yapamaz.',
+                    'Referanssız gelen masraflar ayrı listede incelenir ve yönetici onayına sunulur.',
                   ],
                 },
                 {
-                  heading: 'Fatura Doğrulama',
+                  heading: 'Belge Talebi',
                   body: [
-                    '5.000 EUR ve üzeri faturalar muhabir üzerinden teyit edilir.',
-                    'Teyit alınamayan faturalar ödemeye alınmaz, dosya suistimal incelemesine yönlendirilir.',
+                    'Kaza ile ilgili bilgi ve belgeler muhabirden yazılı olarak istenir.',
+                    'Sigortalıdan kaza beyan formu talep edilir ve teyit alınır.',
                   ],
                 },
               ],
-              controlCodes: ['K-HSD-07', 'K-HSD-08'],
+              controlCodes: ['K-HSD-07'],
             },
           ],
           children: [
             {
-              code: 'HSD-04-1',
-              name: 'Fatura ve masraf kalemlerinin değerlendirilmesi',
-              description: 'Yabancı para faturaların teminat kapsamı açısından kalem kalem incelenmesi.',
-              systems: ['HasarNet'],
-              inputs: ['Onaylı fatura seti'],
-              outputs: ['Kabul edilen masraf kalemleri'],
-              controlRefs: ['K-HSD-08'],
-            },
-            {
-              code: 'HSD-04-2',
-              name: 'Kur tarihinin belirlenmesi ve çevrim',
-              description: 'Poliçe şartına göre kur tarihinin okunması ve TCMB kuruyla çevrim yapılması.',
-              systems: ['TCMB Kur Servisi', 'HasarNet'],
-              inputs: ['Poliçe kur şartı', 'Döviz tutarı'],
-              outputs: ['TL karşılığı tazminat tutarı'],
+              code: 'HSD-06-1',
+              name: 'Muhabire bilgi, onay ve referans verilmesi',
+              description: 'Muhabire dosya bilgisinin, onayın ve referans numarasının iletilmesi.',
+              systems: ['Büro Hasar Sistemi', 'Outlook'],
+              inputs: ['Muhabir dosyası'],
+              outputs: ['Referans numarası'],
               controlRefs: ['K-HSD-07'],
             },
             {
-              code: 'HSD-04-3',
-              name: 'Tazminat teklifinin oluşturulması',
-              description: 'Hesaplanan tutarın sigortalıya teklif olarak sunulması ve mutabakat alınması.',
-              systems: ['HasarNet'],
-              inputs: ['Tazminat hesabı'],
-              outputs: ['Tazminat teklifi', 'Sigortalı mutabakatı'],
+              code: 'HSD-06-2',
+              name: 'Muhabirden bilgi ve belge talebi',
+              description: 'Kaza ile ilgili bilgi ve belgelerin muhabirden istenmesi.',
+              systems: ['Outlook'],
+              inputs: ['Referans numarası'],
+              outputs: ['Muhabir belgeleri'],
+            },
+            {
+              code: 'HSD-06-3',
+              name: 'Sigortalıdan kaza beyan formu',
+              description: 'Sigortalıya kaza ihbar dosya bilgisi verilmesi, teyit ve beyan formu istenmesi.',
+              systems: ['Outlook'],
+              inputs: ['Dosya bilgisi'],
+              outputs: ['Kaza beyan formu'],
             },
           ],
         },
 
-        /* ---------- 5. Uluslararası Ödeme ---------- */
+        /* ---------- Destek Hizmetleri ---------- */
         {
-          code: 'HSD-05',
-          name: 'Uluslararası Ödeme',
-          owner: 'usr-08',
+          code: 'HSD-07',
+          name: 'Destek Hizmetleri (Eksper, Aktüer, Tıbbi Bilirkişi, Araştırmacı)',
+          owner: 'usr-05',
           description:
-            'Mutabık kalınan tazminatın SWIFT üzerinden sigortalının yurt dışı veya yurt içi '
-            + 'hesabına transfer edilmesi ve muhasebeleştirilmesi.',
-          purpose: 'Ödemenin doğru hesaba, mevzuata uygun ve izlenebilir biçimde ulaşmasını sağlamak.',
-          systems: ['SWIFT Gateway', 'SAP FI', 'HasarNet'],
-          inputs: ['Mutabık tazminat tutarı', 'IBAN / SWIFT bilgisi'],
-          outputs: ['Transfer dekontu', 'Muhasebe kaydı', 'Kapatılmış dosya'],
+            'Zararın tespiti için eksper, aktüer, tıbbi bilirkişi veya araştırmacı görevlendirilmesi ve '
+            + 'zarar raporu ile destekleyici belgelerin hazırlanması.',
+          purpose: 'Zarar tutarının bağımsız uzman görüşüne dayanmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'DYS'],
+          inputs: ['Görevlendirme kararı'],
+          outputs: ['Zarar raporu', 'Destekleyici belgeler', 'Hizmet faturası'],
+          maturity: 3,
+          slaDays: 15,
+          lastReviewedAt: '2026-03-05',
+          risks: [
+            {
+              code: 'R-HSD-07',
+              name: 'Destek hizmeti maliyetinin kontrolsüz büyümesi',
+              description:
+                'Eksper, aktüer ve araştırmacı görevlendirmelerinin bütçe onayı olmadan yapılması ve '
+                + 'hizmet faturalarının dosya tutarına oranla yüksek kalması.',
+              cause: 'Görevlendirmede tutar tahmini ve onay eşiği bulunmaması.',
+              consequence: 'Dosya maliyetinin tazminat tutarını aşması, üye şirkete yansıtılamayan gider.',
+              category: 'financial',
+              inherent: [3, 4],
+              residual: [3, 3],
+              target: [2, 3],
+              appetite: 'cautious',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-05',
+              identifiedAt: '2025-10-14',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-08',
+              name: 'Destek hizmeti tutar tahmini ve onay eşiği',
+              description:
+                'Görevlendirme öncesi tahmini hizmet bedeli girilir; belirlenen eşiği aşan '
+                + 'görevlendirmeler bölüm müdürü onayına tabidir.',
+              nature: 'preventive',
+              execution: 'semi_automated',
+              categories: ['authorization'],
+              frequency: 'per_transaction',
+              method: 'Görevlendirme ekranında tahmini bedel ve onay akışı.',
+              evidence: 'Tahmini bedel kaydı ve onay',
+              mitigates: ['R-HSD-07'],
+              owner: 'usr-05',
+              coso: 'control_activities',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 4,
+              lastPerformedAt: '2026-08-26',
+              lastTestedAt: '2026-06-29',
+              testResult: 'Eşik üzeri 14 görevlendirmenin tamamında onay mevcut.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-07-1',
+              name: 'Uzman görevlendirmesi',
+              description: 'Zarar türüne göre eksper, aktüer, tıbbi bilirkişi veya araştırmacı atanması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Zarar türü'],
+              outputs: ['Görevlendirme kaydı'],
+              controlRefs: ['K-HSD-08'],
+            },
+            {
+              code: 'HSD-07-2',
+              name: 'Zarar raporunun hazırlanması',
+              description: 'Uzmanın zarar raporu ve destekleyici belgeleri hazırlaması.',
+              systems: ['DYS'],
+              inputs: ['Görevlendirme'],
+              outputs: ['Zarar raporu'],
+            },
+          ],
+        },
+
+        /* ---------- Belge Kontrolü ---------- */
+        {
+          code: 'HSD-08',
+          name: 'Belge Kontrolü ve Eksik Evrak Takibi',
+          owner: 'usr-04',
+          description:
+            'Muhabir ve destek hizmetlerinden gelen belgelerin kontrol edilmesi, eksik evrak varsa '
+            + 'talep edilmesi ve takip edilmesi.',
+          purpose: 'Kararın eksiksiz belge setine dayanmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'DYS'],
+          inputs: ['Muhabir belgeleri', 'Zarar raporu'],
+          outputs: ['Belge kontrol sonucu', 'Eksik evrak talebi'],
           maturity: 3,
           slaDays: 5,
-          lastReviewedAt: '2026-01-22',
-          critical: [
-            ['regulatory', 'Mevzuat Gerekliliği',
-              'Yurt dışına yapılan transferler MASAK kapsamında raporlanır; alıcı taraf yaptırım taramasından geçmelidir.'],
-            ['financial', 'Finansal Etki',
-              'Yanlış IBAN’a giden uluslararası transferin geri çağrılması çoğu ülkede mümkün olmaz.'],
-          ],
-          examples: [
+          lastReviewedAt: '2026-03-05',
+          risks: [
             {
-              title: 'Alıcı adı ile hesap sahibinin uyuşmaması',
-              scenario:
-                'Sigortalı, tedavi masrafının doğrudan yurt dışındaki hastaneye ödenmesini istiyor; '
-                + 'ancak dosyada hastanenin adı ile IBAN’ın sahibi farklı görünüyor.',
-              risk: 'Ödeme üçüncü bir tarafa gidiyor, geri alınamıyor ve sigortalıya ikinci kez ödeme yapılıyor.',
-              control: 'Alıcı adı ile hesap sahibinin eşleştiği teyit edilmeden transferin başlatılamaması.',
-              controlType: 'Önleyici — çift teyit',
-              evidence: 'Hesap sahibi teyit belgesi ve transfer onay kaydı',
-              criticalNote: 'Uyuşmazlık hâlinde ödeme durdurulur, sigortalıdan yazılı beyan istenir.',
+              code: 'R-HSD-08',
+              name: 'Eksik evrak talebinin takipsiz kalması',
+              description:
+                'Talep edilen eksik belgenin gelip gelmediğinin izlenmemesi ve dosyanın süresiz beklemesi.',
+              cause: 'Eksik evrak talebinin sistemde süre takibine bağlanmaması.',
+              consequence: 'Dosya gecikmesi, muhabirle ilişkide gerginlik ve SLA aşımı.',
+              category: 'operational',
+              inherent: [4, 3],
+              residual: [3, 3],
+              target: [2, 2],
+              appetite: 'cautious',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-04',
+              identifiedAt: '2025-06-19',
+              lastAssessedAt: '2026-03-05',
+              standards: ['ISO 9001'],
             },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-09',
+              name: 'Eksik evrak süre takibi ve hatırlatma',
+              description:
+                'Eksik evrak talebi sistemde tarihle kaydedilir; belirlenen süre içinde yanıt gelmezse '
+                + 'hatırlatma üretilir ve ikinci hatırlatmada dosya değerlendirmeye alınır.',
+              nature: 'detective',
+              execution: 'automated',
+              categories: ['monitoring', 'system'],
+              frequency: 'weekly',
+              method: 'Eksik evrak talep tarihine göre otomatik hatırlatma.',
+              evidence: 'Talep kaydı ve hatırlatma logu',
+              mitigates: ['R-HSD-08'],
+              owner: 'usr-04',
+              coso: 'monitoring',
+              design: 'adequate',
+              effectiveness: 'partially_effective',
+              strength: 3,
+              lastPerformedAt: '2026-08-25',
+              lastTestedAt: '2026-06-21',
+              testResult: 'Hatırlatma üretiliyor; ikinci hatırlatma sonrası değerlendirme adımı işletilmiyor.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-08-1',
+              name: 'Belgelerin kontrolü',
+              description: 'Gelen belgelerin eksiksizlik ve tutarlılık açısından kontrolü.',
+              systems: ['DYS'],
+              inputs: ['Belgeler'],
+              outputs: ['Kontrol sonucu'],
+            },
+            {
+              code: 'HSD-08-2',
+              name: 'Eksik evrak talebi ve takibi',
+              description: 'Eksik belgenin talep edilmesi ve süre takibinin başlatılması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Kontrol sonucu'],
+              outputs: ['Eksik evrak talebi'],
+              controlRefs: ['K-HSD-09'],
+            },
+          ],
+        },
+
+        /* ---------- Değerlendirme ve Karar ---------- */
+        {
+          code: 'HSD-09',
+          name: 'Değerlendirme ve Karar',
+          owner: 'usr-03',
+          description:
+            'Dosyanın bütün olarak değerlendirilmesi ve talebin kabul mü red mi edileceğine karar '
+            + 'verilmesi; red hâlinde başvurana bilgi verilip dosyanın kapatılması.',
+          purpose: 'Kararın belgeye dayalı, gerekçeli ve tutarlı olmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi'],
+          inputs: ['Tam belge seti', 'Zarar raporu', 'Sahtecilik değerlendirmesi'],
+          outputs: ['Kabul/red kararı', 'Başvurana bildirim'],
+          maturity: 3,
+          slaDays: 5,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['regulatory', 'Hukuki Sonuç',
+              'Red kararı Türkiye’de dava konusu olabilir; gerekçenin dosyada belgeli durması savunmanın temelidir.'],
           ],
           risks: [
             {
               code: 'R-HSD-09',
-              name: 'Ödemenin yanlış alıcıya transfer edilmesi',
+              name: 'Red gerekçesinin dosyada belgelenmemesi',
               description:
-                'IBAN/SWIFT bilgisinin hatalı girilmesi ya da alıcı adı ile hesap sahibinin '
-                + 'uyuşmaması sonucu tazminatın yanlış tarafa gitmesi.',
-              cause: 'Alıcı doğrulamasının tek kişiye bırakılması; yurt dışı hesaplarda ad-hesap eşleşmesinin zor doğrulanması.',
-              consequence: 'Geri alınamayan ödeme ve sigortalıya ikinci kez ödeme yapma zorunluluğu.',
+                'Talebin reddedilmesi hâlinde gerekçenin yalnızca bildirim yazısında kalması ve '
+                + 'dayanak belgelerin dosyaya bağlanmaması.',
+              cause: 'Red kararında gerekçe ve dayanak belge bağlantısının zorunlu olmaması.',
+              consequence: 'Dava hâlinde savunmanın zayıf kalması ve aleyhe karar riski.',
+              category: 'legal',
+              inherent: [3, 5],
+              residual: [2, 5],
+              target: [2, 4],
+              appetite: 'averse',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-09',
+              identifiedAt: '2025-11-27',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO', 'ISO 9001'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-10',
+              name: 'Red kararında gerekçe ve dayanak belge zorunluluğu',
+              description:
+                'Red kararı verilirken gerekçe listeden seçilir ve en az bir dayanak belge dosyadan '
+                + 'işaretlenir; ikisi olmadan karar kaydedilemez.',
+              nature: 'preventive',
+              execution: 'automated',
+              categories: ['data_validation', 'system'],
+              frequency: 'per_transaction',
+              method: 'Karar ekranında zorunlu gerekçe ve belge bağlantısı.',
+              evidence: 'Karar kaydı ve bağlı belgeler',
+              mitigates: ['R-HSD-09'],
+              owner: 'usr-09',
+              key: true,
+              coso: 'control_activities',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 4,
+              lastPerformedAt: '2026-08-27',
+              lastTestedAt: '2026-07-03',
+              testResult: '16 red kararının tamamında gerekçe ve dayanak belge mevcut.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-09-1',
+              name: 'Dosyanın bütün olarak değerlendirilmesi',
+              description: 'Belge, rapor ve sahtecilik değerlendirmesinin birlikte ele alınması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Tam belge seti'],
+              outputs: ['Değerlendirme notu'],
+            },
+            {
+              code: 'HSD-09-2',
+              name: 'Kabul / red kararı',
+              description: 'Talebin kabul veya reddine karar verilmesi ve gerekçenin kaydı.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Değerlendirme notu'],
+              outputs: ['Karar kaydı'],
+              controlRefs: ['K-HSD-10'],
+            },
+            {
+              code: 'HSD-09-3',
+              name: 'Sonucun bildirilmesi ve dosya kapanışı',
+              description: 'Red hâlinde başvurana bilgi verilmesi ve dosyanın kapatılması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Karar kaydı'],
+              outputs: ['Bildirim', 'Kapatılmış dosya'],
+            },
+          ],
+        },
+
+        /* ---------- Dava Takibi ---------- */
+        {
+          code: 'HSD-10',
+          name: 'Dava Süreci Takibi',
+          owner: 'usr-09',
+          description:
+            'Red edilen veya tutarına itiraz edilen dosyalarda Türkiye’de dava açılması hâlinde '
+            + 'sürecin hukuk birimince takip edilmesi.',
+          purpose: 'Dava sürecinin duruşma ve süre kaçırmadan yürütülmesini sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'DYS'],
+          inputs: ['Dava dilekçesi', 'Dosya belgeleri'],
+          outputs: ['Dava takip kaydı', 'Karar'],
+          maturity: 3,
+          slaDays: 30,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['regulatory', 'Hukuki Sonuç',
+              'Cevap ve itiraz süreleri hak düşürücüdür; kaçırılan süre davanın kaybı anlamına gelebilir.'],
+          ],
+          risks: [
+            {
+              code: 'R-HSD-10',
+              name: 'Dava sürelerinin kaçırılması',
+              description:
+                'Cevap dilekçesi, itiraz ve temyiz sürelerinin sistemde izlenmemesi ve kaçırılması.',
+              cause: 'Dava takibinin ajanda üzerinden elle yapılması.',
+              consequence: 'Hak kaybı, aleyhe karar ve yargılama gideri.',
+              category: 'legal',
+              inherent: [3, 5],
+              residual: [2, 5],
+              target: [1, 5],
+              appetite: 'averse',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-09',
+              identifiedAt: '2025-03-25',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-11',
+              name: 'Dava süre takip ve uyarı sistemi',
+              description:
+                'Dava dosyalarında cevap, itiraz ve temyiz süreleri sistemde tutulur; süre bitimine '
+                + 'bir hafta kala hukuk birimine uyarı üretilir.',
+              nature: 'detective',
+              execution: 'automated',
+              categories: ['monitoring', 'system'],
+              frequency: 'daily',
+              method: 'Süre alanlarına göre günlük uyarı taraması.',
+              evidence: 'Süre kaydı ve uyarı logu',
+              mitigates: ['R-HSD-10'],
+              owner: 'usr-09',
+              key: true,
+              coso: 'monitoring',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 4,
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-07-07',
+              testResult: 'Açık 9 dava dosyasının tamamında süreler sistemde; uyarılar zamanında üretilmiş.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-10-1',
+              name: 'Dava dosyasının açılması',
+              description: 'Dava bilgilerinin ve sürelerin sisteme kaydedilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Dava dilekçesi'],
+              outputs: ['Dava kaydı'],
+              controlRefs: ['K-HSD-11'],
+            },
+            {
+              code: 'HSD-10-2',
+              name: 'Sürecin takibi',
+              description: 'Duruşma, cevap ve itiraz sürelerinin takip edilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Dava kaydı'],
+              outputs: ['Takip kaydı'],
+            },
+          ],
+        },
+      ],
+    },
+
+    /* ============================================================ */
+    /* C — TAZMİNAT VE KAPANIŞ                                       */
+    /* ============================================================ */
+    {
+      code: 'HSD-C',
+      name: 'Tazminat ve Kapanış',
+      owner: 'usr-03',
+      description:
+        'Tazminat tutarının belirlenmesi, belge–fatura tutarlılık kontrolü, talep girişi ve bölüm '
+        + 'müdürünün onayıyla dosyanın kapatılması.',
+      purpose: 'Karşılanacak tutarın belgeyle tutarlı olmasını ve tek elden onaylanmasını sağlamak.',
+      systems: ['Büro Hasar Sistemi'],
+      inputs: ['Kabul kararı', 'Zarar raporu', 'Muhabir faturası'],
+      outputs: ['Onaylanmış tazminat', 'Kapatılmış dosya'],
+      maturity: 3,
+      slaDays: 7,
+
+      children: [
+        {
+          code: 'HSD-11',
+          name: 'Tazminat Tutarının Belirlenmesi ve Talep Girişi',
+          owner: 'usr-03',
+          description:
+            'Zarar raporu ve muhabir faturası esas alınarak tazminat tutarının belirlenmesi ve '
+            + 'sisteme talep olarak girilmesi.',
+          purpose: 'Karşılanacak tutarın belgeye dayanmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi'],
+          inputs: ['Zarar raporu', 'Muhabir faturası'],
+          outputs: ['Talep kaydı'],
+          maturity: 3,
+          slaDays: 3,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['financial', 'Finansal Etki',
+              'Belge ile fatura arasındaki tutarsızlık, üye şirkete yansıtılamayan fark olarak büroda kalır.'],
+          ],
+          examples: [
+            {
+              title: 'Muhabir faturası ile zarar raporunun uyuşmaması',
+              scenario:
+                'Zarar raporu 8.400 EUR diyor, muhabir faturası 9.150 EUR geliyor. Aradaki fark '
+                + 'sorgulanmadan talep girişi yapılıyor.',
+              risk: '750 EUR’luk fark üye şirkete yansıtılamıyor ve büroda kalıyor.',
+              control: 'Talep girişinde rapor tutarı ile fatura tutarının sistemce karşılaştırılması.',
+              controlType: 'Önleyici — tutarlılık kontrolü',
+              evidence: 'Karşılaştırma logu ve fark açıklaması',
+              criticalNote: 'Belirlenen toleransı aşan farklarda açıklama zorunludur.',
+            },
+          ],
+          risks: [
+            {
+              code: 'R-HSD-12',
+              name: 'Belge ile fatura tutarının uyuşmaması',
+              description:
+                'Zarar raporundaki tutar ile muhabir faturasındaki tutar arasındaki farkın sorgulanmadan '
+                + 'talep girişine geçilmesi.',
+              cause: 'Tutarlılık kontrolünün sistemsel değil, gözle yapılması.',
+              consequence: 'Üye şirkete yansıtılamayan fark ve mutabakat uyuşmazlığı.',
+              category: 'financial',
+              inherent: [4, 4],
+              residual: [3, 3],
+              target: [2, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-03',
+              identifiedAt: '2025-05-16',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-12',
+              name: 'Rapor–fatura tutar karşılaştırması',
+              description:
+                'Talep girişinde zarar raporu tutarı ile muhabir faturası sistemce karşılaştırılır; '
+                + 'toleransı aşan farklarda açıklama zorunludur ve kayıt yönetici onayına düşer.',
+              nature: 'preventive',
+              execution: 'automated',
+              categories: ['data_validation', 'reconciliation'],
+              frequency: 'per_transaction',
+              method: 'Tutar alanlarının karşılaştırılması ve tolerans denetimi.',
+              evidence: 'Karşılaştırma logu ve fark açıklamaları',
+              mitigates: ['R-HSD-12'],
+              owner: 'usr-03',
+              key: true,
+              coso: 'control_activities',
+              design: 'adequate',
+              effectiveness: 'partially_effective',
+              strength: 3,
+              lastPerformedAt: '2026-08-28',
+              lastTestedAt: '2026-07-04',
+              testResult: 'Karşılaştırma yapılıyor; tolerans parametresi tanımlı değil, fark açıklamaları yüzeysel.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-11-1',
+              name: 'Tazminat tutarının belirlenmesi',
+              description: 'Zarar raporu ve fatura esas alınarak tutarın belirlenmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Zarar raporu'],
+              outputs: ['Tazminat tutarı'],
+            },
+            {
+              code: 'HSD-11-2',
+              name: 'Tutarlılık kontrolü ve talep girişi',
+              description: 'Belge–fatura tutarlılığının kontrolü ve talebin sisteme girilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Tazminat tutarı', 'Muhabir faturası'],
+              outputs: ['Talep kaydı'],
+              controlRefs: ['K-HSD-12'],
+            },
+          ],
+        },
+        {
+          code: 'HSD-12',
+          name: 'Bölüm Müdürü Onayı ve Dosya Kapanışı',
+          owner: 'usr-02',
+          description:
+            'Talebin bölüm müdürü tarafından kontrol edilip onaylanması ve dosyanın kapanış kararının verilmesi.',
+          purpose: 'Hiçbir yükümlülüğün tek kişinin kararıyla kesinleşmemesini sağlamak.',
+          systems: ['Büro Hasar Sistemi'],
+          inputs: ['Talep kaydı'],
+          outputs: ['Onaylanmış talep', 'Kapanış kararı'],
+          maturity: 3,
+          slaDays: 3,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['authorization', 'Yetki Ayrımı',
+              'Talebi giren ile onaylayan farklı kişi olmalıdır.'],
+          ],
+          risks: [
+            {
+              code: 'R-HSD-13',
+              name: 'Kapanan dosyanın eksik belgeyle kapatılması',
+              description:
+                'Bölüm müdürü onayında belge tamlığının kontrol edilmemesi ve dosyanın eksik '
+                + 'evrakla kapatılması.',
+              cause: 'Kapanış kontrol listesinin bulunmaması.',
+              consequence:
+                'Rücu veya mutabakat aşamasında belge istendiğinde dosyanın yeniden açılması.',
+              category: 'operational',
+              inherent: [3, 3],
+              residual: [2, 3],
+              target: [2, 2],
+              appetite: 'cautious',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-02',
+              identifiedAt: '2025-09-23',
+              lastAssessedAt: '2026-03-05',
+              standards: ['ISO 9001'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-13',
+              name: 'Dosya kapanış kontrol listesi',
+              description:
+                'Kapanış onayında zorunlu belge seti (zarar raporu, fatura, dekont, karar kaydı) '
+                + 'sistemce kontrol edilir; eksik varsa kapanış yapılamaz.',
+              nature: 'preventive',
+              execution: 'automated',
+              categories: ['data_validation', 'authorization'],
+              frequency: 'per_transaction',
+              method: 'Kapanış ekranında zorunlu belge kontrolü.',
+              evidence: 'Kapanış kontrol logu',
+              mitigates: ['R-HSD-13'],
+              owner: 'usr-02',
+              coso: 'control_activities',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 4,
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-07-06',
+              testResult: 'Kapanan 30 dosyanın tamamında zorunlu belge seti tam.',
+            },
+          ],
+          docs: [
+            {
+              code: 'CHK-HSD-12',
+              name: 'Yurt Dışı Hasar Dosya Kapanış Kontrol Listesi',
+              type: 'checklist',
+              version: '1.4',
+              owner: 'usr-02',
+              publishedAt: '2025-09-10',
+              updatedAt: '2026-03-05',
+              nextReviewAt: '2027-09-10',
+              summary: 'Dosya kapanmadan önce bulunması zorunlu belge seti.',
+              sections: [
+                {
+                  heading: 'Zorunlu Belgeler',
+                  body: [
+                    'Zarar raporu (eksper, aktüer veya tıbbi bilirkişi).',
+                    'Muhabir faturası ve destekleyici belgeler.',
+                    'Ödeme dekontu.',
+                    'Kabul/red karar kaydı ve gerekçesi.',
+                    'Sahtecilik değerlendirme notu.',
+                  ],
+                },
+              ],
+              controlCodes: ['K-HSD-13'],
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-12-1',
+              name: 'Talebin kontrol ve onayı',
+              description: 'Bölüm müdürünün talebi kontrol edip onaylaması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Talep kaydı'],
+              outputs: ['Onay kaydı'],
+            },
+            {
+              code: 'HSD-12-2',
+              name: 'Kapanış kararı',
+              description: 'Belge tamlığının kontrolü ve dosyanın kapatılması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Onay kaydı'],
+              outputs: ['Kapatılmış dosya'],
+              controlRefs: ['K-HSD-13'],
+            },
+          ],
+        },
+      ],
+    },
+
+    /* ============================================================ */
+    /* D — MUTABAKAT, TAHAKKUK VE RÜCU                               */
+    /* ============================================================ */
+    {
+      code: 'HSD-D',
+      name: 'Mutabakat, Tahakkuk ve Rücu',
+      owner: 'usr-08',
+      description:
+        'Ay kapama ve üye şirketlerle prim mutabakatı, SBM kayıtlarının esas alınması, tahakkuk ve '
+        + 'muallak raporları, dekont üretimi ve transfer, teminat dışı hâllerde rücu ve reasürans ihbarı.',
+      purpose:
+        'Yurt dışında doğan yükümlülüğün üye şirketlere ve reasürörlere doğru yansıtılmasını sağlamak.',
+      systems: ['Büro Hasar Sistemi', 'SBM', 'Oracle'],
+      inputs: ['Kapanan dosyalar', 'SBM kayıtları', 'Muallak verileri'],
+      outputs: ['Üye şirket dekontu', 'Tahakkuk kaydı', 'Rücu dosyası', 'Reasürans ihbarı'],
+      maturity: 3,
+      slaDays: 15,
+
+      children: [
+        {
+          code: 'HSD-13',
+          name: 'Ay Kapama ve Üye Şirket Prim Mutabakatı',
+          owner: 'usr-08',
+          participants: ['usr-06'],
+          description:
+            'Ay sonu toplu tahakkukun yapılması, üye şirketlerle prim mutabakatı ve SBM kayıtlarının '
+            + 'esas alınması; düzeltme gerekiyorsa 10 gün içinde kayıt düzeltilmesi.',
+          purpose: 'Üye şirket paylarının sektör kayıtlarıyla tutarlı biçimde belirlenmesini sağlamak.',
+          systems: ['SBM', 'Büro Hasar Sistemi', 'Oracle'],
+          inputs: ['SBM kayıtları', 'Poliçe üretim verileri'],
+          outputs: ['Mutabık prim tabanı', 'Düzeltme kayıtları'],
+          maturity: 3,
+          slaDays: 10,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['regulatory', 'Mevzuat Gerekliliği',
+              'SBM kayıtlarında düzeltme için 10 günlük süre vardır; kaçırılan süre yanlış payın kesinleşmesi demektir.'],
+            ['financial', 'Finansal Etki',
+              'Prim tabanı, üye şirketlere yansıtılacak hasar payının doğrudan belirleyicisidir.'],
+          ],
+          examples: [
+            {
+              title: '10 günlük düzeltme süresinin kaçırılması',
+              scenario:
+                'SBM kayıtlarında bir üye şirketin prim üretimi eksik görünüyor. Fark ay kapanışında '
+                + 'tespit ediliyor ama düzeltme talebi 12. günde yapılıyor.',
+              risk: 'Yanlış prim tabanı kesinleşiyor; hasar payı dağıtımı hatalı yapılıyor.',
+              control: 'Düzeltme süresinin sistemde geri sayımla izlenmesi ve son iki günde uyarı üretilmesi.',
+              controlType: 'Tespit edici — süre izleme',
+              evidence: 'Düzeltme talep kaydı ve uyarı logu',
+              criticalNote: 'Süre dolduğunda SBM kayıtları esas alınır, itiraz hakkı kalmaz.',
+            },
+          ],
+          risks: [
+            {
+              code: 'R-HSD-14',
+              name: 'SBM kayıt düzeltme süresinin kaçırılması',
+              description:
+                'SBM kayıtlarındaki hatalı prim verisinin 10 günlük düzeltme süresi içinde '
+                + 'düzeltilmemesi ve yanlış tabanın kesinleşmesi.',
+              cause: 'Sürenin sistemde izlenmemesi ve kontrolün ay kapanışına bırakılması.',
+              consequence: 'Hasar payı dağıtımının hatalı yapılması ve üye şirketlerle uyuşmazlık.',
+              category: 'compliance',
+              inherent: [4, 4],
+              residual: [3, 4],
+              target: [2, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-08',
+              identifiedAt: '2025-04-03',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-14',
+              name: 'SBM düzeltme süresi geri sayımı',
+              description:
+                'SBM kayıtlarıyla tespit edilen farklar için 10 günlük düzeltme süresi sistemde '
+                + 'geri sayımla izlenir; son iki günde sorumluya ve yöneticiye uyarı gider.',
+              nature: 'detective',
+              execution: 'automated',
+              categories: ['monitoring', 'system'],
+              frequency: 'daily',
+              method: 'Fark kaydı tarihine göre geri sayım ve uyarı.',
+              evidence: 'Fark kaydı ve uyarı logu',
+              mitigates: ['R-HSD-14'],
+              owner: 'usr-08',
+              key: true,
+              coso: 'monitoring',
+              design: 'needs_improvement',
+              effectiveness: 'partially_effective',
+              strength: 2,
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-07-09',
+              testResult:
+                'Geri sayım yok; farklar Excel listede takip ediliyor. Son yılda 2 düzeltme süresi kaçırılmış.',
+            },
+          ],
+          docs: [
+            {
+              code: 'PRS-HSD-13',
+              name: 'Ay Kapama ve Üye Şirket Mutabakat Prosedürü',
+              type: 'procedure',
+              version: '3.2',
+              owner: 'usr-08',
+              publishedAt: '2025-01-10',
+              updatedAt: '2026-03-05',
+              nextReviewAt: '2027-01-10',
+              summary:
+                'Ay sonu toplu tahakkuk, SBM kayıtlarının esas alınması, düzeltme süresi ve üye '
+                + 'şirketlerle prim mutabakatı.',
+              sections: [
+                {
+                  heading: 'SBM Kayıtları',
+                  body: [
+                    'Prim tabanı olarak SBM kayıtları esas alınır.',
+                    'Tespit edilen farklar için düzeltme talebi 10 gün içinde yapılır.',
+                    'Süre dolduğunda SBM kayıtları kesinleşir, itiraz hakkı kalmaz.',
+                  ],
+                },
+                {
+                  heading: 'Dekont ve Transfer',
+                  body: [
+                    'Mutabık taban üzerinden alacaklı/borçlu dekontları sistemce üretilir.',
+                    'Dekontlar üye şirketlere gönderilir ve bedeller toplanır.',
+                    'Toplanan bedeller alacaklılara transfer edilir ve bilgilendirme yapılır.',
+                    '30 günü aşan tahsil edilmemiş dekontlar aylık olarak yönetime raporlanır.',
+                  ],
+                },
+              ],
+              controlCodes: ['K-HSD-14', 'K-HSD-15', 'K-HSD-16'],
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-13-1',
+              name: 'Ay sonu toplu tahakkuk',
+              description: 'Ay kapama ve toplu tahakkuk işleminin yapılması.',
+              systems: ['Oracle'],
+              inputs: ['Dosya verileri'],
+              outputs: ['Tahakkuk kaydı'],
+            },
+            {
+              code: 'HSD-13-2',
+              name: 'SBM karşılaştırması ve düzeltme',
+              description: 'SBM kayıtlarıyla karşılaştırma ve 10 gün içinde düzeltme talebi.',
+              systems: ['SBM'],
+              inputs: ['SBM kayıtları'],
+              outputs: ['Düzeltme kaydı'],
+              controlRefs: ['K-HSD-14'],
+            },
+            {
+              code: 'HSD-13-3',
+              name: 'Üye şirketlerle prim mutabakatı',
+              description: 'Mutabık prim tabanının üye şirketlerle teyit edilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Düzeltilmiş kayıtlar'],
+              outputs: ['Mutabık prim tabanı'],
+            },
+          ],
+        },
+        {
+          code: 'HSD-14',
+          name: 'Tahakkuk ve Muallak Raporları',
+          owner: 'usr-08',
+          description:
+            'Ay sonu tahakkuk ve muallak raporlarının hazırlanması, üst yönetim tarafından '
+            + 'değerlendirilmesi ve ay kapanış bilgisinin paylaşılması.',
+          purpose: 'Yükümlülüğün ve gerçekleşen tahakkukun yönetimce izlenmesini sağlamak.',
+          systems: ['Oracle', 'Büro Hasar Sistemi'],
+          inputs: ['Tahakkuk kayıtları', 'Muallak verileri'],
+          outputs: ['Ay sonu raporu', 'Yönetim değerlendirmesi'],
+          maturity: 3,
+          slaDays: 3,
+          lastReviewedAt: '2026-03-05',
+          risks: [
+            {
+              code: 'R-HSD-15',
+              name: 'Muallak ve tahakkuk raporlarının mutabık olmaması',
+              description:
+                'Hasar sisteminden gelen muallak verisi ile muhasebe tahakkuk kayıtlarının '
+                + 'karşılaştırılmaması ve farkın raporlanmaması.',
+              cause: 'İki kaynak arasında sistemsel mutabakat bulunmaması.',
+              consequence: 'Mali tabloda açıklanamayan fark ve denetim bulgusu.',
+              category: 'financial',
+              inherent: [3, 4],
+              residual: [2, 4],
+              target: [2, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-06',
+              identifiedAt: '2025-12-17',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-15',
+              name: 'Hasar–muhasebe muallak mutabakatı',
+              description:
+                'Ay sonunda hasar sistemindeki muallak toplamı ile muhasebe kayıtları karşılaştırılır; '
+                + 'fark açıklanmadan rapor yayımlanmaz.',
+              nature: 'detective',
+              execution: 'semi_automated',
+              categories: ['reconciliation'],
+              frequency: 'monthly',
+              method: 'İki kaynaklı toplam karşılaştırması ve fark açıklaması.',
+              evidence: 'Mutabakat tablosu ve fark açıklamaları',
+              mitigates: ['R-HSD-15'],
+              owner: 'usr-06',
+              key: true,
+              coso: 'monitoring',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 4,
+              lastPerformedAt: '2026-08-05',
+              lastTestedAt: '2026-07-05',
+              testResult: 'Son üç ayın tamamında mutabakat yapılmış, farklar açıklanmış.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-14-1',
+              name: 'Raporların hazırlanması',
+              description: 'Ay sonu tahakkuk ve muallak raporlarının üretilmesi.',
+              systems: ['Oracle'],
+              inputs: ['Tahakkuk ve muallak verileri'],
+              outputs: ['Ay sonu raporu'],
+              controlRefs: ['K-HSD-15'],
+            },
+            {
+              code: 'HSD-14-2',
+              name: 'Yönetim değerlendirmesi',
+              description: 'Raporların üst yönetim tarafından değerlendirilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Ay sonu raporu'],
+              outputs: ['Değerlendirme notu'],
+            },
+          ],
+        },
+        {
+          code: 'HSD-15',
+          name: 'Dekont Üretimi ve Transfer',
+          owner: 'usr-08',
+          description:
+            'Alacaklı/borçlu dekontlarının sistemce üretilip üye şirketlere gönderilmesi, dekont '
+            + 'bedellerinin toplanması ve alacaklılara transferin sağlanması.',
+          purpose: 'Mahsuplaşmanın doğru tutarlarla ve zamanında tamamlanmasını sağlamak.',
+          systems: ['Oracle', 'Büro Hasar Sistemi'],
+          inputs: ['Mutabık prim tabanı', 'Tahakkuk kayıtları'],
+          outputs: ['Üye şirket dekontu', 'Transfer kaydı'],
+          maturity: 3,
+          slaDays: 7,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['financial', 'Finansal Etki',
+              'Dekont, üye şirketle mahsuplaşmanın tek dayanağıdır; hatalı dekont doğrudan alacak/borç hatasıdır.'],
+          ],
+          risks: [
+            {
+              code: 'R-HSD-16',
+              name: 'Dekont bedellerinin eksik tahsil edilmesi',
+              description:
+                'Üye şirketlere gönderilen dekont bedellerinin tahsil edilip edilmediğinin '
+                + 'yaşlandırma ile izlenmemesi.',
+              cause: 'Dekont alacaklarının vade bazlı takip edilmemesi.',
+              consequence: 'Tahsil edilmemiş alacağın birikmesi ve nakit akışının bozulması.',
+              category: 'financial',
+              inherent: [4, 4],
+              residual: [3, 4],
+              target: [2, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-08',
+              identifiedAt: '2025-07-31',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-16',
+              name: 'Dekont alacak yaşlandırma raporu',
+              description:
+                'Gönderilen dekontlar vade bazında yaşlandırılır; 30 günü aşan tahsil edilmemiş '
+                + 'dekontlar aylık olarak yönetime raporlanır.',
+              nature: 'detective',
+              execution: 'automated',
+              categories: ['monitoring', 'reconciliation'],
+              frequency: 'monthly',
+              method: 'Dekont vade tarihine göre yaşlandırma.',
+              evidence: 'Yaşlandırma raporu',
+              mitigates: ['R-HSD-16'],
+              owner: 'usr-08',
+              key: true,
+              coso: 'monitoring',
+              design: 'adequate',
+              effectiveness: 'partially_effective',
+              strength: 3,
+              lastPerformedAt: '2026-08-05',
+              lastTestedAt: '2026-06-30',
+              testResult: 'Rapor üretiliyor; 30 günü aşan 7 dekont için takip aksiyonu açılmamış.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-15-1',
+              name: 'Dekontların üretilmesi',
+              description: 'Alacaklı/borçlu dekontlarının sistemce üretilmesi.',
+              systems: ['Oracle'],
+              inputs: ['Mutabık taban'],
+              outputs: ['Dekontlar'],
+            },
+            {
+              code: 'HSD-15-2',
+              name: 'Üye şirketlere gönderim ve tahsilat',
+              description: 'Dekontların gönderilmesi ve bedellerin toplanması.',
+              systems: ['Oracle'],
+              inputs: ['Dekontlar'],
+              outputs: ['Tahsilat kaydı'],
+              controlRefs: ['K-HSD-16'],
+            },
+            {
+              code: 'HSD-15-3',
+              name: 'Alacaklılara transfer',
+              description: 'Toplanan bedellerin alacaklılara transferi ve bilgilendirme.',
+              systems: ['Oracle'],
+              inputs: ['Tahsilat kaydı'],
+              outputs: ['Transfer kaydı'],
+            },
+          ],
+        },
+        {
+          code: 'HSD-16',
+          name: 'Rücu Süreci',
+          owner: 'usr-09',
+          participants: ['usr-03'],
+          description:
+            'Yeşil Kart teminatı geçerli değilse dosyadan ilgili kişinin bulunması, rücu nedenlerinin '
+            + 'belirlenmesi, dokümanların hazırlanması ve ödeme geldikten sonra tahakkuk iptali.',
+          purpose: 'Teminat dışı hâllerde ödenen tutarın sorumlusundan geri alınmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'DYS'],
+          inputs: ['Teminat geçersizlik tespiti', 'Dosya belgeleri'],
+          outputs: ['Rücu dosyası', 'Tahsilat', 'Tahakkuk iptali'],
+          maturity: 2,
+          slaDays: 30,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['regulatory', 'Hukuki Sonuç',
+              'Rücu hakkı zamanaşımına tabidir; gecikme hakkın tamamen kaybına yol açar.'],
+          ],
+          examples: [
+            {
+              title: 'Rücu nedeninin belgelenmemesi',
+              scenario:
+                'Teminatın geçersiz olduğu tespit ediliyor ama gerekçe (poliçe süresi dışı kaza, '
+                + 'ehliyetsiz sürücü, alkol) dosyada belgelenmiyor.',
+              risk: 'Rücu davası açıldığında iddia ispatlanamıyor ve dava kaybediliyor.',
+              control: 'Rücu nedeninin listeden seçilmesi ve en az bir dayanak belgeye bağlanması.',
+              controlType: 'Önleyici — kanıt zorunluluğu',
+              evidence: 'Rücu nedeni kaydı ve dayanak belge',
+              criticalNote: 'Dayanak belgesi olmayan rücu dosyası açılamaz.',
+            },
+          ],
+          risks: [
+            {
+              code: 'R-HSD-17',
+              name: 'Rücu nedeninin belgelenmemesi veya rücunun takipsiz kalması',
+              description:
+                'Teminat geçersizliğinin gerekçesinin dosyada belgelenmemesi ya da açılan rücu '
+                + 'dosyasının tahsilata kadar takip edilmemesi.',
+              cause:
+                'Rücu nedeni listesinin ve dayanak belge zorunluluğunun bulunmaması; rücu dosyalarının '
+                + 'ayrı bir takip listesinde izlenmemesi.',
+              consequence:
+                'Geri alınamayan ödeme, zamanaşımına uğrayan rücu hakkı ve kaybedilen dava.',
+              category: 'legal',
+              inherent: [4, 4],
+              residual: [3, 4],
+              target: [2, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-09',
+              identifiedAt: '2025-06-02',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO', 'ISO 31000'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSD-17',
+              name: 'Rücu nedeni ve dayanak belge zorunluluğu',
+              description:
+                'Rücu dosyası açılırken neden listeden seçilir ve en az bir dayanak belge bağlanır; '
+                + 'açık rücu dosyaları zamanaşımı tarihine göre yaşlandırılarak aylık izlenir.',
+              nature: 'preventive',
+              execution: 'semi_automated',
+              categories: ['data_validation', 'monitoring'],
+              frequency: 'monthly',
+              method: 'Zorunlu alan denetimi ve rücu yaşlandırma raporu.',
+              evidence: 'Rücu dosya kaydı ve yaşlandırma raporu',
+              mitigates: ['R-HSD-17'],
+              owner: 'usr-09',
+              key: true,
+              coso: 'control_activities',
+              design: 'needs_improvement',
+              effectiveness: 'partially_effective',
+              strength: 2,
+              lastPerformedAt: '2026-08-05',
+              lastTestedAt: '2026-06-23',
+              testResult:
+                'Neden alanı var ama liste değil serbest metin; yaşlandırma raporu yok. Açık 14 rücu dosyasının 3’ü bir yıldır hareketsiz.',
+            },
+          ],
+          actions: [
+            {
+              code: 'AKS-011',
+              title: 'Rücu takip listesi ve zamanaşımı yaşlandırması',
+              description:
+                'Rücu nedenlerinin listeye çevrilmesi, dayanak belge zorunluluğu ve açık rücu '
+                + 'dosyalarının zamanaşımı tarihine göre aylık yaşlandırılması.',
+              riskCode: 'R-HSD-17',
+              controlCode: 'K-HSD-17',
+              owner: 'usr-09',
+              dueDate: '2026-12-31',
+              priority: 'high',
+              status: 'in_progress',
+              progress: 20,
+              source: 'internal_audit',
+              createdAt: '2026-07-18',
+              createdBy: 'usr-24',
+            },
+          ],
+          children: [
+            {
+              code: 'HSD-16-1',
+              name: 'Teminat geçersizliğinin tespiti',
+              description: 'Yeşil Kart teminatının geçerli olup olmadığının değerlendirilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Poliçe ve kaza bilgisi'],
+              outputs: ['Geçersizlik tespiti'],
+            },
+            {
+              code: 'HSD-16-2',
+              name: 'Rücu dosyasının hazırlanması',
+              description: 'İlgili kişinin bulunması, rücu nedenlerinin belirlenmesi ve dokümanların hazırlanması.',
+              systems: ['DYS'],
+              inputs: ['Geçersizlik tespiti'],
+              outputs: ['Rücu dosyası'],
+              controlRefs: ['K-HSD-17'],
+            },
+            {
+              code: 'HSD-16-3',
+              name: 'Tahsilat ve tahakkuk iptali',
+              description: 'Rücu ödemesi geldikten sonra tahakkuk iptal işleminin yapılması.',
+              systems: ['Oracle'],
+              inputs: ['Rücu tahsilatı'],
+              outputs: ['Tahakkuk iptali'],
+            },
+          ],
+        },
+        {
+          code: 'HSD-17',
+          name: 'Reasürans İhbarı',
+          owner: 'usr-06',
+          description:
+            'Reasürans sözleşmesinde tanımlı eşiği aşan dosyaların Milli Reasürans ve diğer '
+            + 'reasürörlere sözleşme şartlarına göre ihbar edilmesi.',
+          purpose: 'Reasürans korumasının kaybedilmemesini sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'Outlook'],
+          inputs: ['Eşik üzeri dosya'],
+          outputs: ['Reasürans ihbarı'],
+          maturity: 3,
+          slaDays: 5,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['regulatory', 'Mevzuat Gerekliliği',
+              'Reasürans sözleşmesindeki ihbar süresi hak düşürücüdür; süresinde ihbar edilmeyen hasarda koruma kaybedilir.'],
+          ],
+          risks: [
+            {
+              code: 'R-HSD-18',
+              name: 'Reasürans ihbar süresinin kaçırılması',
+              description:
+                'Sözleşme eşiğini aşan dosyaların reasüröre süresinde ihbar edilmemesi.',
+              cause: 'Eşik kontrolünün ve ihbar süresinin sistemde izlenmemesi.',
+              consequence: 'Reasürans korumasının kaybı ve zararın tamamının büroda kalması.',
               category: 'financial',
               inherent: [3, 5],
               residual: [2, 5],
@@ -918,138 +1915,71 @@ export const yurtDisiHasar: NodeSpec = {
               appetite: 'averse',
               treatment: 'mitigate',
               trend: 'stable',
-              owner: 'usr-08',
-              identifiedAt: '2025-07-19',
-              lastAssessedAt: '2026-01-22',
-              standards: ['COSO', 'ISO 27001'],
-            },
-            {
-              code: 'R-HSD-10',
-              name: 'Transferin muhabir banka tarafından bloke edilmesi',
-              description:
-                'Yaptırım taraması veya eksik açıklama nedeniyle uluslararası transferin ara bankada '
-                + 'bloke olması ve ödemenin sigortalıya ulaşmaması.',
-              cause: 'Transfer açıklamasının yetersiz olması ve alıcı taraf taramasının eksik yapılması.',
-              consequence: 'Ödeme gecikmesi, sigortalı şikâyeti ve MASAK bildirim yükümlülüğü.',
-              category: 'compliance',
-              inherent: [3, 4],
-              residual: [2, 4],
-              target: [2, 3],
-              appetite: 'minimal',
-              treatment: 'mitigate',
-              trend: 'up',
-              owner: 'usr-22',
-              identifiedAt: '2025-11-12',
-              lastAssessedAt: '2026-01-22',
-              standards: ['MASAK', 'COSO'],
+              owner: 'usr-06',
+              identifiedAt: '2025-08-06',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO', 'Reasürans Sözleşmesi'],
             },
           ],
           controls: [
             {
-              code: 'K-HSD-09',
-              name: 'Alıcı adı ve hesap sahibi çift teyidi',
+              code: 'K-HSD-18',
+              name: 'Reasürans eşiği ve ihbar süresi kontrolü',
               description:
-                'Uluslararası transfer öncesinde alıcı adı ile hesap sahibinin eşleştiği iki farklı '
-                + 'kişi tarafından teyit edilir; uyuşmazlıkta transfer başlatılamaz.',
+                'Muallak veya ödenen tutar sözleşme eşiğini aştığında sistem ihbar görevi açar ve '
+                + 'sözleşmedeki süre içinde ihbar edilmeyen dosyalar için uyarı üretir.',
               nature: 'preventive',
-              execution: 'manual',
-              categories: ['segregation_of_duties', 'authorization'],
-              frequency: 'per_transaction',
-              method: 'Ödeme hazırlayan ve onaylayan farklı kişilerce alıcı doğrulaması.',
-              evidence: 'Çift onay kaydı ve hesap sahibi teyit belgesi',
-              mitigates: ['R-HSD-09'],
-              owner: 'usr-08',
+              execution: 'automated',
+              categories: ['system', 'monitoring'],
+              frequency: 'daily',
+              method: 'Eşik taraması ve ihbar süresi izleme.',
+              evidence: 'İhbar görevi ve gönderim kaydı',
+              mitigates: ['R-HSD-18'],
+              owner: 'usr-06',
               key: true,
               coso: 'control_activities',
               design: 'adequate',
               effectiveness: 'effective',
-              strength: 5,
-              lastPerformedAt: '2026-08-14',
-              lastTestedAt: '2026-07-05',
-              testResult: '50 transferin tamamında çift onay mevcut; 1 uyuşmazlık tespit edilip durdurulmuş.',
-            },
-            {
-              code: 'K-HSD-10',
-              name: 'Transfer öncesi yaptırım taraması ve açıklama standardı',
-              description:
-                'Her uluslararası transfer öncesi alıcı taraf yaptırım listelerine taranır ve transfer '
-                + 'açıklaması standart formatta doldurulur.',
-              nature: 'preventive',
-              execution: 'semi_automated',
-              categories: ['system', 'monitoring'],
-              frequency: 'per_transaction',
-              method: 'SWIFT Gateway üzerinde tarama servisi ve zorunlu açıklama şablonu.',
-              evidence: 'Tarama çıktısı ve transfer mesajı',
-              mitigates: ['R-HSD-10'],
-              owner: 'usr-22',
-              key: true,
-              coso: 'control_activities',
-              design: 'adequate',
-              effectiveness: 'partially_effective',
-              strength: 3,
-              lastPerformedAt: '2026-08-14',
-              lastTestedAt: '2026-06-18',
-              testResult:
-                'Tarama tüm transferlerde yapılmış. Açıklama şablonuna uyum %78; serbest metin kullanımı sürüyor.',
+              strength: 4,
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-07-11',
+              testResult: 'Eşik üzeri 6 dosyanın tamamı süresinde ihbar edilmiş.',
             },
           ],
-          docs: [
+          kris: [
             {
-              code: 'TLM-HSD-05',
-              name: 'Uluslararası Tazminat Transferi Talimatı',
-              type: 'instruction',
-              version: '1.4',
-              owner: 'usr-08',
-              publishedAt: '2025-09-01',
-              updatedAt: '2026-01-22',
-              nextReviewAt: '2027-09-01',
-              summary: 'SWIFT transferi, alıcı doğrulaması, yaptırım taraması ve muhasebeleştirme.',
-              sections: [
-                {
-                  heading: 'Alıcı Doğrulama',
-                  body: [
-                    'Alıcı adı ile hesap sahibi iki farklı kişi tarafından teyit edilir.',
-                    'Üçüncü tarafa (hastane, servis) doğrudan ödemede sigortalının yazılı talimatı aranır.',
-                  ],
-                },
-                {
-                  heading: 'Transfer ve Raporlama',
-                  body: [
-                    'Alıcı taraf yaptırım listelerine taranmadan transfer başlatılmaz.',
-                    'Transfer açıklaması standart şablona göre doldurulur.',
-                    'Eşik üzeri transferler MASAK kapsamında raporlanır.',
-                  ],
-                },
-              ],
-              controlCodes: ['K-HSD-09', 'K-HSD-10'],
+              code: 'KRI-HSD-01',
+              name: 'Açık rücu dosyalarında ortalama yaş (gün)',
+              definition:
+                'Açık rücu dosyalarının açılış tarihinden bu yana geçen ortalama gün sayısı. '
+                + 'Zamanaşımı riskinin göstergesidir.',
+              riskCode: 'R-HSD-17',
+              owner: 'usr-09',
+              unit: 'U-HSR',
+              frequency: 'monthly',
+              direction: 'lower_better',
+              greenMax: 120,
+              amberMax: 240,
+              readings: [140, 155, 162, 178, 190, 205, 218, 231, 246, 258, 272, 285],
             },
           ],
           children: [
             {
-              code: 'HSD-05-1',
-              name: 'Alıcı bilgilerinin doğrulanması',
-              description: 'IBAN/SWIFT bilgisinin ve alıcı adının hesap sahibiyle eşleştiğinin teyidi.',
-              systems: ['HasarNet'],
-              inputs: ['Sigortalı banka bilgisi'],
-              outputs: ['Doğrulanmış alıcı kaydı'],
-              controlRefs: ['K-HSD-09'],
+              code: 'HSD-17-1',
+              name: 'Eşik kontrolü',
+              description: 'Dosya tutarının reasürans sözleşme eşiğiyle karşılaştırılması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Muallak / ödenen tutar'],
+              outputs: ['Eşik sonucu'],
+              controlRefs: ['K-HSD-18'],
             },
             {
-              code: 'HSD-05-2',
-              name: 'Yaptırım taraması ve transfer',
-              description: 'Alıcı tarafın taranması ve SWIFT üzerinden transferin başlatılması.',
-              systems: ['SWIFT Gateway'],
-              inputs: ['Doğrulanmış alıcı', 'Tazminat tutarı'],
-              outputs: ['Transfer dekontu'],
-              controlRefs: ['K-HSD-10'],
-            },
-            {
-              code: 'HSD-05-3',
-              name: 'Muhasebeleştirme ve dosya kapanışı',
-              description: 'Ödemenin muhasebeleştirilmesi, muallak kaydının kapatılması ve dosyanın kapanışı.',
-              systems: ['SAP FI', 'HasarNet'],
-              inputs: ['Transfer dekontu'],
-              outputs: ['Muhasebe kaydı', 'Kapatılmış dosya'],
+              code: 'HSD-17-2',
+              name: 'İhbarın yapılması',
+              description: 'Sözleşme şartlarına göre reasüröre ihbarın gönderilmesi.',
+              systems: ['Outlook'],
+              inputs: ['Eşik sonucu'],
+              outputs: ['Reasürans ihbarı'],
             },
           ],
         },
