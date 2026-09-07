@@ -142,6 +142,43 @@ ORGANİZASYON
 Her seviye `expand / collapse` mantığıyla açılır. Kullanıcı isterse yalnızca süreç
 isimlerini görür, isterse tüm detayı açar.
 
+## Süreç Kanvası
+
+Sürecin tıkladıkça derinleşen kutu görünümü. Giriş ekranı hangi süreci
+açacağınızı sorar; hasarda iki varyant vardır çünkü **hasarın nerede
+gerçekleştiği süreci baştan aşağı değiştirir**:
+
+| | Yurt İçi Hasar | Yurt Dışı Hasar |
+|---|---|---|
+| Tespit | Kendi eksper ağı | Asistans şirketi + yerel muhabir |
+| Evrak | Türkçe, doğrudan | Yabancı dil, yeminli tercüme, apostil |
+| Ödeme | TL, yurt içi havale | Döviz, kur tarihi, SWIFT |
+| Ek riskler | — | Coğrafi kapsam, yaptırım taraması, kur farkı, sahte yabancı fatura |
+| Hedef süre | 15 iş günü | 25 iş günü |
+
+Seçimden sonra kırılım:
+
+```
+ANA SÜREÇ → ALT SÜREÇ → FAALİYET → İŞ ADIMI
+```
+
+Her kutu **altındaki her şeyin toplamını** taşır — risk, kontrol, prosedür
+ve doküman sayaçları. Kutuya girmeden "burada ne var" sorusu cevaplanır;
+kritik risk taşıyan kutunun risk sayacı kırmızıya döner. Sıfır olan sayaç
+gizlenmez, soluklaşır: eksikliğin kendisi de bilgidir.
+
+Kutular sıra oklarıyla bağlıdır ve şerit kendi içinde kayar; sayfa gövdesi
+yatay kaymaz. Sol üstteki kırıntı yolu her seviyeye geri döner.
+
+### Yerinde ekleme
+
+Her seviyede **"Bu seviyeye ekle"** düğmesi vardır: risk, kontrol, prosedür
+veya doküman eklersiniz, kayıt bulunduğunuz düğüme bağlanır. Ekleme
+yetkisi kayıt bazlı denetlenir — yetkisi olmayan kullanıcıda düğme hiç
+görünmez. Eklenen kayıt aynı ekranda sayaçlara ve listeye yansır.
+
+---
+
 ## Görünümler
 
 Aynı süreç altı farklı görünümle incelenebilir (`Süreç Haritası` sayfası):
@@ -275,8 +312,8 @@ yöneticisindedir. Yetkisi olmayan kullanıcı düğmeleri görmez, gerekçesini
 
 ## Doğrulama
 
-Dört uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
-düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 74 kontrol.
+Beş uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
+düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 96 kontrol.
 
 ```bash
 npm run build
@@ -290,6 +327,7 @@ npm run test:e2e
 | `faz2-surec-yapisi` | Ana süreç → alt süreç → faaliyet ağacı, sıralama, kritik nokta, doküman bağlama, süreç arşivleme | 15 |
 | `faz3-onay-mekanizmasi` | Kritik alan tespiti, talep üretimi, kendi talebini onaylayamama, iki kademeli zincir, uygulama | 19 |
 | `faz4-yetkilendirme` | Giriş, hatalı parola, menü filtresi, rota koruması, rol düzenleme, kullanıcı istisnası, pasif hesap | 24 |
+| `faz5-kanvas` | Varyant seçimi, kırılım, sayaçlar, bağlantı okları, kırıntı yolu, yerinde ekleme, yetki denetimi | 22 |
 
 Ortam değişkenleri:
 
@@ -414,7 +452,7 @@ src/
     accounts.ts           # kimlik kayıtları (özetlenmiş parolalar)
     spec.ts               # bildirimsel süreç tanımı (DSL)
     build.ts              # spec → normalize edilmiş varlık grafiği
-    processes/            # ana süreç tanımları
+    processes/            # ana süreç tanımları (yurt içi ve yurt dışı hasar dahil)
     index.ts              # veri kümesi + değişiklik talepleri + audit trail
   lib/
     riskMath.ts           # skorlama, seviyelendirme, KRI, tarih yardımcıları
@@ -446,6 +484,7 @@ tests/
   faz2-surec-yapisi.mjs   # süreç ağacı, sıralama, doküman yönetimi
   faz3-onay-mekanizmasi.mjs # kritik alan → onay zinciri → uygulama
   faz4-yetkilendirme.mjs  # giriş, menü/rota denetimi, rol ve istisna yönetimi
+  faz5-kanvas.mjs         # varyant seçimi, kırılım, sayaçlar, yerinde ekleme
   run-all.mjs             # üç süiti sırayla koşan toplu koşucu
 ```
 

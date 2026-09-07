@@ -19,6 +19,7 @@ import { NetworkPage } from '@/pages/Network';
 import { StandardsPage } from '@/pages/Standards';
 import { ProfilePage, UsersPage } from '@/pages/People';
 import { AccessAdminPage } from '@/pages/AccessAdmin';
+import { CanvasPage } from '@/pages/Canvas';
 
 export function App() {
   const currentUser = useAuth((s) => s.currentUser);
@@ -30,6 +31,8 @@ export function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<RequireMenu menu="dashboard"><Dashboard /></RequireMenu>} />
+          <Route path="kanvas" element={<RequireMenu menu="kanvas"><CanvasPage /></RequireMenu>} />
+          <Route path="kanvas/:nodeId" element={<RequireMenu menu="kanvas"><CanvasPage /></RequireMenu>} />
           <Route path="surecler" element={<RequireMenu menu="surecler"><ProcessesPage /></RequireMenu>} />
           <Route path="surecler/:nodeId" element={<RequireMenu menu="surecler"><ProcessesPage /></RequireMenu>} />
           <Route path="iliskiler" element={<RequireMenu menu="iliskiler"><NetworkPage /></RequireMenu>} />

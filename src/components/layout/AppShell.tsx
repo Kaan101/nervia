@@ -13,7 +13,7 @@ import { CommandPalette } from './CommandPalette';
 import { NoticeToast } from './NoticeToast';
 import {
   IconAction, IconAudit, IconBook, IconChange, IconClock, IconControl, IconDashboard,
-  IconDoc, IconHeat, IconLogout, IconMenu, IconNetwork, IconProcess, IconRisk,
+  IconDoc, IconHeat, IconLayers, IconLogout, IconMenu, IconNetwork, IconProcess, IconRisk,
   IconSearch, IconSettings, IconShield, IconSparkles, IconTarget, IconUsers,
 } from '@/components/common/Icons';
 
@@ -57,6 +57,7 @@ export function AppShell() {
   /** Menü anahtarına göre simge ve rozet. Sıra ve etiket navEntries'ten gelir. */
   const decor: Partial<Record<MenuKey, { icon: React.ReactNode; badge?: number; alert?: boolean }>> = {
     dashboard: { icon: <IconDashboard size={17} /> },
+    kanvas: { icon: <IconLayers size={17} /> },
     surecler: { icon: <IconProcess size={17} /> },
     iliskiler: { icon: <IconNetwork size={17} /> },
     'isi-haritasi': { icon: <IconHeat size={17} /> },

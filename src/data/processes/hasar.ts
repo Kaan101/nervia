@@ -8,14 +8,15 @@ import { hasarTail } from './hasar-tail';
  */
 export const hasarYonetimi: NodeSpec = {
   code: 'HSR',
-  name: 'Hasar Yönetimi',
+  name: 'Yurt İçi Hasar Yönetimi',
   unit: 'U-HSR',
   owner: 'usr-02',
   participants: ['usr-02', 'usr-03', 'usr-04', 'usr-05'],
   processClass: 'core',
   standards: ['COSO', 'ISO 31000', 'ISO 9001', 'SEDDK Hasar Yönetmeliği'],
   description:
-    'Sigortalının hasar ihbarından tazminatın ödenmesine ve dosyanın kapatılmasına kadar geçen uçtan uca süreç.',
+    'Sigortalının Türkiye sınırları içinde gerçekleşen hasar ihbarından tazminatın ödenmesine ve '
+    + 'dosyanın kapatılmasına kadar geçen uçtan uca süreç.',
   purpose:
     'Poliçe teminatı kapsamındaki hasarların doğru, zamanında ve mevzuata uygun biçimde tazmin edilmesini sağlamak.',
   customer: 'Sigortalı / hak sahibi',

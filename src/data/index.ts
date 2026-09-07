@@ -2,6 +2,7 @@ import type { AuditEntry, ChangeRequest, Dataset, ProcessNode } from '@/types/gr
 import type { NodeSpec } from './spec';
 import { buildDataset } from './build';
 import { hasarYonetimi } from './processes/hasar';
+import { yurtDisiHasar } from './processes/hasar-yurtdisi';
 import { bilgiTeknolojileri, hukuk, insanKaynaklari, maliIsler } from './processes/others-a';
 import { icKontrol, idariIsler, raporlama, riskYonetimi, satinAlma } from './processes/others-b';
 import { builtInRoles } from './roles';
@@ -22,6 +23,7 @@ const organization: NodeSpec = {
   reviewFrequencyMonths: 12,
   children: [
     hasarYonetimi,
+    yurtDisiHasar,
     maliIsler,
     hukuk,
     bilgiTeknolojileri,
