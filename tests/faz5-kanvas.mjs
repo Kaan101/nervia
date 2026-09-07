@@ -25,10 +25,12 @@ await page.locator('.canvas-variant').filter({ hasText: 'Yurt Dışı' }).click(
 await page.waitForTimeout(800);
 check('Seçilen varyant açıldı', /Yurt Dışı Hasar Yönetimi/.test(
   (await page.locator('h1').first().textContent()) ?? ''));
+// Kutu sayısını sabitlemiyoruz: demo veri değişince test kırılmamalı.
+// Doğrulanan şey mekanizma — her alt süreç bir kutu, aralarında birer ok.
 const subBoxes = await page.locator('.canvas-flow .canvas-box').count();
-check('Alt süreçler kutu olarak çıkıyor', subBoxes === 3, `${subBoxes} kutu`);
+check('Alt süreçler kutu olarak çıkıyor', subBoxes >= 2, `${subBoxes} kutu`);
 const arrows = await page.locator('.canvas-arrow').count();
-check('Kutular bağlantı okuyla bağlı', arrows === subBoxes - 1, `${arrows} ok`);
+check('Kutular bağlantı okuyla bağlı', arrows === subBoxes - 1, `${arrows} ok / ${subBoxes} kutu`);
 await page.screenshot({ path: 'f5-02-anasurec.png' });
 
 // Sayaç rozetleri
@@ -39,24 +41,49 @@ check('Kutuda prosedür sayacı var', /Prosedür/.test(firstCounts));
 check('Kutuda doküman sayacı var', /Doküman/.test(firstCounts));
 
 // ---------- 3. Alt süreç → faaliyet ----------
+// Tıklanacak kutunun adını önce okuyup sonra başlıkla karşılaştırıyoruz;
+// böylece doğrulanan şey "doğru kutuya girildi mi", içeriğin kendisi değil.
+const firstBoxName = (await page.locator('.canvas-flow .canvas-box-name').first().textContent())?.trim() ?? '';
 await page.locator('.canvas-flow .canvas-box-main').first().click();
 await page.waitForTimeout(800);
-check('Alt süreç açıldı', /İhbar ve Asistans Koordinasyonu/.test(
-  (await page.locator('h1').first().textContent()) ?? ''));
+const openedTitle = ((await page.locator('h1').first().textContent()) ?? '').trim();
+check('Alt süreç açıldı', openedTitle === firstBoxName, `${firstBoxName} → ${openedTitle}`);
 const trail = await page.locator('.canvas-trail').innerText();
 check('Kırıntı yolu derinliği gösteriyor',
   /Kanvas/.test(trail) && /Yurt Dışı Hasar Yönetimi/.test(trail));
 await page.screenshot({ path: 'f5-03-altsurec.png' });
 
+// Prosedürler faaliyet seviyesinde durur, adım seviyesinde değil. Bu yüzden
+// kontrolü buradayken yapıyoruz: prosedür sayacı dolu olan kutuya girip
+// listenin gerçekten dolduğunu doğruluyoruz.
+const procBox = page.locator('.canvas-flow .canvas-box').filter({
+  has: page.locator('.canvas-chip:not(.is-zero)', { hasText: 'Prosedür' }),
+}).first();
+if (await procBox.count()) {
+  const procName = (await procBox.locator('.canvas-box-name').textContent())?.trim() ?? '';
+  await procBox.locator('.canvas-box-main').click();
+  await page.waitForTimeout(900);
+  const procInspector = await page.locator('.canvas-inspector').innerText();
+  check('Prosedür sayacı dolu olan seviyede prosedür listeleniyor',
+    /PRS-[A-Z]+-\d+|TLM-[A-Z]+-\d+|CHK-[A-Z]+-\d+/.test(procInspector), procName);
+  await page.goBack({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(900);
+} else {
+  check('Prosedür sayacı dolu olan seviyede prosedür listeleniyor', false,
+    'prosedür sayacı dolu kutu bulunamadı');
+}
+
 // ---------- 4. Faaliyet seviyesi: kayıtlar görünüyor ----------
 await page.locator('.canvas-flow .canvas-box-main').first().click();
 await page.waitForTimeout(900);
 const inspector = await page.locator('.canvas-inspector').innerText();
-check('Faaliyetin riskleri listeleniyor', /R-HSD-01/.test(inspector));
-check('Faaliyetin kontrolleri listeleniyor', /K-HSD-01/.test(inspector));
-check('Faaliyetin prosedürü listeleniyor', /PRS-HSD-01/.test(inspector));
+// Kayıt kodlarını sabitlemek yerine biçimlerini doğruluyoruz: bu faaliyette
+// bir risk ve bir kontrol listeleniyor mu? Demo veri değişince test kırılmaz.
+check('Faaliyetin riskleri listeleniyor', /R-[A-Z]+-\d+/.test(inspector));
+check('Faaliyetin kontrolleri listeleniyor', /K-[A-Z]+-\d+/.test(inspector));
+
 const steps = await page.locator('.canvas-flow .canvas-box').count();
-check('İş adımları kutu olarak çıkıyor', steps === 3, `${steps} adım`);
+check('İş adımları kutu olarak çıkıyor', steps >= 2, `${steps} adım`);
 await page.screenshot({ path: 'f5-04-faaliyet.png' });
 
 // ---------- 5. Kırıntı yolundan geri ----------
