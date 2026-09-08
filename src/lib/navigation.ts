@@ -16,6 +16,7 @@ export interface NavEntry {
 export const navEntries: NavEntry[] = [
   { key: 'dashboard', path: '/', label: 'Dashboard', group: 'Genel Bakış' },
   { key: 'kanvas', path: '/kanvas', label: 'Süreç Kanvası', group: 'Genel Bakış' },
+  { key: 'is-akisi', path: '/is-akisi', label: 'Hasar İş Akışı', group: 'Genel Bakış' },
   { key: 'surecler', path: '/surecler', label: 'Süreç Haritası', group: 'Genel Bakış' },
   { key: 'iliskiler', path: '/iliskiler', label: 'Bağlantı Ağı', group: 'Genel Bakış' },
 

@@ -142,6 +142,38 @@ ORGANİZASYON
 Her seviye `expand / collapse` mantığıyla açılır. Kullanıcı isterse yalnızca süreç
 isimlerini görür, isterse tüm detayı açar.
 
+## Hasar İş Akışı
+
+Süreç haritası **"ne var"** sorusunu cevaplar: ana süreç → alt süreç →
+faaliyet → adım hiyerarşisi. İş akışı **"sonra ne oluyor"** sorusunu
+cevaplar: hangi adımdan sonra ne gelir, hangi koşulda hangi dala gidilir,
+akış nerede biter. İkisi aynı şey değildir ve biri diğerinden türetilemez —
+bu yüzden akış ayrı bir veridir (`src/data/flows/hasar-akis.ts`) ve
+`nodeCode` alanıyla süreç ağacına bağlanır.
+
+Kaynak: **TMTB Süreç ve İş Akışı Dokümanı Ver 10.0 (Aralık 2024), Bölüm 9 –
+İş Akışları**, Madde 42 (Yurt Dışı) ve Madde 43 (Yurt İçi). Kutu adları
+dokümandaki şemalarla birebirdir; şemada olmayan hiçbir adım eklenmemiştir.
+
+| Akış | Aşamalar |
+|---|---|
+| **Yurt İçi Hasar** | Ana Süreçler · Kaza Bildirim · Dosya Oluşturma · Araştırma · Ödeme · Rücu İşlemleri |
+| **Yurt Dışı Hasar** | Kaza Bildirim · Dosya Oluşturma · Araştırma |
+
+**Tek ekranda durur.** Aşama şeridi, ölçek düğmeleri ve adım detayı görünürde
+kalır; yalnızca şema kendi kutusunun içinde kayar. Geniş şemalar (Araştırma
+11 sütun) için %60 / %80 / %100 ölçek seçilebilir.
+
+**Kutu türleri şekille ayrılır:** başlangıç ve bitiş yuvarlatılmış, karar
+noktaları eşkenar dörtgen, sistem adımları mavi, taraflar kesikli çerçeve,
+başka akışa devir yeşil. Sağ üst köşesinde nokta taşıyan kutuların
+dokümanda sayısal bir dayanağı vardır.
+
+**Adıma tıklayınca** sağdaki panel açılır: dokümandaki dayanak maddesi
+(örn. *Madde 18/4*), varsa eşik ve kural metni, bağlı süreç adımı ve o
+adımın riskleri, kontrolleri ve dayanak dokümanları. Böylece akış ile
+kontrol ortamı aynı ekranda birleşir; süreç adımına tek tıkla geçilir.
+
 ## Süreç Kanvası
 
 Sürecin tıkladıkça derinleşen kutu görünümü. Giriş ekranı hangi süreci
@@ -359,8 +391,8 @@ yöneticisindedir. Yetkisi olmayan kullanıcı düğmeleri görmez, gerekçesini
 
 ## Doğrulama
 
-Altı uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
-düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 108 kontrol.
+Yedi uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
+düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 128 kontrol.
 
 ```bash
 npm run build
@@ -376,6 +408,7 @@ npm run test:e2e
 | `faz4-yetkilendirme` | Giriş, hatalı parola, menü filtresi, rota koruması, rol düzenleme, kullanıcı istisnası, pasif hesap | 24 |
 | `faz5-kanvas` | Varyant seçimi, kırılım, sayaçlar, bağlantı okları, kırıntı yolu, yerinde ekleme, yetki denetimi | 22 |
 | `faz6-ekler` | Ek ekleme, kaynak tespiti, açılabilir/kopyalanabilir ayrımı, zararlı şema reddi, kalıcılık, audit izi | 12 |
+| `faz7-is-akisi` | Akış ve aşama listesi, şema çizimi, karar noktaları, adım detayı, süreç adımına geçiş, ölçek | 20 |
 
 Ortam değişkenleri:
 
@@ -452,6 +485,37 @@ azaltır) ve etkinlik değerlendirmesi dikkate alınarak yorumlanır
 (`src/lib/riskMath.ts` → `derivedResidual`, `combinedMitigation`).
 
 ---
+
+## Kaynak doküman
+
+Veri kümesindeki hasar, insan kaynakları ve bilgi sistemleri süreçleri
+**TMTB Süreç ve İş Akışı Dokümanı Ver 10.0 (Aralık 2024)** temel alınarak
+yazılmıştır. Doküman, Sigortacılık ve Özel Emeklilik Sektörlerinde İç
+Sistemlere Dair Yönetmelik md. 54 kapsamında Kuruma iletilen belgedir ve
+sistemde `DOK-ORG-01` koduyla organizasyon düğümüne bağlıdır.
+
+| Doküman bölümü | Sistemdeki karşılığı |
+|---|---|
+| Bölüm 4-5 — Yurt Dışı Hasar Prosedürü (Madde 1-16) | `HSD` Yurt Dışı Hasar Yönetimi |
+| Bölüm 6 — Yurt İçi Hasar Süreci (Madde 17-20) | `HSR` Yurt İçi Hasar Yönetimi |
+| Bölüm 7 — İnsan Kaynakları (Madde 21-37) | `IKY` İnsan Kaynakları |
+| Bölüm 8 — Bilgi Sistemleri (Madde 38-41) | `BIT` Bilgi Sistemleri |
+| Bölüm 9 — İş Akışları (Madde 42-43) | Hasar İş Akışı ekranı |
+| Madde 11-13 — sahte yeşil kart, rücu, dava | `LEG-C` Hasar Kaynaklı Hukuki İşlemler |
+| Madde 14, 19 — avans, tahakkuk iptali, ödeme günü | `FIN-04` Hasar Ödemeleri ve Tahakkuk Düzeltmeleri |
+
+**Dokümandaki sayısal eşikler kritik nokta olarak işlenmiştir:** muallak
+50.000 € (Bölüm Yöneticisi görüşü) ve 100.000 € (kıdemli sorumlu ataması),
+direkt başvuruda 5.000 € (dosya sorumlusu / Bölüm Yöneticisi ayrımı),
+25.000 € üzeri ödemede ödeme belgesi zorunluluğu, yeşil kart sigortacısına
+ihbardan sonra bir ay içinde hatırlatma, dava açılan ve 50.000 € üzeri
+dosyaların yılda en az bir gözden geçirilmesi, altı ay hareket görmeyen
+dosyaların izlenmesi.
+
+**Uydurulmamıştır.** Dokümanda başlık olarak geçip içeriği verilmemiş
+maddeler (İK Madde 23-24, 26-27, 31, 33-34) sistemde adım olarak yer alır
+ama içeriği yazılmamıştır; olgunluk seviyeleri bunu yansıtır ve eksikliği
+kapatmak için aksiyon açılmıştır.
 
 ## Demo süreci — Yurt İçi Hasar (TMTB akışı)
 

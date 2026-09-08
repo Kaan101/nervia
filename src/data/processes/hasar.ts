@@ -1,7 +1,13 @@
 import type { NodeSpec } from '../spec';
 
 /**
- * YURT İÇİ HASAR SERVİSİ — 1.0
+ * YURT İÇİ HASAR SERVİSİ — 1.1
+ *
+ * Kaynak: TMTB Süreç ve İş Akışı Dokümanı Ver 10.0 (Aralık 2024),
+ * Bölüm 6 – Yurt İçi Hasar Süreci (Madde 17-20) ile Ek 1 Detaylı Yurt İçi
+ * Hasar İş Akışı. Yapı, Ek 1'deki rol hatlarını izler; Madde 17-20'deki
+ * sayısal kural ve onay şartları kritik nokta olarak işlenmiştir. Bölüm 9
+ * Madde 43'teki aşama bazlı özet akış ise Hasar İş Akışı ekranındadır.
  *
  * Türkiye Motorlu Taşıt Bürosu'nun yurt içi hasar süreç akış diyagramından
  * modellenmiştir. Büro, yabancı plakalı araçların Türkiye'de yol açtığı
@@ -29,7 +35,10 @@ export const hasarYonetimi: NodeSpec = {
   owner: 'usr-02',
   participants: ['usr-02', 'usr-03', 'usr-04', 'usr-05'],
   processClass: 'core',
-  standards: ['COSO', 'ISO 31000', 'ISO 9001', 'Yeşil Kart Sistemi', 'KVKK'],
+  standards: [
+    'COSO', 'ISO 31000', 'ISO 9001', 'Yeşil Kart Sistemi', 'KVKK',
+    'TMTB Süreç Dokümanı v10.0 Madde 17-20',
+  ],
   description:
     'Yabancı plakalı araçların Türkiye’de yol açtığı zararlarda üçüncü şahıs talebinin alınmasından, '
     + 'tazminatın ödenmesine ve ödenen tutarın ilgili ülke bürosundan rücu edilmesine kadar geçen süreç.',
@@ -39,8 +48,8 @@ export const hasarYonetimi: NodeSpec = {
   customer: 'Zarar gören üçüncü şahıs / vekili',
   slaDays: 30,
   maturity: 3,
-  version: '1.0',
-  lastReviewedAt: '2026-03-05',
+  version: '1.1',
+  lastReviewedAt: '2024-12-12',
   reviewFrequencyMonths: 12,
   updatedAt: '2026-08-28',
   systems: ['Büro Hasar Sistemi', 'Tramer', 'DYS', 'Oracle', 'Outlook', 'Güvence Hesabı'],
@@ -1942,6 +1951,13 @@ export const hasarYonetimi: NodeSpec = {
               'Gerçek kişilere yapılan bedeni tazminat ödemelerinde stopaj ve tevkifat limitleri ayrı hesaplanır.'],
             ['financial', 'Finansal Etki',
               'Yabancı para talebinde bildirilen para biriminden ödeme yapılır; TL karşılığı geri bildirilir.'],
+            ['authorization', 'Yetki Kontrolü',
+              'Talep girişi yapılan miktarların teminat limitlerini aşıp aşmadığı mutlaka kontrol '
+              + 'edilir; aşılması hâlinde aşan kısım için yabancı sigortacıdan ayrıca ve açıkça '
+              + 'ödeme onayı istenir (Madde 18/4).'],
+            ['authorization', 'Yetki Kontrolü',
+              'Talep girişi yapılan dosyalar birim yöneticisine verilir; yalnızca onaylanan '
+              + 'talepler Güvence Hesabından talep edilir (Madde 18/4).'],
           ],
           examples: [
             {
@@ -2096,6 +2112,10 @@ export const hasarYonetimi: NodeSpec = {
           critical: [
             ['financial', 'Finansal Etki',
               'Rücu edilmeyen her ödeme doğrudan zarardır; faturalama gecikmesi tahsilat riskini artırır.'],
+            ['regulatory', 'Mevzuat Gerekliliği',
+              'Parası gelmeyen taleplerde önce yurt dışındaki sigorta şirketine, ardından ilgili '
+              + 'ülke Bürosuna G. Call öncesi yazı yazılır; süre geçerse Garanti Çağrısı (G. Call) '
+              + 'prosedürü uygulanır ve bu aşamada son bir kontrol yapılır (Madde 20/3-4).'],
           ],
           examples: [
             {

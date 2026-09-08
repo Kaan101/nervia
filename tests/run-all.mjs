@@ -16,6 +16,7 @@ const suites = [
   ['Faz 4 — yetkilendirme', 'faz4-yetkilendirme.mjs'],
   ['Faz 5 — süreç kanvası', 'faz5-kanvas.mjs'],
   ['Faz 6 — dosya ekleri', 'faz6-ekler.mjs'],
+  ['Faz 7 — hasar iş akışı', 'faz7-is-akisi.mjs'],
 ];
 
 const run = (file) =>

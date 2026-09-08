@@ -1,7 +1,14 @@
 import type { NodeSpec } from '../spec';
 
 /**
- * YURT DIŞI HASAR — 2.0
+ * YURT DIŞI HASAR — 2.1
+ *
+ * Kaynak: TMTB Süreç ve İş Akışı Dokümanı Ver 10.0 (Aralık 2024),
+ * Bölüm 4-5 – Yurt Dışı Hasar Prosedürü (Madde 1-16) ile Ek 2 Detaylı
+ * Yurt Dışı Hasar İş Akışı. Yapı Ek 2'yi izler; Madde 1-16'daki sayısal
+ * eşikler (50.000 / 100.000 / 25.000 / 5.000 Euro), fiziki dosya açma
+ * hâlleri ve onay şartları kritik nokta ve kontrol olarak işlenmiştir.
+ * Bölüm 9 Madde 42'deki aşama bazlı özet akış Hasar İş Akışı ekranındadır.
  *
  * Türkiye Motorlu Taşıt Bürosu'nun yurt dışı hasar akış diyagramından
  * modellenmiştir. Yurt içi hasarın aynası değildir; yön tersine döner:
@@ -29,7 +36,10 @@ export const yurtDisiHasar: NodeSpec = {
   owner: 'usr-02',
   participants: ['usr-02', 'usr-03', 'usr-05', 'usr-08', 'usr-09'],
   processClass: 'core',
-  standards: ['COSO', 'ISO 31000', 'ISO 9001', 'Yeşil Kart Sistemi', 'Reasürans Sözleşmesi'],
+  standards: [
+    'COSO', 'ISO 31000', 'ISO 9001', 'Yeşil Kart Sistemi', 'Reasürans Sözleşmesi',
+    'TMTB Süreç Dokümanı v10.0 Madde 1-16',
+  ],
   description:
     'Türk plakalı araçların yurt dışında yol açtığı zararlarda ilgili ülke bürosu veya muhabiri '
     + 'üzerinden yürütülen dosyanın açılmasından, tazminatın karşılanmasına ve üye şirketlerle '
@@ -40,7 +50,7 @@ export const yurtDisiHasar: NodeSpec = {
   customer: 'Üye sigorta şirketleri / yurt dışı büro ve muhabirler',
   slaDays: 45,
   maturity: 3,
-  version: '1.0',
+  version: '1.1',
   lastReviewedAt: '2026-03-05',
   reviewFrequencyMonths: 12,
   updatedAt: '2026-08-30',
@@ -390,6 +400,14 @@ export const yurtDisiHasar: NodeSpec = {
           critical: [
             ['control', 'Kontrol Noktası',
               'Yazışmaların dosya dışında (kişisel e-posta) kalması denetim izini kopartır.'],
+            ['regulatory', 'Mevzuat Gerekliliği',
+              'Dosya numarası ülke kodu ile başlar, işlem yılı ile devam eder ve toplam 10 rakamdan '
+              + 'oluşur (Madde 2/2). Fiziki dosya yalnızca altı hâlde açılır: bedeni zararlı ve '
+              + '50.000 Euro üzeri muallak, TMTB Direkt Başvuru, dava ihtimali, orijinal belge '
+              + 'sunulması, sahte yeşil kart, yönetim onayı (Madde 4/2).'],
+            ['control', 'Kontrol Noktası',
+              'İhbar giriş ekranındaki açıklama alanına fiziki dosya durumu FDA (açıldı) ya da '
+              + 'FDY (açılmadı) olarak yazılır.'],
           ],
           risks: [
             {
@@ -471,47 +489,81 @@ export const yurtDisiHasar: NodeSpec = {
         /* ---------- Muallak Girişi ve Eskalasyon ---------- */
         {
           code: 'HSD-04',
-          name: 'Muallak Girişi ve Eskalasyon',
+          name: 'Muallak Hasar Tutarı Ayırma ve Eskalasyon (Madde 6)',
           owner: 'usr-06',
           participants: ['usr-02'],
           description:
-            'Muallak tutarının dosyaya girilmesi; tutar belirlenen eşiğin üzerindeyse koordinatöre '
-            + 've üst yönetime bilgi verilmesi.',
+            'Muallak hasar tutarının maddi ve bedeni olarak ayrı ayrı belirlenip EURO cinsinden '
+            + 'dosyaya girilmesi, tedvir ücretinin eklenmesi ve dokümanda tanımlı eşiklerin '
+            + 'aşılması hâlinde Bölüm Yöneticisinin görüşünün alınması.',
           purpose:
-            'Yükümlülüğün mali tabloda doğru görünmesini ve büyük tutarlı dosyaların yönetimce bilinmesini sağlamak.',
+            'Yükümlülüğün mali tabloda doğru görünmesini ve büyük tutarlı ya da bedeni zararlı '
+            + 'dosyaların yönetimce bilinmesini sağlamak.',
           systems: ['Büro Hasar Sistemi'],
-          inputs: ['Dosya bilgileri', 'Tahmini zarar tutarı'],
-          outputs: ['Muallak kaydı', 'Eskalasyon bildirimi'],
-          maturity: 2,
+          inputs: ['Temsilci hasar bildirimi', 'Kaza ülkesi teminat limitleri', 'TCMB döviz alış kuru'],
+          outputs: ['Maddi ve bedeni muallak kaydı', 'Tedvir ücreti girişi', 'Bölüm Yöneticisi görüşü'],
+          maturity: 3,
           slaDays: 2,
-          lastReviewedAt: '2026-03-05',
+          version: '2.0',
+          lastReviewedAt: '2024-12-12',
           critical: [
             ['financial', 'Finansal Etki',
               'Muallak doğrudan mali tabloya girer; büyük tutarlı dosyaların yönetimce bilinmemesi karar riskidir.'],
+            ['authorization', 'Yetki Kontrolü',
+              'Muallak 50.000 Euro’nun üzerindeyse ve yaralanmalı/ölümlü kazalarda Bölüm Yöneticisine '
+              + 'bilgi verilir ve görüşü alındıktan sonra muallak girişi yapılır (Madde 6).'],
+            ['regulatory', 'Mevzuat Gerekliliği',
+              'Dava açılan dosyalar ile 50.000 Euro üzerinde muallak taşıyan dosyalar en az yılda '
+              + 'bir kez gözden geçirilir (Madde 6/c).'],
           ],
           examples: [
             {
-              title: 'Eskalasyon eşiğinin tanımsız olması',
+              title: 'Prosedürde tanımlı eşiğin sistemde zorunlu olmaması',
               scenario:
-                'Süreçte "tutar büyükse üst yönetime bilgi verilir" deniyor ama "büyük" tanımlanmamış. '
-                + 'Bir dosyada 1,2 milyon TL muallak girilmesine rağmen bildirim yapılmıyor.',
-              risk: 'Üst yönetim önemli bir yükümlülükten dönem sonunda haberdar oluyor.',
-              control: 'Eskalasyon eşiğinin sayısal olarak tanımlanması ve bildirimin sistemce üretilmesi.',
-              controlType: 'Önleyici — parametrik eşik',
-              evidence: 'Eşik parametresi ve bildirim kaydı',
-              criticalNote: 'Eşik üzeri dosyalarda bildirim yapılmadan muallak kaydedilemez.',
+                'Süreç dokümanı Madde 6, 50.000 Euro üzeri muallak için Bölüm Yöneticisi görüşünü '
+                + 'şart koşuyor. Sistem ise eşiği bilmiyor: dosya sorumlusu 120.000 Euro muallağı '
+                + 'görüş almadan kaydedebiliyor ve kayıt tamamlanıyor.',
+              risk:
+                'Prosedür yazılı olduğu hâlde uygulanmıyor; yönetim büyük yükümlülükten dönem '
+                + 'sonunda haberdar oluyor ve iş akışındaki 100.000 Euro üzeri kıdemli sorumlu '
+                + 'ataması da tetiklenmiyor.',
+              control:
+                'Eşiklerin sisteme parametre olarak girilmesi ve eşik üzeri kayıtta Bölüm Yöneticisi '
+                + 'onayı alınmadan muallak girişinin tamamlanamaması.',
+              controlType: 'Önleyici — parametrik eşik ve zorunlu onay',
+              evidence: 'Eşik parametre tablosu, onay kaydı ve eşik üzeri dosya listesi',
+              criticalNote:
+                'Eşik prosedürde VAR, sistemde YOK. Bu bir tanım eksiği değil, uygulama eksiğidir.',
+            },
+            {
+              title: 'Muallağın EURO’ya çevrilmemesi',
+              scenario:
+                'Muhabir bildirimindeki tutar Polonya zlotisi cinsinden geliyor ve dosyaya olduğu '
+                + 'gibi giriliyor; EURO’ya çevrilmediği için muallak gerçek yükümlülüğün çok '
+                + 'altında görünüyor.',
+              risk: 'Mali tabloda eksik karşılık ve eşik kontrollerinin devreye girmemesi.',
+              control:
+                'Sisteme giriş yapılırken tutarın TCMB işlem tarihi döviz alış kuru üzerinden '
+                + 'EURO’ya çevrilmesinin zorunlu kılınması.',
+              controlType: 'Önleyici — veri doğrulama',
+              evidence: 'Kur dönüşüm kaydı ve muallak giriş ekranı çıktısı',
+              criticalNote: 'Madde 6: sisteme girilecek muallak hasar tutarı EURO’ya çevrilerek girilir.',
             },
           ],
           risks: [
             {
               code: 'R-HSD-04',
-              name: 'Muallak eskalasyon eşiğinin tanımsız olması',
+              name: 'Prosedürde tanımlı muallak eşiğinin sistemde zorlanmaması',
               description:
-                'Büyük tutarlı dosyalarda koordinatör ve üst yönetim bildiriminin sayısal bir eşiğe '
-                + 'bağlanmaması ve kişisel takdire bırakılması.',
-              cause: 'Süreçte "tutar büyükse" ifadesinin parametreye dönüştürülmemiş olması.',
+                'Süreç dokümanının 50.000 Euro üzeri muallak ile yaralanmalı/ölümlü kazalarda şart '
+                + 'koştuğu Bölüm Yöneticisi görüşünün, sistemde zorunlu bir adım olmaması ve '
+                + 'personelin takdirine bırakılması.',
+              cause:
+                'Eşiklerin sisteme parametre olarak girilmemiş olması; muallak giriş ekranının '
+                + 'onay alanı taşımaması.',
               consequence:
-                'Önemli yükümlülüklerin yönetime geç ulaşması, dönem sonu sürprizleri ve karar gecikmesi.',
+                'Yazılı prosedürün uygulanmaması, önemli yükümlülüklerin yönetime geç ulaşması ve '
+                + 'iç kontrol bulgusu.',
               category: 'financial',
               inherent: [4, 4],
               residual: [3, 4],
@@ -521,23 +573,67 @@ export const yurtDisiHasar: NodeSpec = {
               trend: 'stable',
               owner: 'usr-06',
               identifiedAt: '2025-02-26',
-              lastAssessedAt: '2026-03-05',
+              lastAssessedAt: '2026-09-08',
               standards: ['COSO', 'ISO 31000'],
+            },
+            {
+              code: 'R-HSD-25',
+              name: 'Muallağın EURO’ya çevrilmeden girilmesi',
+              description:
+                'Farklı para biriminde bildirilen muallak tutarının TCMB döviz alış kuruyla EURO’ya '
+                + 'çevrilmeden sisteme girilmesi.',
+              cause:
+                'Kur dönüşümünün elle yapılması ve giriş ekranında para birimi doğrulaması olmaması.',
+              consequence:
+                'Mali tabloda eksik ya da fazla karşılık; eşik kontrollerinin yanlış tetiklenmesi.',
+              category: 'financial',
+              inherent: [3, 4],
+              residual: [2, 3],
+              target: [1, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              owner: 'usr-06',
+              identifiedAt: '2024-12-12',
+              lastAssessedAt: '2026-09-08',
+            },
+            {
+              code: 'R-HSD-26',
+              name: 'Hareketsiz ve büyük tutarlı dosyaların gözden geçirilmemesi',
+              description:
+                'Dava açılan ve 50.000 Euro üzeri muallak taşıyan dosyaların yılda en az bir kez '
+                + 'gözden geçirilmemesi; altı ay hiç hareket görmeyen dosyaların fark edilmemesi.',
+              cause:
+                'Gözden geçirme ve hareketsizlik listelerinin sistemden düzenli olarak alınmaması.',
+              consequence:
+                'Muallağın güncelliğini yitirmesi, zamanaşımının kaçırılması ve dönem sonunda '
+                + 'toplu düzeltme ihtiyacı.',
+              category: 'operational',
+              inherent: [4, 4],
+              residual: [3, 3],
+              target: [2, 3],
+              appetite: 'cautious',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-02',
+              identifiedAt: '2024-12-12',
+              lastAssessedAt: '2026-09-08',
             },
           ],
           controls: [
             {
               code: 'K-HSD-05',
-              name: 'Parametrik muallak eskalasyon eşiği',
+              name: 'Parametrik muallak eşiği ve zorunlu Bölüm Yöneticisi onayı',
               description:
-                'Muallak tutarı tanımlı eşiği aştığında sistem koordinatöre ve üst yönetime otomatik '
-                + 'bildirim üretir; bildirim yapılmadan kayıt tamamlanamaz.',
+                'Muallak tutarı 50.000 Euro’yu aştığında ya da dosya bedeni zarar taşıdığında sistem '
+                + 'Bölüm Yöneticisi onayı ister; onay alınmadan muallak girişi tamamlanamaz. '
+                + '100.000 Euro üzeri dosyalarda ayrıca kıdemli sorumlu ataması tetiklenir.',
               nature: 'preventive',
               execution: 'automated',
               categories: ['system', 'authorization'],
               frequency: 'per_transaction',
-              method: 'Eşik parametresi ve otomatik bildirim tetikleyicisi.',
-              evidence: 'Eşik tablosu ve bildirim kaydı',
+              method:
+                'Eşik parametre tablosundan okunur; eşik aşımında onay akışı başlar ve bildirim üretilir.',
+              evidence: 'Eşik parametre tablosu, onay kaydı ve kıdemli sorumlu atama kaydı',
               mitigates: ['R-HSD-04'],
               owner: 'usr-06',
               key: true,
@@ -548,16 +644,67 @@ export const yurtDisiHasar: NodeSpec = {
               lastPerformedAt: '2026-08-29',
               lastTestedAt: '2026-06-20',
               testResult:
-                'Eşik tanımlı değil; bildirim tamamen personelin takdirine bağlı. Eşik üzeri 6 dosyanın 4’ünde bildirim yok.',
+                'Eşik prosedürde tanımlı (50.000 / 100.000 Euro) ancak sisteme parametre olarak '
+                + 'girilmemiş; bildirim personelin takdirinde. Eşik üzeri 6 dosyanın 4’ünde onay kaydı yok.',
+            },
+            {
+              code: 'K-HSD-26',
+              name: 'Muallak girişinde EURO dönüşümü zorunluluğu',
+              description:
+                'Muallak giriş ekranında para birimi seçilir; EURO dışındaki tutarlar işlem tarihli '
+                + 'TCMB döviz alış kuru ile otomatik çevrilir ve dönüşüm kaydı saklanır.',
+              nature: 'preventive',
+              execution: 'semi_automated',
+              categories: ['data_validation', 'system'],
+              frequency: 'per_transaction',
+              method: 'Giriş ekranında para birimi zorunlu alan; kur TCMB servisinden çekilir.',
+              evidence: 'Kur dönüşüm kaydı ve muallak giriş günlüğü',
+              mitigates: ['R-HSD-25'],
+              owner: 'usr-06',
+              coso: 'control_activities',
+              design: 'needs_improvement',
+              effectiveness: 'partially_effective',
+              strength: 3,
+              lastPerformedAt: '2026-08-29',
+              lastTestedAt: '2026-06-20',
+              testResult: 'Dönüşüm yapılıyor ancak kur elle giriliyor; iki dosyada kur farkı tespit edildi.',
+            },
+            {
+              code: 'K-HSD-27',
+              name: 'Yıllık gözden geçirme ve hareketsiz dosya listesi',
+              description:
+                'Dava açılan ve 50.000 Euro üzeri muallak taşıyan dosyalar için yılda en az bir kez '
+                + 'gözden geçirme çalışması yapılır; ayrıca altı ay hareket görmeyen dosyalar aylık '
+                + 'listeyle Bölüm Yöneticisine sunulur.',
+              nature: 'detective',
+              execution: 'semi_automated',
+              categories: ['monitoring'],
+              frequency: 'monthly',
+              method:
+                'Muallak Hasar Raporu ve hareketsizlik raporu çalıştırılır; gözden geçirme sonucu '
+                + 'dosyaya not edilir ve gerekiyorsa muallak güncellenir.',
+              evidence: 'Yıllık gözden geçirme tutanağı ve aylık hareketsiz dosya listesi',
+              mitigates: ['R-HSD-26'],
+              owner: 'usr-02',
+              key: true,
+              coso: 'monitoring',
+              design: 'adequate',
+              effectiveness: 'partially_effective',
+              strength: 3,
+              lastPerformedAt: '2026-08-01',
+              lastTestedAt: '2026-07-18',
+              testResult:
+                'Yıllık gözden geçirme yapılmış; hareketsiz dosya listesi son dört ayın ikisinde alınmamış.',
             },
           ],
           actions: [
             {
-              code: 'AKS-010',
-              title: 'Muallak eskalasyon eşiğinin tanımlanması ve otomatikleştirilmesi',
+              code: 'AKS-HSD-01',
+              title: 'Muallak eşiklerini sisteme parametre olarak girmek',
               description:
-                'Koordinatör ve üst yönetim bildirimi için sayısal eşiklerin belirlenmesi, sisteme '
-                + 'parametre olarak girilmesi ve bildirimin otomatik üretilmesi.',
+                'Süreç dokümanı Madde 6’daki 50.000 Euro (Bölüm Yöneticisi görüşü) ve iş akışındaki '
+                + '100.000 Euro (kıdemli sorumlu ataması) eşikleri sisteme parametre olarak '
+                + 'girilecek; eşik aşımında onay alınmadan muallak kaydı tamamlanamayacak.',
               riskCode: 'R-HSD-04',
               controlCode: 'K-HSD-05',
               owner: 'usr-06',
@@ -570,23 +717,83 @@ export const yurtDisiHasar: NodeSpec = {
               createdBy: 'usr-22',
             },
           ],
+          docs: [
+            {
+              code: 'TAL-HSD-01',
+              name: 'Muallak Hasar Tutarı Ayırma Talimatı',
+              type: 'instruction',
+              version: '10.0',
+              owner: 'usr-06',
+              publishedAt: '2024-12-12',
+              updatedAt: '2024-12-12',
+              nextReviewAt: '2026-12-12',
+              summary:
+                'Süreç dokümanı Madde 6’nın uygulama talimatı: muallağın nasıl belirleneceği, '
+                + 'hangi eşiklerde kimin görüşünün alınacağı ve ne sıklıkla gözden geçirileceği.',
+              sections: [
+                {
+                  heading: 'Muallağın belirlenmesi',
+                  body: [
+                    'Muallak, zarara uğrayan üçüncü şahısların sayısı ve zararın niteliğine göre maddi ve bedeni olarak ayrı belirlenir.',
+                    'Kaza ülkesindeki trafik sigortası teminat limitleri ve kapsamı dikkate alınır.',
+                    'Tutar EURO’ya çevrilerek girilir; farklı para biriminde bildirilmişse TCMB işlem tarihi döviz alış kuru kullanılır.',
+                    'Tedvir ücreti toplam üzerinden hesaplanır ve ayrı alana girilir.',
+                  ],
+                },
+                {
+                  heading: 'Eşikler ve onay',
+                  body: [
+                    'Muallak 50.000 Euro’nun üzerindeyse Bölüm Yöneticisine bilgi verilir ve görüşü alındıktan sonra giriş yapılır.',
+                    'Yaralanmalı veya ölümlü kazalarda tutara bakılmaksızın Bölüm Yöneticisinin görüşü alınır.',
+                    'İş akışına göre muallak 100.000 Euro’yu aşarsa dosyaya kıdemli sorumlu atanır.',
+                  ],
+                },
+                {
+                  heading: 'Gözden geçirme',
+                  body: [
+                    'Dava açılan dosyalar ile 50.000 Euro üzerinde muallak taşıyan dosyalar en az yılda bir kez gözden geçirilir.',
+                    'Davanın geldiği aşama, talep tutarı, kusur durumu, işlemiş faiz ve yargılama giderleri dikkate alınır.',
+                    'Altı ay hiç hareket görmeyen dosyalara özellikle dikkat edilir.',
+                    'Açık dosyalarla ilgili yılda en az bir defa Bölüm Yöneticisinin belirlediği kriterlerle çalışma yapılır.',
+                  ],
+                },
+              ],
+              controlCodes: ['K-HSD-05', 'K-HSD-26', 'K-HSD-27'],
+            },
+          ],
           children: [
             {
               code: 'HSD-04-1',
               name: 'Muallak tutarının belirlenmesi',
-              description: 'Tahmini zarar ve muhabir bilgisine göre muallak tutarının hesaplanması.',
+              description:
+                'Maddi ve bedeni zararlar için ayrı tutar belirlenmesi, teminat limitlerinin dikkate '
+                + 'alınması, EURO’ya çevrilmesi ve tedvir ücretinin eklenmesi.',
               systems: ['Büro Hasar Sistemi'],
-              inputs: ['Tahmini zarar'],
-              outputs: ['Muallak tutarı'],
+              inputs: ['Temsilci bildirimi', 'Teminat limitleri', 'TCMB kuru'],
+              outputs: ['Maddi ve bedeni muallak tutarı'],
+              controlRefs: ['K-HSD-26'],
             },
             {
               code: 'HSD-04-2',
-              name: 'Eşik kontrolü ve eskalasyon',
-              description: 'Tutarın eşikle karşılaştırılması ve gerekiyorsa yönetime bildirim.',
+              name: 'Eşik kontrolü ve Bölüm Yöneticisi görüşü',
+              description:
+                '50.000 Euro üzeri ve bedeni zararlı dosyalarda görüş alınması; 100.000 Euro üzeri '
+                + 'dosyalarda kıdemli sorumlu atanması.',
               systems: ['Büro Hasar Sistemi'],
-              inputs: ['Muallak tutarı'],
-              outputs: ['Eskalasyon bildirimi'],
+              inputs: ['Muallak tutarı', 'Zarar niteliği'],
+              outputs: ['Bölüm Yöneticisi görüşü', 'Kıdemli sorumlu ataması'],
               controlRefs: ['K-HSD-05'],
+            },
+            {
+              code: 'HSD-04-3',
+              name: 'Muallağın güncellenmesi ve gözden geçirme',
+              description:
+                'Dosyadaki her gelişmede muallağın kontrol edilip güncellenmesi; yıllık gözden '
+                + 'geçirme ve hareketsiz dosya takibi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Dosya gelişmeleri', 'Muallak Hasar Raporu'],
+              outputs: ['Güncellenmiş muallak', 'Gözden geçirme notu'],
+              controlRefs: ['K-HSD-27'],
             },
           ],
         },
@@ -1449,6 +1656,12 @@ export const yurtDisiHasar: NodeSpec = {
           slaDays: 10,
           lastReviewedAt: '2026-03-05',
           critical: [
+            ['financial', 'Finansal Etki',
+              '25.000 Euro üzerindeki tazminat ödemelerinde, temsilcinin hak sahibine yaptığı '
+              + 'ödemeye ilişkin ödeme belgesinin temin edilmesi gerekir (Madde 8).'],
+            ['regulatory', 'Mevzuat Gerekliliği',
+              'Rücu taleplerinin tahakkuk işlemi, Yeşil Kart Reasürans Havuzu Kuruluş ve Çalışma '
+              + 'İlkeleri gereğince aylık olarak yapılır (Madde 8).'],
             ['regulatory', 'Mevzuat Gerekliliği',
               'SBM kayıtlarında düzeltme için 10 günlük süre vardır; kaçırılan süre yanlış payın kesinleşmesi demektir.'],
             ['financial', 'Finansal Etki',
@@ -1837,7 +2050,7 @@ export const yurtDisiHasar: NodeSpec = {
           ],
           actions: [
             {
-              code: 'AKS-011',
+              code: 'AKS-HSD-02',
               title: 'Rücu takip listesi ve zamanaşımı yaşlandırması',
               description:
                 'Rücu nedenlerinin listeye çevrilmesi, dayanak belge zorunluluğu ve açık rücu '

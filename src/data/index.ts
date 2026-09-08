@@ -3,7 +3,9 @@ import type { NodeSpec } from './spec';
 import { buildDataset } from './build';
 import { hasarYonetimi } from './processes/hasar';
 import { yurtDisiHasar } from './processes/hasar-yurtdisi';
-import { bilgiTeknolojileri, hukuk, insanKaynaklari, maliIsler } from './processes/others-a';
+import { hukuk, maliIsler } from './processes/others-a';
+import { insanKaynaklari } from './processes/insan-kaynaklari';
+import { bilgiSistemleri } from './processes/bilgi-sistemleri';
 import { icKontrol, idariIsler, raporlama, riskYonetimi, satinAlma } from './processes/others-b';
 import { builtInRoles } from './roles';
 import { accounts } from './accounts';
@@ -21,12 +23,73 @@ const organization: NodeSpec = {
   version: '2026.3',
   lastReviewedAt: '2026-06-01',
   reviewFrequencyMonths: 12,
+
+  /* Kurumun tüm süreçlerinin yazılı dayanağı. Alt süreçlerdeki prosedür ve
+     talimatlar bu dokümana atıf yapar; İç Sistemler Yönetmeliği md. 54
+     gereğince Kuruma iletilen belge de budur. */
+  docs: [
+    {
+      code: 'DOK-ORG-01',
+      name: 'TMTB Süreç ve İş Akışı Dokümanı',
+      type: 'regulation',
+      version: '10.0',
+      owner: 'usr-22',
+      publishedAt: '2024-12-12',
+      updatedAt: '2024-12-12',
+      nextReviewAt: '2026-12-12',
+      summary:
+        'Büro’nun yurt dışı ve yurt içi hasar prosedürleri, insan kaynakları ve bilgi sistemleri '
+        + 'süreçleri ile iş akış şemalarını içeren ana süreç dokümanı. Sigortacılık ve Özel '
+        + 'Emeklilik Sektörlerinde İç Sistemlere Dair Yönetmelik md. 54 kapsamında Kuruma iletilir.',
+      sections: [
+        {
+          heading: 'Amaç ve kapsam',
+          body: [
+            'Doküman, yeşil kart sistemine dâhil ülkelerde meydana gelen kazalarda ve yurt içinde '
+            + 'yeşil kart sahibi yabancı plakalı araçların karıştığı kazalarda TMTB tarafından '
+            + 'yapılacak hasar yönetim işlemlerini içerir.',
+            'TMTB üyesi sigortacılar tarafından düzenlenmiş tüm yeşil kart hasarlarını ve bu '
+            + 'yeşil kartlara dayanan tüm talepleri kapsar.',
+          ],
+        },
+        {
+          heading: 'Dayanak',
+          body: [
+            'Sigortacılık ve Özel Emeklilik Sektörlerinde İç Sistemlere Dair Yönetmelik md. 54 — '
+            + 'iç kontrol fonksiyonu kapsamında tanımlanan iş süreçlerinin, yıl içinde yapılan '
+            + 'değişikliklerin ve güncel iş akış şemalarının Kuruma raporlanması.',
+            'Aynı madde kapsamında bilgi sistemlerinin yapısı, hizmet alımları, iş sürekliliği '
+            + 'tedbirleri ve yapılan testlere ilişkin raporun iletilmesi.',
+          ],
+        },
+        {
+          heading: 'Bölümler',
+          body: [
+            'Bölüm 4-5 — Yurt Dışı Hasar Prosedürü (Madde 1-16).',
+            'Bölüm 6 — Yurt İçi Hasar Süreci (Madde 17-20).',
+            'Bölüm 7 — İnsan Kaynakları (Madde 21-37).',
+            'Bölüm 8 — Bilgi Sistemleri (Madde 38-41).',
+            'Bölüm 9 — İş Akışları (Madde 42 Yurt Dışı, Madde 43 Yurt İçi).',
+          ],
+        },
+        {
+          heading: 'Ekler',
+          body: [
+            'Detaylı Yurt İçi Hasar İş Akışı.',
+            'Detaylı Yurt Dışı Hasar İş Akışı.',
+            'Bilgi Sistemleri Sızma Testi Raporu.',
+          ],
+        },
+      ],
+    },
+  ],
+
   children: [
     hasarYonetimi,
     yurtDisiHasar,
     maliIsler,
     hukuk,
-    bilgiTeknolojileri,
+    bilgiSistemleri,
     insanKaynaklari,
     satinAlma,
     idariIsler,

@@ -43,6 +43,21 @@ export interface BuildResult extends Omit<Dataset, 'roles' | 'accounts'> {
   nodeByCode: Map<string, ProcessNode>;
 }
 
+/**
+ * Kod çakışmasını yakalar.
+ *
+ * Kodlar kimliğe dönüşüyor (`act-AKS-010` gibi). İki spec aynı kodu
+ * kullandığında Map ikincisini birincinin üzerine yazıyor: bir kayıt
+ * sessizce kayboluyor, ama iki süreç düğümü de aynı kimliği listesine
+ * ekliyor. Sessiz veri kaybı yerine derlemede patlaması daha iyi.
+ */
+function claim<T>(map: Map<string, T>, code: string, kind: string, value: T): void {
+  if (map.has(code)) {
+    throw new Error(`Tekrar eden ${kind} kodu: "${code}". Kodlar veri kümesi genelinde benzersiz olmalı.`);
+  }
+  map.set(code, value);
+}
+
 export function buildDataset(root: NodeSpec): BuildResult {
   const nodes: ProcessNode[] = [];
   const risks = new Map<string, Risk>();
@@ -106,7 +121,7 @@ export function buildDataset(root: NodeSpec): BuildResult {
     };
 
     nodes.push(node);
-    nodeByCode.set(spec.code, node);
+    claim(nodeByCode, spec.code, 'süreç düğümü', node);
 
     /* --- Riskler --- */
     for (const r of spec.risks ?? []) {
@@ -139,7 +154,7 @@ export function buildDataset(root: NodeSpec): BuildResult {
         nextAssessmentAt: addMonths(lastAssessedAt, 6),
         standards: r.standards,
       };
-      risks.set(r.code, risk);
+      claim(risks, r.code, 'risk', risk);
       node.riskIds.push(risk.id);
     }
 
@@ -172,7 +187,7 @@ export function buildDataset(root: NodeSpec): BuildResult {
         actionIds: [],
         mitigationStrength: c.strength ?? (c.execution === 'automated' ? 0.62 : 0.45),
       };
-      controls.set(c.code, control);
+      claim(controls, c.code, 'kontrol', control);
       controlMitigates.set(c.code, c.mitigates);
       node.controlIds.push(control.id);
     }
@@ -196,7 +211,7 @@ export function buildDataset(root: NodeSpec): BuildResult {
         processNodeIds: [node.id],
         controlIds: [],
       };
-      documents.set(d.code, doc);
+      claim(documents, d.code, 'doküman', doc);
       docControlLinks.set(d.code, d.controlCodes ?? []);
       node.documentIds.push(doc.id);
     }
@@ -224,7 +239,7 @@ export function buildDataset(root: NodeSpec): BuildResult {
         evidence: a.evidence ?? '',
         managerComment: a.managerComment ?? '',
       };
-      actions.set(a.code, action);
+      claim(actions, a.code, 'aksiyon', action);
       actionLinks.set(a.code, { riskCode: a.riskCode, controlCode: a.controlCode });
       node.actionIds.push(action.id);
     }
@@ -251,7 +266,7 @@ export function buildDataset(root: NodeSpec): BuildResult {
           return { period: d.toISOString().slice(0, 7), value };
         }),
       };
-      kris.set(k.code, kri);
+      claim(kris, k.code, 'KRI', kri);
       kriRiskLinks.set(k.code, k.riskCode);
     }
 
