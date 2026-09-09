@@ -1,5 +1,5 @@
 import type {
-  ActionPriority, ActionSource, ActionStatus, ControlCategory, ControlEffectiveness,
+  ActionPriority, ActionSource, ActionStatus, ChangeRequest, ControlCategory, ControlEffectiveness,
   ControlExecution, ControlFrequency, ControlNature, CosoComponent, DocumentType,
   NodeKind, ProcessClass, ProcessStatus, RiskAppetite, RiskCategory, RiskLevel,
   RiskStatus, RiskTreatment, RiskTrend, RoleId, AuditAction, EntityType,
@@ -36,6 +36,15 @@ export const nodeKindLabels: Record<NodeKind, string> = {
   subprocess: 'Alt Süreç',
   activity: 'Faaliyet',
   step: 'İş Adımı',
+};
+
+/** Çoğul biçimler — Türkçe ekler düzensiz olduğu için ayrı tanımlanır. */
+export const nodeKindPlurals: Record<NodeKind, string> = {
+  organization: 'Organizasyonlar',
+  process: 'Ana Süreçler',
+  subprocess: 'Alt Süreçler',
+  activity: 'Faaliyetler',
+  step: 'İş Adımları',
 };
 
 export const processStatusLabels: Record<ProcessStatus, string> = {
@@ -204,6 +213,8 @@ export const entityTypeLabels: Record<EntityType, string> = {
   document: 'Doküman',
   kri: 'KRI',
   change_request: 'Değişiklik Talebi',
+  account: 'Kullanıcı Hesabı',
+  role: 'Rol',
   session: 'Oturum',
 };
 
@@ -214,6 +225,22 @@ export const changeRequestStatusLabels: Record<ChangeRequestStatus, string> = {
   approved: 'Onaylandı',
   rejected: 'Reddedildi',
 };
+
+/**
+ * Talebin görünen durumu.
+ *
+ * `ChangeRequestStatus` ikinci hat onayını tek bir değerle (`pending_control`)
+ * temsil eder; oysa zincirin ikinci kademesi risklerde Risk Yönetimi, diğer
+ * kayıtlarda İç Kontrol'dür. Etiket bu yüzden bekleyen onay adımından
+ * türetilir — kullanıcı kimin onayını beklediğini doğru görür.
+ */
+export function changeRequestStatusText(request: ChangeRequest): string {
+  if (request.status === 'approved' || request.status === 'rejected' || request.status === 'draft') {
+    return changeRequestStatusLabels[request.status];
+  }
+  const step = request.approvals.find((a) => a.decision === 'pending');
+  return step ? `${roleLabels[step.requiredRole]} Onayında` : changeRequestStatusLabels[request.status];
+}
 
 export const criticalPointLabels: Record<string, string> = {
   control: 'Kritik Kontrol',

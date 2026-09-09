@@ -68,6 +68,9 @@ export const IconWarning = (p: P) => (
 export const IconLock = (p: P) => (
   <Base {...p}><rect x="4.5" y="10.5" width="15" height="10" rx="2" /><path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" /></Base>
 );
+export const IconShield = (p: P) => (
+  <Base {...p}><path d="M12 3 4.5 6v6c0 4.4 3 8 7.5 9 4.5-1 7.5-4.6 7.5-9V6Z" /><path d="M9.4 12.2h2.2" /><circle cx="13.6" cy="12.2" r="1.6" /><path d="M13.6 13.8v2.4" /></Base>
+);
 export const IconShieldAlert = (p: P) => (
   <Base {...p}><path d="M12 3 4.5 6v6c0 4.4 3 8 7.5 9 4.5-1 7.5-4.6 7.5-9V6Z" /><path d="M12 8.5v4" /><circle cx="12" cy="15.6" r="0.6" fill="currentColor" /></Base>
 );

@@ -11,7 +11,7 @@ export const maliIsler: NodeSpec = {
   standards: ['COSO', 'ISO 9001', 'TFRS'],
   description: 'Muhasebe, ödeme, tahsilat ve mali raporlama süreçlerinin bütünü.',
   purpose: 'Mali kayıtların doğru, tam ve zamanında tutulmasını; nakit ve ödeme süreçlerinin güvenli işlemesini sağlamak.',
-  systems: ['SAP FI', 'ÖdemeGW', 'Banka Kanalları'],
+  systems: ['Logo Muhasebe', 'ÖdemeGW', 'Banka Kanalları'],
   inputs: ['Fatura ve masraf belgeleri', 'Banka ekstreleri', 'Hasar ve prim hareketleri'],
   outputs: ['Mali tablolar', 'Ödeme kayıtları', 'Mutabakat raporları'],
   maturity: 4,
@@ -23,7 +23,7 @@ export const maliIsler: NodeSpec = {
       name: 'Satıcı Ödemeleri',
       owner: 'usr-08',
       description: 'Tedarikçi faturalarının kaydı, onayı ve ödenmesi.',
-      systems: ['SAP FI', 'ÖdemeGW'],
+      systems: ['Logo Muhasebe', 'ÖdemeGW'],
       children: [
         {
           code: 'FIN-01',
@@ -31,7 +31,7 @@ export const maliIsler: NodeSpec = {
           description: 'Gelen tedarikçi faturalarının sipariş ve mal/hizmet kabulüyle üçlü eşleştirmesi.',
           purpose: 'Yalnızca sipariş edilmiş ve teslim alınmış mal/hizmet için ödeme yapılmasını sağlamak.',
           owner: 'usr-07',
-          systems: ['SAP FI'],
+          systems: ['Logo Muhasebe'],
           inputs: ['Tedarikçi faturası', 'Satın alma siparişi', 'Mal kabul kaydı'],
           outputs: ['Onaylı fatura kaydı'],
           critical: [['financial', 'Finansal Risk', 'Üçlü eşleştirme yapılmadan ödeme kaydı açılamaz.']],
@@ -173,14 +173,179 @@ export const maliIsler: NodeSpec = {
       name: 'Muhasebe ve Kapanış',
       owner: 'usr-07',
       description: 'Dönemsel muhasebe kapanışı, karşılıklar ve mutabakatlar.',
-      systems: ['SAP FI'],
+      systems: ['Logo Muhasebe'],
       children: [
+        /* ---------------------------------------------------------- */
+        /* Hasar ödemelerinin muhasebe ayağı.                          */
+        /* Kaynak: Süreç Dokümanı v10.0 Madde 14 (avans, tahakkuk      */
+        /* iptali, hatalı tahakkuk düzeltme) ve Madde 19 (Güvence      */
+        /* Hesabı parası, ödeme günü listesi).                         */
+        /* ---------------------------------------------------------- */
+        {
+          code: 'FIN-04',
+          name: 'Hasar Ödemeleri ve Tahakkuk Düzeltmeleri',
+          owner: 'usr-08',
+          participants: ['usr-07'],
+          description:
+            'Güvence Hesabından gelen paranın ve referans numarasının sisteme kaydedilmesi, ödeme '
+            + 'günü verilen dosya listesinin ödemeden bir gün önce alınması ve ödemenin yapılması; '
+            + 'hatalı tahakkuk düzeltmeleri, avans ödemeleri, temsilciden para iadesi ve rücu '
+            + 'tahsilatında tahakkuk iptali.',
+          purpose:
+            'Hasar ödemelerinin doğru dosyaya, doğru tutarla ve yetkili onayıyla yapılmasını sağlamak.',
+          systems: ['Logo Muhasebe', 'Büro Hasar Sistemi', 'Banka Kanalları'],
+          inputs: ['Ödeme günü verilen dosya listesi', 'Güvence Hesabı havalesi ve referans numarası'],
+          outputs: ['Ödeme kaydı', 'Tahakkuk iptali', 'Avans kaydı'],
+          maturity: 3,
+          slaDays: 2,
+          lastReviewedAt: '2024-12-12',
+          critical: [
+            ['authorization', 'Yetki Kontrolü',
+              'Avans işlemi ve ödemesi Büro Yönetiminin onayı ile yapılır (Madde 14).'],
+            ['authorization', 'Yetki Kontrolü',
+              'Güvence Hesabından talep edilmeden peşin ödenmesi gereken dosyalar Birim Müdürünün '
+              + 'onayı ve bilgisi dâhilinde ödenir (Madde 19/5).'],
+            ['financial', 'Finansal Risk',
+              'İlgili ayın tahakkuku kapanmışsa hatalı giriş düzeltilmez; tutar kadar tahakkuk '
+              + 'iptali yapılır (Madde 14).'],
+            ['control', 'Kontrol Noktası',
+              'Ödeme günü verilen dosya listesi gerekli kontroller yapılarak ödeme gününden bir '
+              + 'gün önce Muhasebe departmanına verilir (Madde 19/3).'],
+          ],
+          examples: [
+            {
+              title: 'İhtiyaten tahakkuk ettirilen avansın ödenmesi',
+              scenario:
+                'Büro tarafından ihtiyaten avans tahakkuku yapılıyor. Muhasebe’ye "ödeme yapılmasın" '
+                + 'bilgisi verilmediği için avans tutarı da ödeme listesine giriyor ve ödeniyor.',
+              risk:
+                'Kesinleşmemiş tutar ödeniyor; sonradan kesinleşen tutar girildiğinde mükerrer '
+                + 'ödeme doğuyor ve geri alınması gerekiyor.',
+              control:
+                'İhtiyaten tahakkuk ettirilen avans işlemlerinde Muhasebe Bölümüne "ödeme yapılmayacak" '
+                + 'bilgisinin yazılı verilmesi ve bu kayıtların ödeme listesinden dışlanması.',
+              controlType: 'Önleyici — ödeme listesi filtresi',
+              evidence: 'Muhasebe bilgilendirme yazısı ve ödeme listesi çıktısı',
+              criticalNote:
+                'Madde 14: ihtiyaten tahakkuk ettirilen avans işlemleriyle ilgili ödeme yapılmaması '
+                + 'için Muhasebe Bölümüne bilgi verilir.',
+            },
+          ],
+          risks: [
+            {
+              code: 'R-FIN-05',
+              name: 'İhtiyati avans tahakkukunun sehven ödenmesi',
+              description:
+                'Kesinleşmemiş tutar için yapılan ihtiyati avans tahakkukunun ödeme listesine '
+                + 'girmesi ve ödenmesi.',
+              cause:
+                'Avans kayıtlarının ödeme listesinde ayrı işaretlenmemesi ve Muhasebe’ye yazılı '
+                + 'bilgi verilmemesi.',
+              consequence: 'Mükerrer ödeme ve geri tahsilat süreci.',
+              category: 'financial',
+              inherent: [3, 4],
+              residual: [2, 4],
+              target: [1, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              owner: 'usr-08',
+              identifiedAt: '2024-12-12',
+              lastAssessedAt: '2026-09-08',
+            },
+            {
+              code: 'R-FIN-06',
+              name: 'Tahakkuk iptalinin yapılmaması',
+              description:
+                'Temsilciden para iadesi geldiğinde veya rücu tahsilatı yapıldığında ilgili tutar '
+                + 'kadar tahakkuk iptalinin yapılmaması.',
+              cause: 'Tahsilat kaydı ile tahakkuk kaydının ayrı ekranlarda tutulması.',
+              consequence:
+                'Tahakkuk bakiyesinin şişmesi, üye şirket paylarının ve mali tabloların yanlış görünmesi.',
+              category: 'financial',
+              inherent: [3, 4],
+              residual: [2, 3],
+              target: [1, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              owner: 'usr-07',
+              identifiedAt: '2024-12-12',
+              lastAssessedAt: '2026-09-08',
+            },
+          ],
+          controls: [
+            {
+              code: 'K-FIN-05',
+              name: 'Ödeme listesi ön kontrolü ve avans dışlaması',
+              description:
+                'Ödeme günü verilen dosya listesi ödemeden bir gün önce Muhasebe’ye verilir; liste '
+                + 'üzerinde avans ve ihtiyati tahakkuk kayıtları ayrı işaretlenir ve ödemeye '
+                + 'çıkarılmaz. Peşin ödemeler için Birim Müdürü onayı aranır.',
+              nature: 'preventive',
+              execution: 'manual',
+              categories: ['authorization', 'reconciliation'],
+              frequency: 'weekly',
+              method:
+                'Liste hasar bölümünce hazırlanır, Muhasebe kontrol eder; onaysız veya avans '
+                + 'işaretli kayıt ödenmez.',
+              evidence: 'İmzalı ödeme listesi ve Birim Müdürü onayları',
+              mitigates: ['R-FIN-05'],
+              owner: 'usr-08',
+              key: true,
+              coso: 'control_activities',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 4,
+              lastPerformedAt: '2026-09-04',
+              lastTestedAt: '2026-07-08',
+              testResult: 'Örneklenen 6 ödeme listesinin tamamı bir gün önce ve imzalı teslim edilmiş.',
+            },
+            {
+              code: 'K-FIN-06',
+              name: 'İade ve tahsilatta tahakkuk iptali mutabakatı',
+              description:
+                'Temsilciden gelen para iadeleri ve rücu tahsilatları ay sonunda tahakkuk iptal '
+                + 'kayıtlarıyla karşılaştırılır; eşleşmeyen tutarlar araştırılır.',
+              nature: 'detective',
+              execution: 'semi_automated',
+              categories: ['reconciliation'],
+              frequency: 'monthly',
+              method: 'Tahsilat listesi ile tahakkuk iptal listesi karşılaştırılır.',
+              evidence: 'Aylık mutabakat çalışma kâğıdı',
+              mitigates: ['R-FIN-06'],
+              owner: 'usr-07',
+              coso: 'monitoring',
+              design: 'adequate',
+              effectiveness: 'partially_effective',
+              strength: 3,
+              lastPerformedAt: '2026-08-31',
+              lastTestedAt: '2026-06-15',
+              testResult: 'Mutabakat yapılıyor; iki ayda toplam dört kayıt eşleşmemiş ve takibe alınmış.',
+            },
+          ],
+          children: [
+            {
+              code: 'FIN-04-1',
+              name: 'Güvence Hesabı parasının kaydı',
+              description: 'Gelen para ve Güvence Hesabı referans numarasının sisteme kaydedilmesi.',
+            },
+            {
+              code: 'FIN-04-2',
+              name: 'Ödeme listesi ve ödeme',
+              description: 'Ödeme günü verilen dosya listesinin kontrolü ve ödemenin yapılması.',
+            },
+            {
+              code: 'FIN-04-3',
+              name: 'Tahakkuk düzeltme ve iptal',
+              description: 'Hatalı tahakkuk düzeltmesi, avans işlemleri ve iade/tahsilatta tahakkuk iptali.',
+            },
+          ],
+        },
         {
           code: 'FIN-03',
           name: 'Dönem Sonu Kapanış',
           description: 'Ay ve yıl sonu kapanış kayıtlarının yapılması, karşılıkların ayrılması.',
           owner: 'usr-07',
-          systems: ['SAP FI'],
+          systems: ['Logo Muhasebe'],
           inputs: ['Mizan', 'Karşılık hesaplamaları'],
           outputs: ['Kapanış kayıtları', 'Mali tablolar'],
           risks: [
@@ -212,7 +377,7 @@ export const maliIsler: NodeSpec = {
               strength: 0.5,
             },
           ],
-          docRefs: ['PRS-HSR-08'],
+          docRefs: ['PRS-HSR-05'],
         },
       ],
     },
@@ -396,437 +561,201 @@ export const hukuk: NodeSpec = {
         },
       ],
     },
-  ],
-};
 
-export const bilgiTeknolojileri: NodeSpec = {
-  code: 'BIT',
-  name: 'Bilgi Teknolojileri',
-  unit: 'U-BIT',
-  owner: 'usr-11',
-  processClass: 'support',
-  standards: ['COSO', 'ISO 27001', 'ISO 22301', 'COBIT'],
-  description: 'Uygulama geliştirme, değişiklik yönetimi, erişim yönetimi ve bilgi güvenliği süreçleri.',
-  purpose: 'İş süreçlerini destekleyen sistemlerin güvenli, sürekli ve kontrollü biçimde çalışmasını sağlamak.',
-  systems: ['DevOps Platformu', 'Kimlik Yönetimi', 'SIEM', 'Yedekleme Sistemi'],
-  inputs: ['Değişiklik talepleri', 'Erişim talepleri', 'Güvenlik olayları'],
-  outputs: ['Canlıya alınan sürümler', 'Erişim yetkileri', 'Güvenlik raporları'],
-  maturity: 4,
-  lastReviewedAt: '2026-03-30',
-  children: [
+    /* ------------------------------------------------------------ */
+    /* LEG-C — Hasar kaynaklı hukuki işlemler                        */
+    /* Kaynak: Süreç Dokümanı v10.0 Madde 11 (sahte yeşil kart),     */
+    /* Madde 12 (rücu) ve Madde 13 (dava açılması).                  */
+    /* ------------------------------------------------------------ */
     {
-      code: 'BIT-A',
-      name: 'Değişiklik ve Sürüm Yönetimi',
-      owner: 'usr-13',
-      description: 'Uygulama değişikliklerinin talep, test, onay ve canlıya alma adımları.',
+      code: 'LEG-C',
+      name: 'Hasar Kaynaklı Hukuki İşlemler',
+      owner: 'usr-09',
+      description:
+        'Hasar bölümünden Hukuk Bölümüne devredilen işler: sahte veya tahrif edilmiş yeşil kart '
+        + 'dosyaları, sigorta ettirene rücu hakkı doğuran dosyalar ve Büro ya da üye sigortacı '
+        + 'aleyhine açılan davalar.',
+      purpose:
+        'Hasar dosyasından doğan hukuki hakkın kaybedilmemesi ve dava takibinin koordineli yürütülmesi.',
+      systems: ['Dava Takip', 'Büro Hasar Sistemi'],
+      inputs: ['Hasar bölümü bildirimi', 'Ödeme belgeleri', 'Dava ihbarı'],
+      outputs: ['Rücu davası', 'Dava takip kaydı', 'Hukuki görüş'],
+      maturity: 3,
       children: [
         {
-          code: 'BIT-01',
-          name: 'Değişikliğin Canlıya Alınması',
-          description: 'Test edilmiş değişikliklerin onay sonrası üretim ortamına aktarılması.',
-          purpose: 'Üretim ortamına yalnızca test edilmiş ve onaylanmış değişikliklerin geçmesini sağlamak.',
-          owner: 'usr-13',
-          systems: ['DevOps Platformu'],
-          inputs: ['Onaylı değişiklik talebi', 'Test sonuçları'],
-          outputs: ['Canlı sürüm', 'Sürüm notu'],
+          code: 'LEG-03',
+          name: 'Hasar Dosyasından Doğan Rücu ve Dava Takibi',
+          owner: 'usr-09',
+          description:
+            'Trafik sigortası genel şartlarına göre sigorta ettirene rücu hakkı bulunan dosyalar '
+            + '(alkollü veya ehliyetsiz sürücü) ile sahte yeşil karttan açılan dosyalarda, ödeme '
+            + 'yapıldıktan sonra yapılacak hukuki işlemlerin değerlendirilmesi; Büro, sigortalı '
+            + 'ya da üye sigortacı aleyhine açılan davaların takibi.',
+          purpose: 'Rücu hakkının zamanaşımına uğramadan kullanılması ve dava süreçlerinin izlenmesi.',
+          systems: ['Dava Takip', 'Büro Hasar Sistemi', 'UYAP Entegrasyonu'],
+          inputs: ['Hasar bölümü bilgilendirmesi ve belgeler', 'Ödeme dekontu'],
+          outputs: ['Rücu davası dosyası', 'Dava takip kaydı'],
+          maturity: 3,
+          slaDays: 15,
+          lastReviewedAt: '2024-12-12',
           critical: [
-            ['control', 'Kritik Kontrol', 'Geliştirici üretim ortamına doğrudan erişemez.'],
-            ['continuity', 'İş Sürekliliği', 'Geri dönüş (rollback) planı olmadan sürüm alınamaz.'],
+            ['regulatory', 'Mevzuat Gerekliliği',
+              'Sahte yeşil karttan dosya açılması ve ödeme yapılması hâlinde dosya hakkında Hukuk '
+              + 'Bölümüne bilgi verilir ve gerekli belgeler teslim edilir (Madde 11-12).'],
+            ['financial', 'Finansal Risk',
+              'Sigortalının kısmi kusurlu olmasına rağmen üçüncü şahsın tüm zararı karşılanmışsa, '
+              + 'zarardan sorumlu diğer taraflara kusur oranında rücu edilir (Madde 12).'],
+            ['control', 'Kontrol Noktası',
+              'Rücu hakkı olan dosyalarda bu hakkın takibi için sisteme veri girişi yapılır ve '
+              + 'raporlarla takip edilir (Madde 12).'],
           ],
           examples: [
             {
-              title: 'Acil düzeltmenin testsiz canlıya alınması',
-              scenario: 'Üretimde görülen bir hata için geliştirici, gece saatinde doğrudan üretim veritabanında düzeltme yapıyor.',
-              risk: 'Veri bütünlüğünün bozulması ve izlenemeyen değişiklik.',
-              control: 'Acil değişiklikler için de kayıt, onay ve sonradan gözden geçirme zorunluluğu.',
-              controlType: 'Önleyici + tespit edici',
-              evidence: 'Acil değişiklik kaydı ve ertesi gün onay tutanağı',
-              criticalNote: 'Acil değişiklikler 24 saat içinde Değişiklik Kuruluna sunulur.',
+              title: 'Rücu hakkının sisteme işlenmemesi',
+              scenario:
+                'Alkollü sürücü nedeniyle rücu hakkı doğan bir dosyada ödeme yapılıyor ve Hukuk '
+                + 'Bölümüne sözlü bilgi veriliyor; ancak sistemde "rücu hakkı var" işareti '
+                + 'konmadığı için dosya rücu raporlarında görünmüyor.',
+              risk:
+                'Rücu hakkı raporlanmadığı için takip edilmiyor ve zamanaşımına uğruyor; ödenen '
+                + 'tutar doğrudan zarar olarak kalıyor.',
+              control:
+                'Rücu hakkı doğuran hâllerde sistemde işaretleme yapılmadan dosyanın kapatılamaması '
+                + 've aylık rücu hakkı raporunun Hukuk Bölümüne gönderilmesi.',
+              controlType: 'Önleyici — zorunlu alan ve raporlama',
+              evidence: 'Rücu hakkı işaretli dosya listesi ve aylık rapor',
+              criticalNote: 'Madde 12: rücu hakkı olan dosyalarda sisteme veri girişi yapılır ve raporlarla takip edilir.',
             },
           ],
           risks: [
             {
-              code: 'R-BIT-01',
-              name: 'Test edilmemiş değişikliğin üretime geçmesi',
-              description: 'Onay ve test adımları atlanarak kod veya parametre değişikliğinin canlıya alınması.',
-              cause: 'Acil düzeltme baskısı, geliştiricinin üretim yetkisi bulunması.',
-              consequence: 'Servis kesintisi, veri bozulması ve finansal hata.',
-              category: 'it',
-              inherent: [4, 5],
-              residual: [2, 4],
-              appetite: 'averse',
-              owner: 'usr-13',
-              standards: ['ISO 27001 A.8.32'],
+              code: 'R-LEG-04',
+              name: 'Rücu hakkının takip edilmeden zamanaşımına uğraması',
+              description:
+                'Sigorta ettirene ya da sahte yeşil kart düzenleyene rücu hakkı doğan dosyaların '
+                + 'sistemde işaretlenmemesi ve Hukuk Bölümüne devredilmemesi.',
+              cause:
+                'Rücu hakkı alanının zorunlu olmaması ve hasar–hukuk devrinin sözlü yapılması.',
+              consequence:
+                'Rücu hakkının kullanılamaması; ödenen tazminatın tamamının Büro üzerinde kalması.',
+              category: 'legal',
+              inherent: [4, 4],
+              residual: [3, 4],
+              target: [2, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-09',
+              identifiedAt: '2024-12-12',
+              lastAssessedAt: '2026-09-08',
             },
             {
-              code: 'R-BIT-02',
-              name: 'Görevler ayrılığı ihlali (geliştirme – üretim)',
-              description: 'Geliştiricilerin üretim ortamında değişiklik yapabilecek yetkiye sahip olması.',
-              cause: 'Küçük ekip yapısı, acil müdahale gerekçesiyle verilen kalıcı yetkiler.',
-              consequence: 'İzlenemeyen değişiklik, suistimal riski ve denetim bulgusu.',
-              category: 'it',
-              inherent: [4, 4],
-              residual: [2, 3],
+              code: 'R-LEG-05',
+              name: 'Yurt dışında açılan davanın koordinasyonsuz yürütülmesi',
+              description:
+                'Yurt dışında sigortalı veya üye sigortacı aleyhine açılan davada ilgili ülkedeki '
+                + 'temsilci ile koordinasyonun kurulmaması.',
+              cause:
+                'Dava ihbarının Hukuk Bölümüne ulaşmaması ya da temsilci iletişiminin dosya '
+                + 'sorumlusunda kalması.',
+              consequence:
+                'Savunmanın zamanında yapılamaması ve aleyhte kesinleşen karar.',
+              category: 'legal',
+              inherent: [3, 4],
+              residual: [2, 4],
+              target: [2, 3],
               appetite: 'averse',
-              owner: 'usr-12',
+              treatment: 'mitigate',
+              owner: 'usr-09',
+              identifiedAt: '2024-12-12',
+              lastAssessedAt: '2026-09-08',
             },
           ],
           controls: [
             {
-              code: 'K-BIT-01',
-              name: 'Değişiklik onay kurulu ve otomatik sürüm hattı',
-              description: 'Her değişiklik; talep, test kanıtı, iş birimi onayı ve geri dönüş planı olmadan sürüm hattından geçemez.',
+              code: 'K-LEG-04',
+              name: 'Rücu hakkı işaretlemesi ve aylık rücu raporu',
+              description:
+                'Rücu hakkı doğuran hâllerde (alkollü/ehliyetsiz sürücü, sahte yeşil kart, kısmi '
+                + 'kusur) dosyada rücu hakkı işaretlenir; işaretsiz dosya kapatılamaz. Aylık rücu '
+                + 'hakkı raporu Hukuk Bölümüne gönderilir.',
               nature: 'preventive',
-              execution: 'automated',
-              categories: ['system', 'approval', 'authorization'],
-              frequency: 'per_transaction',
-              method: 'DevOps pipeline kapıları; eksik kanıtta dağıtım bloklanır.',
-              evidence: 'Pipeline onay kayıtları, sürüm notu',
-              mitigates: ['R-BIT-01'],
+              execution: 'semi_automated',
+              categories: ['system', 'monitoring'],
+              frequency: 'monthly',
+              method: 'Dosya kapanış ekranında zorunlu alan; aylık rapor Hukuk Bölümüne iletilir.',
+              evidence: 'Rücu hakkı işaretli dosya listesi ve aylık rapor teslim kaydı',
+              mitigates: ['R-LEG-04'],
+              owner: 'usr-09',
               key: true,
-              strength: 0.75,
-            },
-            {
-              code: 'K-BIT-02',
-              name: 'Üretim ortamı erişim ayrıştırması',
-              description: 'Geliştirici hesapları üretim ortamında yazma yetkisine sahip değildir; acil erişim geçici, kayıtlı ve süreli olarak verilir.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['segregation_of_duties', 'authorization', 'system'],
-              frequency: 'continuous',
-              method: 'Kimlik Yönetimi rol modeli ve ayrıcalıklı erişim yönetimi.',
-              evidence: 'Rol matrisi, acil erişim logları',
-              mitigates: ['R-BIT-02', 'R-BIT-01'],
-              key: true,
-              strength: 0.7,
+              coso: 'control_activities',
+              design: 'needs_improvement',
               effectiveness: 'partially_effective',
-              design: 'adequate',
-              testResult: '2026-Q2: 4 geliştirici hesabında kalıcı üretim yetkisi tespit edildi.',
+              strength: 3,
+              lastPerformedAt: '2026-08-05',
+              lastTestedAt: '2026-06-12',
+              testResult:
+                'Aylık rapor gönderiliyor; ancak işaretleme zorunlu değil, örneklenen 12 dosyanın 3’ünde işaret yok.',
             },
-          ],
-          docs: [
             {
-              code: 'PRS-BIT-01',
-              name: 'Değişiklik Yönetimi Prosedürü',
-              type: 'procedure',
-              version: '3.0',
-              publishedAt: '2025-08-18',
-              nextReviewAt: '2026-08-18',
-              summary: 'Değişiklik talebi, test, onay, sürüm ve geri dönüş adımları.',
-              controlCodes: ['K-BIT-01', 'K-BIT-02'],
-              sections: [
-                { heading: 'Acil Değişiklikler', body: ['Acil değişiklikler kayıt altına alınır ve 24 saat içinde Değişiklik Kuruluna sunulur.', 'Geri dönüş planı olmayan acil değişiklik yapılamaz.'] },
-              ],
+              code: 'K-LEG-05',
+              name: 'Dava ihbarının Hukuk Bölümüne yönlendirilmesi',
+              description:
+                'Büro, sigortalı veya üye sigortacı aleyhine açılan davaların Büroya ihbarı '
+                + 'hâlinde dosya Hukuk Bölümüne aynı gün devredilir ve sisteme dava kaydı açılır.',
+              nature: 'preventive',
+              execution: 'manual',
+              categories: ['management'],
+              frequency: 'event_based',
+              method: 'Dava ihbarı gelen evrak kaydından Hukuk Bölümüne havale edilir.',
+              evidence: 'Havale kaydı ve sistemdeki dava kaydı',
+              mitigates: ['R-LEG-05'],
+              owner: 'usr-09',
+              coso: 'control_activities',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 4,
+              lastPerformedAt: '2026-07-22',
+              lastTestedAt: '2026-05-30',
+              testResult: 'Örneklenen 8 dava ihbarının tamamı aynı gün devredilmiş.',
             },
           ],
           actions: [
             {
-              code: 'AKS-011',
-              title: 'Kalıcı üretim yetkilerinin kaldırılması',
-              description: 'Geliştirici hesaplarındaki kalıcı üretim yazma yetkileri kaldırılacak, yerine süreli ayrıcalıklı erişim modeli kurulacak.',
-              riskCode: 'R-BIT-02',
-              controlCode: 'K-BIT-02',
-              owner: 'usr-12',
-              createdBy: 'usr-24',
-              createdAt: '2026-06-30',
-              dueDate: '2026-09-30',
-              priority: 'critical',
-              status: 'in_progress',
-              progress: 55,
-              source: 'internal_audit',
-              evidence: 'İç Denetim 2026-06 raporu bulgu 1',
+              code: 'AKS-LEG-01',
+              title: 'Rücu hakkı alanını dosya kapanışında zorunlu yapmak',
+              description:
+                'Süreç dokümanı Madde 12, rücu hakkı olan dosyalarda sisteme veri girişi yapılmasını '
+                + 've raporla takip edilmesini şart koşuyor. Dosya kapanış ekranında rücu hakkı '
+                + 'alanı zorunlu hâle getirilecek ve boş bırakılan dosya kapatılamayacak.',
+              riskCode: 'R-LEG-04',
+              controlCode: 'K-LEG-04',
+              owner: 'usr-09',
+              dueDate: '2026-12-12',
+              priority: 'high',
+              status: 'open',
+              progress: 0,
+              source: 'internal_control',
+              createdAt: '2026-06-25',
+              createdBy: 'usr-22',
             },
           ],
-        },
-      ],
-    },
-    {
-      code: 'BIT-B',
-      name: 'Erişim ve Bilgi Güvenliği Yönetimi',
-      owner: 'usr-12',
-      description: 'Kullanıcı yetkilendirme, ayrıcalıklı erişim ve güvenlik olay yönetimi.',
-      children: [
-        {
-          code: 'BIT-02',
-          name: 'Kullanıcı Erişim Yönetimi',
-          description: 'İşe giriş, görev değişikliği ve işten ayrılışta yetkilerin verilmesi, güncellenmesi ve kaldırılması.',
-          owner: 'usr-12',
-          systems: ['Kimlik Yönetimi'],
-          inputs: ['İK hareket bildirimi', 'Erişim talebi'],
-          outputs: ['Yetki tanımı', 'Yetki kaldırma kaydı'],
-          critical: [['authorization', 'Yetki Kontrolü', 'İşten ayrılışta yetkiler aynı gün kapatılmalıdır.']],
-          risks: [
+          children: [
             {
-              code: 'R-BIT-03',
-              name: 'İşten ayrılan personelin erişiminin açık kalması',
-              description: 'Ayrılış sonrası hesapların ve yetkilerin kapatılmaması.',
-              cause: 'İK–BT bildirim akışının manuel olması.',
-              consequence: 'Yetkisiz erişim, veri sızıntısı ve mevzuata aykırılık.',
-              category: 'cyber',
-              inherent: [4, 5],
-              residual: [2, 4],
-              appetite: 'averse',
-              owner: 'usr-12',
-              standards: ['ISO 27001 A.5.18', 'KVKK'],
+              code: 'LEG-03-1',
+              name: 'Rücu hakkının değerlendirilmesi',
+              description:
+                'Ödeme sonrası dosyanın Hukuk Bölümüne devri, belgelerin teslimi ve rücu '
+                + 'işleminin değerlendirilmesi.',
             },
             {
-              code: 'R-BIT-04',
-              name: 'Aşırı yetkilendirme (yetki birikmesi)',
-              description: 'Görev değiştiren personelin eski yetkilerinin kaldırılmaması.',
-              cause: 'Rol bazlı değil kullanıcı bazlı yetkilendirme, periyodik gözden geçirmenin yapılmaması.',
-              consequence: 'Görevler ayrılığı ihlali ve suistimal riski.',
-              category: 'it',
-              inherent: [4, 4],
-              residual: [3, 3],
-              appetite: 'cautious',
-              trend: 'up',
-              owner: 'usr-12',
+              code: 'LEG-03-2',
+              name: 'Dava takibi ve temsilci koordinasyonu',
+              description:
+                'Yurt içi davalarda Hukuk Bölümü ile, yurt dışı davalarda ilgili ülkedeki temsilci '
+                + 'ile koordineli takip.',
             },
           ],
-          controls: [
-            {
-              code: 'K-BIT-03',
-              name: 'İK hareketleriyle otomatik yetki kapatma',
-              description: 'İK sistemindeki ayrılış kaydı, Kimlik Yönetimi’ne otomatik aktarılır ve tüm hesaplar aynı gün devre dışı bırakılır.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['system', 'authorization'],
-              frequency: 'daily',
-              method: 'İK → Kimlik Yönetimi entegrasyonu ve günlük senkronizasyon.',
-              evidence: 'Senkronizasyon logu, kapatılan hesap raporu',
-              mitigates: ['R-BIT-03'],
-              key: true,
-              strength: 0.75,
-            },
-            {
-              code: 'K-BIT-04',
-              name: 'Altı aylık erişim gözden geçirmesi',
-              description: 'Yöneticiler, ekiplerinin sistem yetkilerini altı ayda bir gözden geçirir ve gereksiz yetkileri kaldırır.',
-              nature: 'detective',
-              execution: 'semi_automated',
-              categories: ['monitoring', 'management', 'authorization'],
-              frequency: 'quarterly',
-              method: 'Kimlik Yönetimi kampanya modülü; onaylanmayan yetkiler otomatik kaldırılır.',
-              evidence: 'Gözden geçirme kampanyası raporu',
-              mitigates: ['R-BIT-04'],
-              key: true,
-              strength: 0.55,
-              effectiveness: 'partially_effective',
-              testResult: 'Son kampanyada birimlerin %68’i zamanında tamamladı.',
-            },
-          ],
-          kris: [
-            {
-              code: 'KRI-BIT-01',
-              name: 'Ayrılış sonrası açık kalan hesap sayısı',
-              definition: 'Ay sonunda ayrılışı gerçekleşmiş olmasına rağmen aktif olan kullanıcı hesabı sayısı.',
-              riskCode: 'R-BIT-03',
-              unit: 'adet',
-              frequency: 'monthly',
-              direction: 'lower_better',
-              greenMax: 0,
-              amberMax: 2,
-              readings: [0, 1, 0, 0, 2, 1, 0, 0, 1, 0, 0, 0],
-              owner: 'usr-12',
-            },
-          ],
-        },
-        {
-          code: 'BIT-03',
-          name: 'Yedekleme ve İş Sürekliliği',
-          description: 'Kritik sistemlerin yedeklenmesi, geri dönüş testleri ve olağanüstü durum tatbikatları.',
-          owner: 'usr-11',
-          systems: ['Yedekleme Sistemi'],
-          inputs: ['Yedekleme politikası', 'Kritiklik envanteri'],
-          outputs: ['Yedek kayıtları', 'Geri dönüş test raporu'],
-          critical: [['continuity', 'İş Sürekliliği', 'Geri dönüş testi yapılmamış yedek, yedek sayılmaz.']],
-          risks: [
-            {
-              code: 'R-BIT-05',
-              name: 'Yedeklerden geri dönülememesi',
-              description: 'Yedeklerin bozuk, eksik veya geri yüklenemez olması.',
-              cause: 'Geri dönüş testlerinin düzenli yapılmaması.',
-              consequence: 'Veri kaybı, uzun süreli kesinti ve mevzuata aykırılık.',
-              category: 'continuity',
-              inherent: [3, 5],
-              residual: [2, 4],
-              appetite: 'averse',
-              owner: 'usr-11',
-              standards: ['ISO 22301', 'ISO 27001 A.8.13'],
-            },
-          ],
-          controls: [
-            {
-              code: 'K-BIT-05',
-              name: 'Üç aylık yedek geri dönüş testi',
-              description: 'Kritik sistemler için üç ayda bir örneklem yedekten geri yükleme testi yapılır ve sonuç raporlanır.',
-              nature: 'detective',
-              execution: 'manual',
-              categories: ['monitoring', 'physical'],
-              frequency: 'quarterly',
-              method: 'İzole test ortamında geri yükleme ve bütünlük doğrulaması.',
-              evidence: 'Geri dönüş test raporu',
-              mitigates: ['R-BIT-05'],
-              key: true,
-              strength: 0.6,
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};
-
-export const insanKaynaklari: NodeSpec = {
-  code: 'IKY',
-  name: 'İnsan Kaynakları',
-  unit: 'U-IKY',
-  owner: 'usr-14',
-  processClass: 'support',
-  standards: ['COSO', 'ISO 9001', 'KVKK'],
-  description: 'İşe alım, bordro, eğitim ve çıkış süreçleri.',
-  purpose: 'Doğru yetkinlikteki personelin kazanılması, hakların doğru ödenmesi ve kontrol ortamının desteklenmesi.',
-  systems: ['İK Portalı', 'Bordro Sistemi'],
-  inputs: ['Kadro talepleri', 'Puantaj', 'Eğitim planı'],
-  outputs: ['İşe alım kararı', 'Bordro', 'Eğitim kayıtları'],
-  maturity: 3,
-  lastReviewedAt: '2025-10-14',
-  children: [
-    {
-      code: 'IKY-A',
-      name: 'Bordro Yönetimi',
-      owner: 'usr-15',
-      description: 'Ücret, prim ve yasal kesintilerin hesaplanıp ödenmesi.',
-      children: [
-        {
-          code: 'IKY-01',
-          name: 'Bordro Hesaplama ve Ödeme',
-          description: 'Puantaj, ücret ve kesintilerin bordroya işlenmesi, kontrol edilmesi ve ödenmesi.',
-          owner: 'usr-15',
-          systems: ['Bordro Sistemi', 'ÖdemeGW'],
-          inputs: ['Puantaj', 'Ücret değişiklikleri', 'Yasal parametreler'],
-          outputs: ['Bordro', 'Ödeme dosyası', 'SGK bildirimi'],
-          critical: [
-            ['privacy', 'Veri Gizliliği', 'Ücret bilgileri yalnızca yetkili İK personeline açıktır.'],
-            ['regulatory', 'Mevzuat Gerekliliği', 'SGK bildirimleri yasal sürede yapılmalıdır.'],
-          ],
-          risks: [
-            {
-              code: 'R-IKY-01',
-              name: 'Hatalı veya hayalet bordro ödemesi',
-              description: 'Ayrılan personele ödeme yapılması veya ücret verilerinin yetkisiz değiştirilmesi.',
-              cause: 'Ayrılış bildirimlerinin geç iletilmesi, ücret değişikliklerinde ikinci onayın olmaması.',
-              consequence: 'Finansal kayıp, suistimal ve mevzuata aykırılık.',
-              category: 'hr',
-              inherent: [3, 4],
-              residual: [1, 3],
-              appetite: 'minimal',
-              owner: 'usr-15',
-            },
-            {
-              code: 'R-IKY-02',
-              name: 'Özlük verilerinin yetkisiz erişime açılması',
-              description: 'Ücret, sağlık ve kimlik verilerinin yetkisiz kişilerce görüntülenmesi.',
-              cause: 'Rol tanımlarının geniş olması, e-posta ile bordro paylaşımı.',
-              consequence: 'KVKK ihlali, idari para cezası ve itibar kaybı.',
-              category: 'privacy',
-              inherent: [3, 5],
-              residual: [2, 4],
-              appetite: 'averse',
-              owner: 'usr-14',
-              standards: ['KVKK md. 12', 'ISO 27001 A.5.34'],
-            },
-          ],
-          controls: [
-            {
-              code: 'K-IKY-01',
-              name: 'Bordro çift kontrol ve ay bazlı fark analizi',
-              description: 'Bordro, hesaplayan dışında bir İK yetkilisince kontrol edilir; önceki aya göre %10 üzeri farklar açıklanır.',
-              nature: 'detective',
-              execution: 'semi_automated',
-              categories: ['reconciliation', 'segregation_of_duties', 'management'],
-              frequency: 'monthly',
-              method: 'Otomatik fark raporu ve ikinci kontrol imzası.',
-              evidence: 'Fark analizi raporu ve onay kaydı',
-              mitigates: ['R-IKY-01'],
-              key: true,
-              strength: 0.6,
-            },
-            {
-              code: 'K-IKY-02',
-              name: 'Özlük verilerine rol bazlı erişim ve maskeleme',
-              description: 'Ücret ve özel nitelikli veriler rol bazlı erişimle korunur; raporlarda maskelenir, dışa aktarım loglanır.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['system', 'authorization'],
-              frequency: 'continuous',
-              method: 'Bordro Sistemi yetki modeli ve veri maskeleme kuralları.',
-              evidence: 'Yetki matrisi, dışa aktarım logları',
-              mitigates: ['R-IKY-02'],
-              key: true,
-              strength: 0.65,
-            },
-          ],
-          docs: [
-            {
-              code: 'PLT-IKY-01',
-              name: 'Özlük Verilerinin Korunması Politikası',
-              type: 'policy',
-              version: '2.1',
-              publishedAt: '2025-05-02',
-              nextReviewAt: '2026-05-02',
-              summary: 'Çalışan kişisel verilerinin işlenmesi, saklanması ve erişim esasları.',
-              controlCodes: ['K-IKY-02'],
-              owner: 'usr-14',
-            },
-          ],
-        },
-      ],
-    },
-    {
-      code: 'IKY-B',
-      name: 'İşe Alım ve Eğitim',
-      owner: 'usr-15',
-      description: 'Personel kazanımı, oryantasyon ve zorunlu eğitimlerin yönetimi.',
-      children: [
-        {
-          code: 'IKY-02',
-          name: 'Zorunlu Eğitimlerin Takibi',
-          description: 'İç kontrol, KVKK ve bilgi güvenliği farkındalık eğitimlerinin planlanması ve tamamlanma takibi.',
-          owner: 'usr-15',
-          systems: ['İK Portalı'],
-          inputs: ['Eğitim planı', 'Personel listesi'],
-          outputs: ['Eğitim tamamlama raporu'],
-          risks: [
-            {
-              code: 'R-IKY-03',
-              name: 'Zorunlu eğitimlerin tamamlanmaması',
-              description: 'Mevzuat ve iç politika gereği zorunlu eğitimlerin süresinde alınmaması.',
-              cause: 'Takip mekanizmasının zayıflığı, operasyonel yoğunluk.',
-              consequence: 'Farkındalık eksikliği, kontrol ihlalleri ve denetim bulgusu.',
-              category: 'hr',
-              inherent: [3, 3],
-              residual: [2, 2],
-              appetite: 'cautious',
-            },
-          ],
-          controls: [
-            {
-              code: 'K-IKY-03',
-              name: 'Eğitim tamamlama izleme ve yönetici eskalasyonu',
-              description: 'Tamamlanmayan zorunlu eğitimler aylık olarak yöneticilere raporlanır; iki ay üst üste tamamlanmayanlar üst yönetime bildirilir.',
-              nature: 'detective',
-              execution: 'automated',
-              categories: ['monitoring'],
-              frequency: 'monthly',
-              method: 'İK Portalı otomatik raporu ve eskalasyon kuralları.',
-              evidence: 'Aylık eğitim tamamlama raporu',
-              mitigates: ['R-IKY-03'],
-              key: false,
-              strength: 0.5,
-            },
-          ],
-          docRefs: ['EGT-HSR-09'],
         },
       ],
     },

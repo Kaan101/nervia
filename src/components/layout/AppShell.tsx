@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/store/useAuth';
+import { useAuth, userCanSeeMenu } from '@/store/useAuth';
+import type { MenuKey } from '@/types/rbac';
+import type { NavEntry } from '@/lib/navigation';
+import { navEntries } from '@/lib/navigation';
 import { useData } from '@/store/useData';
 import { useUi } from '@/store/useUi';
 import { portfolio } from '@/lib/selectors';
 import { roleLabels } from '@/lib/labels';
 import { Avatar } from '@/components/common/Primitives';
 import { CommandPalette } from './CommandPalette';
+import { NoticeToast } from './NoticeToast';
 import {
-  IconAction, IconAudit, IconBook, IconChange, IconClock, IconControl, IconDashboard,
-  IconDoc, IconHeat, IconLogout, IconMenu, IconNetwork, IconProcess, IconRisk,
-  IconSearch, IconSettings, IconSparkles, IconTarget, IconUsers,
+  IconAction, IconAudit, IconBook, IconChange, IconClock, IconControl, IconDashboard, IconFlow,
+  IconDoc, IconHeat, IconLogout, IconMenu, IconNetwork, IconRisk,
+  IconSearch, IconSettings, IconShield, IconSparkles, IconTarget, IconUsers,
 } from '@/components/common/Icons';
 
 interface NavItem {
@@ -22,7 +26,9 @@ interface NavItem {
 }
 
 export function AppShell() {
-  const { currentUser, capabilities, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
+  // Yetkiler değişince menü yeniden hesaplansın.
+  const revision = useAuth((s) => s.revision);
   const data = useData((s) => s.data);
   const { sidebarCollapsed, toggleSidebar, setPaletteOpen } = useUi();
   const [userMenu, setUserMenu] = useState(false);
@@ -48,44 +54,51 @@ export function AppShell() {
     (c) => c.status === 'pending_manager' || c.status === 'pending_control',
   ).length;
 
-  const groups: { title: string; items: NavItem[] }[] = [
-    {
-      title: 'Genel Bakış',
-      items: [
-        { to: '/', label: 'Dashboard', icon: <IconDashboard size={17} /> },
-        { to: '/surecler', label: 'Süreç Haritası', icon: <IconProcess size={17} /> },
-        { to: '/iliskiler', label: 'Bağlantı Ağı', icon: <IconNetwork size={17} /> },
-      ],
+  /** Menü anahtarına göre simge ve rozet. Sıra ve etiket navEntries'ten gelir. */
+  const decor: Partial<Record<MenuKey, { icon: React.ReactNode; badge?: number; alert?: boolean }>> = {
+    dashboard: { icon: <IconDashboard size={17} /> },
+    akis: { icon: <IconFlow size={17} /> },
+    iliskiler: { icon: <IconNetwork size={17} /> },
+    'isi-haritasi': { icon: <IconHeat size={17} /> },
+    riskler: { icon: <IconRisk size={17} />, badge: stats.riskCount },
+    kontroller: { icon: <IconControl size={17} />, badge: stats.controlCount },
+    kri: { icon: <IconTarget size={17} /> },
+    aksiyonlar: {
+      icon: <IconAction size={17} />,
+      badge: stats.overdueActionCount,
+      alert: stats.overdueActionCount > 0,
     },
-    {
-      title: 'Risk ve Kontrol',
-      items: [
-        { to: '/isi-haritasi', label: 'Risk Isı Haritası', icon: <IconHeat size={17} /> },
-        { to: '/riskler', label: 'Risk Kütüphanesi', icon: <IconRisk size={17} />, badge: stats.riskCount },
-        { to: '/kontroller', label: 'Kontrol Kütüphanesi', icon: <IconControl size={17} />, badge: stats.controlCount },
-        { to: '/kri', label: 'KRI Göstergeleri', icon: <IconTarget size={17} /> },
-      ],
+    dokumanlar: { icon: <IconDoc size={17} /> },
+    'gozden-gecirme': {
+      icon: <IconClock size={17} />,
+      badge: stats.reviewOverdueCount,
+      alert: stats.reviewOverdueCount > 0,
     },
-    {
-      title: 'Yönetim',
-      items: [
-        { to: '/aksiyonlar', label: 'Aksiyonlar', icon: <IconAction size={17} />, badge: stats.overdueActionCount, alert: stats.overdueActionCount > 0 },
-        { to: '/dokumanlar', label: 'Dokümanlar', icon: <IconDoc size={17} /> },
-        { to: '/gozden-gecirme', label: 'Gözden Geçirme', icon: <IconClock size={17} />, badge: stats.reviewOverdueCount, alert: stats.reviewOverdueCount > 0 },
-        { to: '/degisiklikler', label: 'Değişiklik Yönetimi', icon: <IconChange size={17} />, badge: pendingApprovals },
-      ],
-    },
-    {
-      title: 'Analiz',
-      items: [
-        { to: '/asistan', label: 'Analiz Asistanı', icon: <IconSparkles size={17} /> },
-        { to: '/arama', label: 'Global Arama', icon: <IconSearch size={17} /> },
-        ...(capabilities.viewAudit ? [{ to: '/audit', label: 'Audit Trail', icon: <IconAudit size={17} /> }] : []),
-        { to: '/standartlar', label: 'Standart Uyumu', icon: <IconBook size={17} /> },
-        ...(capabilities.administer ? [{ to: '/kullanicilar', label: 'Kullanıcı Yönetimi', icon: <IconUsers size={17} /> }] : []),
-      ],
-    },
-  ];
+    degisiklikler: { icon: <IconChange size={17} />, badge: pendingApprovals },
+    asistan: { icon: <IconSparkles size={17} /> },
+    arama: { icon: <IconSearch size={17} /> },
+    audit: { icon: <IconAudit size={17} /> },
+    standartlar: { icon: <IconBook size={17} /> },
+    kullanicilar: { icon: <IconUsers size={17} /> },
+    yetkiler: { icon: <IconShield size={17} /> },
+  };
+
+  // Menü izinden türetiliyor: yöneticinin bir rolden kaldırdığı sayfa
+  // o rolün kullanıcılarında anında kaybolur.
+  const groups = useMemo(() => {
+    const visible = navEntries.filter((e) => userCanSeeMenu(currentUser, e.key));
+    const order: NavEntry['group'][] = ['Genel Bakış', 'Risk ve Kontrol', 'Yönetim', 'Analiz', 'Sistem'];
+    return order
+      .map((title) => ({
+        title,
+        items: visible
+          .filter((e) => e.group === title)
+          .map((e) => ({ to: e.path, label: e.label, ...(decor[e.key] ?? { icon: null }) }) as NavItem),
+      }))
+      .filter((g) => g.items.length > 0);
+    // decor her render'da yeniden kuruluyor; bağımlılık olarak sayaçları veriyoruz.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, revision, stats, pendingApprovals]);
 
   return (
     <div className="shell">
@@ -147,6 +160,7 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
+      <NoticeToast />
     </div>
   );
 }
@@ -160,7 +174,7 @@ function Topbar() {
   const title = useMemo(() => {
     const map: Record<string, string> = {
       '/': 'Dashboard',
-      '/surecler': 'Süreç Haritası',
+      '/akis': 'Süreç Akışı',
       '/iliskiler': 'Bağlantı Ağı',
       '/isi-haritasi': 'Risk Isı Haritası',
       '/riskler': 'Risk Kütüphanesi',

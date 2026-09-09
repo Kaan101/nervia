@@ -102,7 +102,8 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 
 /* ---- Form ---- */
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field > label { font-size: var(--text-xs); font-weight: 600; color: var(--ink-600); }
+.field > label,
+.field > .field-label { font-size: var(--text-xs); font-weight: 600; color: var(--ink-600); }
 .input, .select, .textarea {
   height: 32px; padding: 0 var(--s3);
   border: 1px solid var(--border-strong); border-radius: var(--radius);
@@ -208,8 +209,10 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .drawer-body { flex: 1; overflow-y: auto; padding: var(--s5); }
 .drawer-foot { padding: var(--s3) var(--s5); border-top: 1px solid var(--border); background: var(--surface-sunken); }
 
+.overlay-modal { z-index: 70; }
+
 .modal {
-  position: fixed; z-index: 61; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  position: fixed; z-index: 71; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 64px);
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
@@ -258,3 +261,95 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 /* ---- Yükleniyor iskeleti ---- */
 .skeleton { background: linear-gradient(90deg, var(--ink-050), var(--ink-100), var(--ink-050)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: var(--radius); }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* ---- Bildirim şeridi ---- */
+.toast {
+  position: fixed; z-index: 80; left: 50%; bottom: var(--s6);
+  transform: translateX(-50%);
+  display: flex; align-items: flex-start; gap: var(--s3);
+  min-width: 320px; max-width: min(560px, calc(100vw - 32px));
+  padding: var(--s3) var(--s4);
+  background: var(--ink-900); color: #fff;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  animation: toastIn var(--dur) var(--ease-out);
+}
+@keyframes toastIn {
+  from { transform: translate(-50%, 8px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+.toast .toast-title { font-size: var(--text-sm); font-weight: 600; }
+.toast .toast-detail { font-size: var(--text-xs); color: #b9c7d8; margin-top: 2px; }
+.toast .toast-mark { width: 3px; align-self: stretch; border-radius: 2px; flex: 0 0 auto; }
+.toast.success .toast-mark { background: var(--risk-low-mark); }
+.toast.warning .toast-mark { background: var(--risk-medium-mark); }
+.toast.info .toast-mark { background: var(--brand-400); }
+.toast button { border: 0; background: none; color: #8fa4bd; padding: 0; cursor: pointer; }
+.toast button:hover { color: #fff; }
+
+/* ---- Uyarı kutusu tonları ---- */
+.callout.good { --lvl-line: var(--risk-low-line, var(--border)); --lvl-bg: var(--risk-low-bg, var(--surface-sunken)); }
+.callout.warn { --lvl-line: var(--risk-high-line, var(--border)); --lvl-bg: var(--risk-high-bg, var(--surface-sunken)); }
+.callout.danger { --lvl-line: var(--risk-critical-line, var(--border)); --lvl-bg: var(--risk-critical-bg, var(--surface-sunken)); }
+
+/* ---- Giriş formu ---- */
+.login-form {
+  display: flex; flex-direction: column; gap: var(--s4);
+  margin-top: var(--s5); max-width: 380px;
+}
+.login-form .btn { justify-content: center; margin-top: var(--s2); }
+
+/* ---- Yetki yönetimi ---- */
+/* Rol listesi solda, izin matrisi sağda; dar ekranda alt alta düşer. */
+.split-2 { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: var(--s6); align-items: start; }
+@media (max-width: 1080px) { .split-2 { grid-template-columns: minmax(0, 1fr); } }
+
+.input-sm { padding: 4px 6px; font-size: var(--text-xs); }
+
+/* Matris hücrelerindeki açılır listeler dar kalsın, tablo taşmasın. */
+table.data td .input-sm { width: 100%; min-width: 96px; }
+
+/* ------------------------------------------------------------------ */
+/* SÜREÇ KANVASI                                                       */
+/* ------------------------------------------------------------------ */
+
+/* Kırıntı yolu */
+
+/* Varyant seçimi — giriş ekranındaki büyük kartlar */
+
+/* Kutu */
+/* Alt kırılımı olan kutu, olmayanla aynı görünmemeli. */
+
+
+/* Sayaç rozetleri — kutu dar olduğu için sabit iki sütun: dördü her
+   zaman aynı yerde durur, göz kutudan kutuya kayarken aramak zorunda
+   kalmaz. */
+/* Sıfır olan sayaç dikkat çekmemeli ama gizlenmemeli: eksikliğin kendisi bilgi.
+   Ad alanı şart: yalın ".empty" uygulamanın boş-durum bileşeniyle çakışıyor. */
+
+/* Akış: kutular soldan sağa dizilir, aralarındaki ok sırayı gösterir.
+   Sarmalayan bir ızgara yerine tek şerit kullanılıyor: süreç adımları
+   sıralıdır ve satır sonunda kopan bir ok yanlış bilgi verir. Şerit kendi
+   içinde kayar, sayfa gövdesi yatay kaymaz. */
+
+/* Bağlantı oku */
+
+/* Düğüm içeriği */
+
+@media (max-width: 1100px) {
+}
+@media (max-width: 720px) {
+  .grid.cols-2 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- Ek bağlantıları ---- */
+.attachment-row {
+  align-items: center; padding: var(--s2) var(--s3);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+/* Ekleme satırı: dar ekranda alt alta düşer, geniş ekranda tek satır. */
+.attachment-add {
+  display: flex; flex-wrap: wrap; gap: var(--s2); align-items: flex-end;
+}
+.attachment-add .field { min-width: 150px; }
+.attachment-add .field.grow { flex: 1 1 180px; }

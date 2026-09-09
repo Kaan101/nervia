@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '@/store/useData';
 import { useUi } from '@/store/useUi';
-import { useAuth } from '@/store/useAuth';
+import { canCreateRecords, useAuth } from '@/store/useAuth';
+import { ActionFormModal } from '@/components/forms/ActionForm';
 import { daysBetween, formatDate, isOverdue } from '@/lib/riskMath';
 import { actionPriorityLabels, actionSourceLabels, actionStatusLabels } from '@/lib/labels';
 import { userName } from '@/data/org';
 import { Badge, EmptyState, Metric, Meter, Segmented, Tabs } from '@/components/common/Primitives';
 import { SelectionDrawer } from '@/components/process/DetailPanel';
+import { IconPlus } from '@/components/common/Icons';
 import type { ActionStatus } from '@/types/grc';
 
-type Filter = 'all' | 'open' | 'overdue' | 'mine' | 'completed';
+type Filter = 'all' | 'open' | 'overdue' | 'mine' | 'completed' | 'archived';
 
 export function ActionsPage() {
   const data = useData((s) => s.data);
@@ -21,11 +23,14 @@ export function ActionsPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<Filter>(params.get('filtre') === 'gecikmis' ? 'overdue' : 'open');
   const [group, setGroup] = useState<'status' | 'owner' | 'priority'>('status');
+  const [creating, setCreating] = useState(false);
+  const canCreate = canCreateRecords(currentUser);
 
   useEffect(() => { if (actionId) select('action', actionId); }, [actionId, select]);
 
   const rows = useMemo(() => {
-    let list = data.actions;
+    // Arşiv sekmesi dışında arşivlenmiş aksiyonlar listelenmez.
+    let list = data.actions.filter((a) => (filter === 'archived' ? a.archived : !a.archived));
     if (filter === 'open') list = list.filter((a) => a.status === 'open' || a.status === 'in_progress');
     if (filter === 'overdue') list = list.filter((a) => (a.status === 'open' || a.status === 'in_progress') && isOverdue(a.dueDate));
     if (filter === 'mine') list = list.filter((a) => a.ownerId === currentUser?.id);
@@ -47,8 +52,10 @@ export function ActionsPage() {
     return [...map.entries()];
   }, [rows, group]);
 
-  const open = data.actions.filter((a) => a.status === 'open' || a.status === 'in_progress');
+  const activeActions = data.actions.filter((a) => !a.archived);
+  const open = activeActions.filter((a) => a.status === 'open' || a.status === 'in_progress');
   const overdue = open.filter((a) => isOverdue(a.dueDate));
+  const archivedCount = data.actions.filter((a) => a.archived).length;
 
   return (
     <div className="page">
@@ -61,20 +68,27 @@ export function ActionsPage() {
             sorumlusu ve hedef tarihiyle birlikte tek yerden izlenir.
           </p>
         </div>
-        <Segmented
-          ariaLabel="Gruplama"
-          value={group}
-          onChange={setGroup}
-          options={[
-            { id: 'status', label: 'Duruma göre' },
-            { id: 'owner', label: 'Sorumluya göre' },
-            { id: 'priority', label: 'Önceliğe göre' },
-          ]}
-        />
+        <div className="row gap-3 wrap">
+          <Segmented
+            ariaLabel="Gruplama"
+            value={group}
+            onChange={setGroup}
+            options={[
+              { id: 'status', label: 'Duruma göre' },
+              { id: 'owner', label: 'Sorumluya göre' },
+              { id: 'priority', label: 'Önceliğe göre' },
+            ]}
+          />
+          {canCreate ? (
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
+              <IconPlus size={14} /> Yeni aksiyon
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid cols-4" style={{ marginBottom: 'var(--s5)' }}>
-        <div className="card card-pad"><Metric compact label="Toplam aksiyon" value={data.actions.length} /></div>
+        <div className="card card-pad"><Metric compact label="Toplam aksiyon" value={activeActions.length} /></div>
         <div className="card card-pad"><Metric compact label="Açık" value={open.length} /></div>
         <div className="card card-pad"><Metric compact label="Gecikmiş" value={overdue.length} tone={overdue.length ? 'alert' : 'default'} /></div>
         <div className="card card-pad">
@@ -89,9 +103,10 @@ export function ActionsPage() {
         tabs={[
           { id: 'open', label: 'Açık aksiyonlar', count: open.length },
           { id: 'overdue', label: 'Gecikmiş', count: overdue.length },
-          { id: 'mine', label: 'Bana atananlar', count: data.actions.filter((a) => a.ownerId === currentUser?.id).length },
-          { id: 'completed', label: 'Tamamlanan', count: data.actions.filter((a) => a.status === 'completed').length },
-          { id: 'all', label: 'Tümü', count: data.actions.length },
+          { id: 'mine', label: 'Bana atananlar', count: activeActions.filter((a) => a.ownerId === currentUser?.id).length },
+          { id: 'completed', label: 'Tamamlanan', count: activeActions.filter((a) => a.status === 'completed').length },
+          { id: 'all', label: 'Tümü', count: activeActions.length },
+          ...(archivedCount ? [{ id: 'archived' as const, label: 'Arşiv', count: archivedCount }] : []),
         ]}
       />
 
@@ -154,6 +169,11 @@ export function ActionsPage() {
         {!rows.length ? <EmptyState title="Bu filtreye uyan aksiyon yok" /> : null}
       </div>
 
+      <ActionFormModal
+        open={creating}
+        onClose={() => setCreating(false)}
+        onSaved={(id) => navigate(`/aksiyonlar/${id}`)}
+      />
       <SelectionDrawer />
     </div>
   );

@@ -15,11 +15,12 @@ import type { RiskCategory, RiskLevel } from '@/types/grc';
 
 export function RiskHeatmapPage() {
   const data = useData((s) => s.data);
+  const activeRisks = useData((s) => s.activeRisks);
   const { select, filters, setFilter, resetFilters } = useUi();
   const [basis, setBasis] = useState<'residual' | 'inherent'>('residual');
 
   const filtered = useMemo(() => {
-    let list = data.risks;
+    let list = activeRisks;
     if (filters.unitId) list = list.filter((r) => r.unitId === filters.unitId);
     if (filters.processId) {
       const ids = new Set([filters.processId, ...descendants(data.nodes, filters.processId).map((n) => n.id)]);
@@ -36,7 +37,7 @@ export function RiskHeatmapPage() {
       list = list.filter((r) => monthsSince(r.lastAssessedAt) <= filters.assessedWithinMonths!);
     }
     return list;
-  }, [data, filters]);
+  }, [data, activeRisks, filters]);
 
   const sorted = sortRisksBySeverity(filtered);
   const activeFilters = Object.values(filters).filter((v) => v !== null).length;
@@ -128,7 +129,7 @@ export function RiskHeatmapPage() {
 
         <div className="stack gap-4">
           <div className="grid cols-2">
-            <div className="card card-pad"><Metric compact label="Gösterilen risk" value={filtered.length} sub={`${data.risks.length} toplam`} /></div>
+            <div className="card card-pad"><Metric compact label="Gösterilen risk" value={filtered.length} sub={`${activeRisks.length} toplam`} /></div>
             <div className="card card-pad">
               <Metric compact label="Kritik" value={filtered.filter((r) => riskLevel(r.residual) === 'critical').length}
                 tone="alert" sub={`${filtered.filter((r) => riskLevel(r.residual) === 'high').length} yüksek`} />

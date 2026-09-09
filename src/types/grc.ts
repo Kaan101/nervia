@@ -1,3 +1,5 @@
+import type { Account, Role } from './rbac';
+
 /**
  * Nervia — GRC alan modeli.
  *
@@ -47,6 +49,33 @@ export interface User {
   authLevel: 1 | 2 | 3 | 4 | 5;
   location?: string;
   phone?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Ek bağlantıları                                                     */
+/* ------------------------------------------------------------------ */
+
+/** Ekin nerede durduğu. */
+export type AttachmentSource = 'sharepoint' | 'web' | 'network' | 'server' | 'other';
+
+/**
+ * Kayda iliştirilen dosya bağlantısı.
+ *
+ * Dosyanın kendisi değil, ona giden adres tutulur: SharePoint bağlantısı,
+ * ağ paylaşımı yolu (\\sunucu\pay) ya da sunucudaki bir adres. Böylece
+ * kaynak sistem tek doğru olarak kalır.
+ */
+export interface Attachment {
+  id: string;
+  /** Listede görünen ad. */
+  label: string;
+  /** Bağlantı hedefi. */
+  href: string;
+  source: AttachmentSource;
+  /** Bu ekin neden iliştirildiği. */
+  note?: string;
+  addedById: string;
+  addedAt: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -122,6 +151,8 @@ export interface ProcessNode {
   customer?: string;
   /** Hedef süre (iş günü). */
   slaDays?: number;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -195,6 +226,14 @@ export interface Risk {
 
   /** İlgili mevzuat / standart referansları. */
   standards?: string[];
+
+  /**
+   * Arşivlenmiş kayıt. GRC'de kayıt silinmez — arşivlenen kayıt listelerden
+   * düşer, geçmiş raporlarda ve audit trail'de yerinde kalır.
+   */
+  archived?: boolean;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -270,6 +309,11 @@ export interface Control {
 
   /** Kontrolün riski azaltma gücü, 0–1. */
   mitigationStrength: number;
+
+  /** Arşivlenmiş kayıt (bkz. Risk.archived). */
+  archived?: boolean;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -309,6 +353,11 @@ export interface ActionItem {
 
   evidence: string;
   managerComment: string;
+
+  /** Arşivlenmiş kayıt (bkz. Risk.archived). */
+  archived?: boolean;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -345,6 +394,11 @@ export interface GrcDocument {
   sections: DocumentSection[];
   processNodeIds: string[];
   controlIds: string[];
+
+  /** Arşivlenmiş kayıt (bkz. Risk.archived). */
+  archived?: boolean;
+  /** Kayda iliştirilen dosya bağlantıları (SharePoint, ağ dizini, sunucu). */
+  attachments?: Attachment[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -386,7 +440,9 @@ export type EntityType =
   | 'document'
   | 'kri'
   | 'change_request'
-  | 'session';
+  | 'session'
+  | 'account'
+  | 'role';
 
 export interface FieldChange {
   field: string;
@@ -410,6 +466,8 @@ export interface ApprovalStep {
   decision: 'pending' | 'approved' | 'rejected';
   comment: string;
   decidedAt: string | null;
+  /** Karara dayanak gösterilen dosya bağlantıları. */
+  attachments?: Attachment[];
 }
 
 export interface ChangeRequest {
@@ -424,9 +482,21 @@ export interface ChangeRequest {
   requestedById: string;
   requestedAt: string;
   status: ChangeRequestStatus;
+  /** İnsan okunur alan farkları — onay ekranında gösterilir. */
   changes: FieldChange[];
   approvals: ApprovalStep[];
   resultingVersion: string | null;
+
+  /**
+   * Onaylandığında hedefe uygulanacak alan değerleri.
+   * Demo verisindeki geçmiş talepler bu alanı taşımaz; onlar yalnızca
+   * kayıt olarak durur ve yeniden uygulanmaz.
+   */
+  payload?: Record<string, unknown>;
+  /** Talep açıldığı andaki hedef versiyonu — çakışma tespiti için. */
+  baseVersion?: string;
+  /** Kritik kabul edilen ve onayı tetikleyen alanlar. */
+  criticalFields?: string[];
 }
 
 export type AuditAction =
@@ -469,4 +539,8 @@ export interface Dataset {
   kris: Kri[];
   changeRequests: ChangeRequest[];
   auditTrail: AuditEntry[];
+  /** Düzenlenebilir rol tanımları — yetki matrisinin kaynağı. */
+  roles: Role[];
+  /** Kimlik ve yetki kayıtları; kullanıcı başına bir hesap. */
+  accounts: Account[];
 }

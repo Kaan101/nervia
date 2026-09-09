@@ -24,6 +24,30 @@ export function buildTree(nodes: ProcessNode[], rootId: string): NodeTree | null
   return attach(root);
 }
 
+/**
+ * Arşivlenmiş süreçler ve onların tüm alt ağaçları hariç düğüm listesi.
+ *
+ * Süreç arşivlemek yalnızca o kaydı değil, altındaki tüm yapıyı da görünürden
+ * düşürür; aksi halde ağaçta sahipsiz alt süreçler kalırdı.
+ */
+export function activeNodes(nodes: ProcessNode[]): ProcessNode[] {
+  const archivedRoots = nodes.filter((n) => n.status === 'archived').map((n) => n.id);
+  if (!archivedRoots.length) return nodes;
+
+  const hidden = new Set(archivedRoots);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const n of nodes) {
+      if (!hidden.has(n.id) && n.parentId && hidden.has(n.parentId)) {
+        hidden.add(n.id);
+        grew = true;
+      }
+    }
+  }
+  return nodes.filter((n) => !hidden.has(n.id));
+}
+
 /** Bir düğüm ve tüm alt düğümleri. */
 export function descendants(nodes: ProcessNode[], rootId: string): ProcessNode[] {
   const byParent = new Map<string, ProcessNode[]>();
@@ -75,8 +99,10 @@ export interface NodeRollup {
 }
 
 export function rollup(data: Dataset, nodeId: string): NodeRollup {
-  const node = data.nodes.find((n) => n.id === nodeId);
-  const subtree = node ? [node, ...descendants(data.nodes, nodeId)] : [];
+  // Arşivlenmiş alt süreçler sayımlara dahil edilmez.
+  const visible = activeNodes(data.nodes);
+  const node = visible.find((n) => n.id === nodeId) ?? data.nodes.find((n) => n.id === nodeId);
+  const subtree = node ? [node, ...descendants(visible, nodeId)] : [];
   const riskIds = new Set<string>();
   const controlIds = new Set<string>();
   const actionIds = new Set<string>();
@@ -96,18 +122,19 @@ export function rollup(data: Dataset, nodeId: string): NodeRollup {
     if (isReviewOverdue(n)) reviewOverdue = true;
   }
 
-  const risks = [...riskIds].map((id) => data.risks.find((r) => r.id === id)!).filter(Boolean);
-  const controls = [...controlIds].map((id) => data.controls.find((c) => c.id === id)!).filter(Boolean);
-  const actions = [...actionIds].map((id) => data.actions.find((a) => a.id === id)!).filter(Boolean);
+  // Arşivlenmiş kayıtlar sayımlara girmez.
+  const risks = risksOf(data, [...riskIds]);
+  const controls = controlsOf(data, [...controlIds]);
+  const actions = actionsOf(data, [...actionIds]);
 
   return {
     subprocessCount: subtree.filter((n) => n.kind === 'subprocess').length,
     activityCount: subtree.filter((n) => n.kind === 'activity').length,
     stepCount: subtree.filter((n) => n.kind === 'step').length,
-    riskIds: [...riskIds],
-    controlIds: [...controlIds],
-    actionIds: [...actionIds],
-    documentIds: [...documentIds],
+    riskIds: risks.map((r) => r.id),
+    controlIds: controls.map((c) => c.id),
+    actionIds: actions.map((a) => a.id),
+    documentIds: documentsOf(data, [...documentIds]).map((d) => d.id),
     criticalRiskCount: risks.filter((r) => riskLevel(r.residual) === 'critical').length,
     highRiskCount: risks.filter((r) => riskLevel(r.residual) === 'high').length,
     openActionCount: actions.filter((a) => a.status === 'open' || a.status === 'in_progress').length,
@@ -124,24 +151,40 @@ export function rollup(data: Dataset, nodeId: string): NodeRollup {
   };
 }
 
-export function mainProcesses(data: Dataset): ProcessNode[] {
-  return data.nodes.filter((n) => n.kind === 'process').sort((a, b) => a.order - b.order);
+export function mainProcesses(data: Dataset, includeArchived = false): ProcessNode[] {
+  const source = includeArchived ? data.nodes : activeNodes(data.nodes);
+  return source.filter((n) => n.kind === 'process').sort((a, b) => a.order - b.order);
 }
 
-export function risksOf(data: Dataset, ids: string[]): Risk[] {
-  return ids.map((id) => data.risks.find((r) => r.id === id)).filter((r): r is Risk => Boolean(r));
+/**
+ * Kimlik listesinden kayıtları çözer.
+ *
+ * Arşivlenmiş kayıtlar varsayılan olarak süzülür: arşivleme, kaydı silmeden
+ * listelerden düşürme yoludur. Geçmişi göstermesi gereken yerler (kütüphane
+ * sayfalarının arşiv sekmesi, audit trail) `includeArchived` ile alır.
+ */
+export function risksOf(data: Dataset, ids: string[], includeArchived = false): Risk[] {
+  return ids
+    .map((id) => data.risks.find((r) => r.id === id))
+    .filter((r): r is Risk => Boolean(r) && (includeArchived || !r!.archived));
 }
 
-export function controlsOf(data: Dataset, ids: string[]): Control[] {
-  return ids.map((id) => data.controls.find((c) => c.id === id)).filter((c): c is Control => Boolean(c));
+export function controlsOf(data: Dataset, ids: string[], includeArchived = false): Control[] {
+  return ids
+    .map((id) => data.controls.find((c) => c.id === id))
+    .filter((c): c is Control => Boolean(c) && (includeArchived || !c!.archived));
 }
 
-export function actionsOf(data: Dataset, ids: string[]): ActionItem[] {
-  return ids.map((id) => data.actions.find((a) => a.id === id)).filter((a): a is ActionItem => Boolean(a));
+export function actionsOf(data: Dataset, ids: string[], includeArchived = false): ActionItem[] {
+  return ids
+    .map((id) => data.actions.find((a) => a.id === id))
+    .filter((a): a is ActionItem => Boolean(a) && (includeArchived || !a!.archived));
 }
 
-export function documentsOf(data: Dataset, ids: string[]): GrcDocument[] {
-  return ids.map((id) => data.documents.find((d) => d.id === id)).filter((d): d is GrcDocument => Boolean(d));
+export function documentsOf(data: Dataset, ids: string[], includeArchived = false): GrcDocument[] {
+  return ids
+    .map((id) => data.documents.find((d) => d.id === id))
+    .filter((d): d is GrcDocument => Boolean(d) && (includeArchived || !d!.archived));
 }
 
 export function krisOf(data: Dataset, ids: string[]): Kri[] {
@@ -181,14 +224,15 @@ export interface PortfolioSummary {
 }
 
 export function portfolio(data: Dataset): PortfolioSummary {
-  const risks = data.risks;
-  const controls = data.controls;
-  const actions = data.actions;
+  const risks = data.risks.filter((r) => !r.archived);
+  const controls = data.controls.filter((c) => !c.archived);
+  const actions = data.actions.filter((a) => !a.archived);
   const open = actions.filter((a) => a.status === 'open' || a.status === 'in_progress');
-  const processes = data.nodes.filter((n) => n.kind !== 'organization' && n.kind !== 'step');
+  const visible = activeNodes(data.nodes);
+  const processes = visible.filter((n) => n.kind !== 'organization' && n.kind !== 'step');
   return {
-    processCount: data.nodes.filter((n) => n.kind === 'process').length,
-    activityCount: data.nodes.filter((n) => n.kind === 'activity').length,
+    processCount: visible.filter((n) => n.kind === 'process').length,
+    activityCount: visible.filter((n) => n.kind === 'activity').length,
     riskCount: risks.length,
     criticalRiskCount: risks.filter((r) => riskLevel(r.residual) === 'critical').length,
     highRiskCount: risks.filter((r) => riskLevel(r.residual) === 'high').length,
@@ -209,8 +253,8 @@ export function portfolio(data: Dataset): PortfolioSummary {
       const days = (new Date(n.nextReviewAt).getTime() - new Date('2026-09-04').getTime()) / 86_400_000;
       return days >= 0 && days <= 45;
     }).length,
-    documentCount: data.documents.length,
-    expiredDocumentCount: data.documents.filter((d) => d.status === 'expired').length,
+    documentCount: data.documents.filter((d) => !d.archived).length,
+    expiredDocumentCount: data.documents.filter((d) => !d.archived && d.status === 'expired').length,
     averageResidual: risks.length ? risks.reduce((s, r) => s + score(r.residual), 0) / risks.length : 0,
     averageInherent: risks.length ? risks.reduce((s, r) => s + score(r.inherent), 0) / risks.length : 0,
   };
@@ -229,6 +273,7 @@ export function distributionBy(
 ): Distribution[] {
   const map = new Map<string, Distribution>();
   for (const risk of data.risks) {
+    if (risk.archived) continue;
     const k = keyOf(risk);
     if (!k) continue;
     const entry = map.get(k.key) ?? {
@@ -275,6 +320,13 @@ export function heatMatrix(risks: Risk[], use: 'residual' | 'inherent' = 'residu
   return cells;
 }
 
+/** Bir kayıt için onay bekleyen değişiklik talebi (varsa). */
+export function pendingRequestFor(data: Dataset, targetId: string) {
+  return data.changeRequests.find(
+    (c) => c.targetId === targetId && (c.status === 'pending_manager' || c.status === 'pending_control'),
+  );
+}
+
 /**
  * Aylık risk trendi.
  *
@@ -294,7 +346,7 @@ export function riskTrend(data: Dataset, months = 12) {
     const period = d.toISOString().slice(0, 7);
 
     const scores = data.risks
-      .filter((r) => r.identifiedAt.slice(0, 7) <= period)
+      .filter((r) => !r.archived && r.identifiedAt.slice(0, 7) <= period)
       .map((r) => {
         const drift = r.trend === 'up' ? -RATE * i : r.trend === 'down' ? RATE * i : 0;
         return Math.max(1, Math.min(25, score(r.residual) + drift));

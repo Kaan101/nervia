@@ -1,9 +1,14 @@
-import type { AuditEntry, ChangeRequest, Dataset, ProcessNode } from '@/types/grc';
+import type { Attachment, AuditEntry, ChangeRequest, Dataset, ProcessNode } from '@/types/grc';
 import type { NodeSpec } from './spec';
 import { buildDataset } from './build';
 import { hasarYonetimi } from './processes/hasar';
-import { bilgiTeknolojileri, hukuk, insanKaynaklari, maliIsler } from './processes/others-a';
+import { yurtDisiHasar } from './processes/hasar-yurtdisi';
+import { hukuk, maliIsler } from './processes/others-a';
+import { insanKaynaklari } from './processes/insan-kaynaklari';
+import { bilgiSistemleri } from './processes/bilgi-sistemleri';
 import { icKontrol, idariIsler, raporlama, riskYonetimi, satinAlma } from './processes/others-b';
+import { builtInRoles } from './roles';
+import { accounts } from './accounts';
 
 const organization: NodeSpec = {
   code: 'ORG',
@@ -18,11 +23,73 @@ const organization: NodeSpec = {
   version: '2026.3',
   lastReviewedAt: '2026-06-01',
   reviewFrequencyMonths: 12,
+
+  /* Kurumun tüm süreçlerinin yazılı dayanağı. Alt süreçlerdeki prosedür ve
+     talimatlar bu dokümana atıf yapar; İç Sistemler Yönetmeliği md. 54
+     gereğince Kuruma iletilen belge de budur. */
+  docs: [
+    {
+      code: 'DOK-ORG-01',
+      name: 'TMTB Süreç ve İş Akışı Dokümanı',
+      type: 'regulation',
+      version: '10.0',
+      owner: 'usr-22',
+      publishedAt: '2024-12-12',
+      updatedAt: '2024-12-12',
+      nextReviewAt: '2026-12-12',
+      summary:
+        'Büro’nun yurt dışı ve yurt içi hasar prosedürleri, insan kaynakları ve bilgi sistemleri '
+        + 'süreçleri ile iş akış şemalarını içeren ana süreç dokümanı. Sigortacılık ve Özel '
+        + 'Emeklilik Sektörlerinde İç Sistemlere Dair Yönetmelik md. 54 kapsamında Kuruma iletilir.',
+      sections: [
+        {
+          heading: 'Amaç ve kapsam',
+          body: [
+            'Doküman, yeşil kart sistemine dâhil ülkelerde meydana gelen kazalarda ve yurt içinde '
+            + 'yeşil kart sahibi yabancı plakalı araçların karıştığı kazalarda TMTB tarafından '
+            + 'yapılacak hasar yönetim işlemlerini içerir.',
+            'TMTB üyesi sigortacılar tarafından düzenlenmiş tüm yeşil kart hasarlarını ve bu '
+            + 'yeşil kartlara dayanan tüm talepleri kapsar.',
+          ],
+        },
+        {
+          heading: 'Dayanak',
+          body: [
+            'Sigortacılık ve Özel Emeklilik Sektörlerinde İç Sistemlere Dair Yönetmelik md. 54 — '
+            + 'iç kontrol fonksiyonu kapsamında tanımlanan iş süreçlerinin, yıl içinde yapılan '
+            + 'değişikliklerin ve güncel iş akış şemalarının Kuruma raporlanması.',
+            'Aynı madde kapsamında bilgi sistemlerinin yapısı, hizmet alımları, iş sürekliliği '
+            + 'tedbirleri ve yapılan testlere ilişkin raporun iletilmesi.',
+          ],
+        },
+        {
+          heading: 'Bölümler',
+          body: [
+            'Bölüm 4-5 — Yurt Dışı Hasar Prosedürü (Madde 1-16).',
+            'Bölüm 6 — Yurt İçi Hasar Süreci (Madde 17-20).',
+            'Bölüm 7 — İnsan Kaynakları (Madde 21-37).',
+            'Bölüm 8 — Bilgi Sistemleri (Madde 38-41).',
+            'Bölüm 9 — İş Akışları (Madde 42 Yurt Dışı, Madde 43 Yurt İçi).',
+          ],
+        },
+        {
+          heading: 'Ekler',
+          body: [
+            'Detaylı Yurt İçi Hasar İş Akışı.',
+            'Detaylı Yurt Dışı Hasar İş Akışı.',
+            'Bilgi Sistemleri Sızma Testi Raporu.',
+          ],
+        },
+      ],
+    },
+  ],
+
   children: [
     hasarYonetimi,
+    yurtDisiHasar,
     maliIsler,
     hukuk,
-    bilgiTeknolojileri,
+    bilgiSistemleri,
     insanKaynaklari,
     satinAlma,
     idariIsler,
@@ -43,27 +110,27 @@ const changeRequests: ChangeRequest[] = [
     id: 'chg-001',
     code: 'DT-2026-014',
     targetType: 'process',
-    targetId: 'nd-HSR-09',
-    targetName: 'Ödeme',
-    title: 'IBAN değişikliğinde geri arama kaydının zorunlu hale getirilmesi',
+    targetId: 'nd-HSR-08',
+    targetName: 'Ödeme Günü Verme (1.2.3)',
+    title: 'Ödeme günü listesinin Excel yerine kilitli çıktı olarak üretilmesi',
     reason:
-      'İç Kontrol 2026-Q2 testinde 25 örneklemin 4’ünde geri arama kaydı bulunamadı. Kontrolün kanıtı sistemde zorunlu alan olarak tutulmalıdır.',
+      'İç Kontrol 2026-Q2 testinde ödeme günü listesinin Excel olarak üretildiği ve muhasebeye iletilmeden önce elle değiştirilebildiği tespit edildi. Sistemdeki kayıtla listenin mutabakatı düzensiz yapılıyor.',
     impact: 'high',
     requestedById: 'usr-08',
     requestedAt: '2026-07-12T10:20:00Z',
     status: 'pending_control',
     changes: [
       {
-        field: 'controls.K-HSR-18.method',
+        field: 'controls.K-HSR-14.method',
         label: 'Kontrol yöntemi',
-        oldValue: 'IBAN değişikliği iş akışı; geri arama kaydı ve ikinci kullanıcı onayı zorunlu.',
+        oldValue: 'Kilitli liste üretimi ve gün sonu mutabakatı.',
         newValue:
-          'IBAN değişikliği iş akışı; ses kaydı referansı zorunlu alan olarak girilmeden iş akışı ilerleyemez, ikinci kullanıcı onayı zorunlu.',
+          'Ödeme günü listesi sistemden yalnızca kilitli PDF olarak üretilir; Excel çıktısı kaldırılır ve gün sonu mutabakatı sistem tarafından otomatik yapılır.',
       },
       {
-        field: 'controls.K-HSR-18.effectiveness',
+        field: 'controls.K-HSR-14.effectiveness',
         label: 'Etkinlik durumu',
-        oldValue: 'Kısmen Etkin',
+        oldValue: 'Etkin Değil',
         newValue: 'Etkin (geliştirme sonrası yeniden test edilecek)',
       },
     ],
@@ -94,10 +161,10 @@ const changeRequests: ChangeRequest[] = [
     code: 'DT-2026-011',
     targetType: 'process',
     targetId: 'nd-HSR-05',
-    targetName: 'Hasar Değerlendirmesi',
-    title: 'İkinci göz eşiğinin 250.000 TL’den risk bazlı modele çevrilmesi',
+    targetName: 'Muallak Girişi (1.1.5)',
+    title: 'Muallak asgari tutarının talep tipine göre farklılaştırılması',
     reason:
-      'Sabit eşik, düşük tutarlı ancak yüksek suistimal riskli dosyaları kapsam dışında bırakıyor. Branş ve suistimal skoruna göre değişken eşik önerilmektedir.',
+      'Tutar bildirilmemiş dosyalarda uygulanan tek bir asgari muallak tutarı, bedeni zarar dosyalarında gerçek yükümlülüğün çok altında kalıyor. Talep tipine göre ayrı parametre önerilmektedir.',
     impact: 'medium',
     requestedById: 'usr-03',
     requestedAt: '2026-06-28T13:05:00Z',
@@ -106,9 +173,10 @@ const changeRequests: ChangeRequest[] = [
       {
         field: 'controls.K-HSR-09.description',
         label: 'Kontrol açıklaması',
-        oldValue: '250.000 TL üzerindeki hasar tutarlarında ikinci göz değerlendirmesi yapılır.',
+        oldValue:
+          'Tutar bildirilmemiş dosyalarda iş akışında tanımlı asgari muallak tutarı sistem tarafından zorunlu kılınır.',
         newValue:
-          'Branş ve suistimal skoruna göre belirlenen dinamik eşiğin üzerindeki dosyalarda ikinci göz değerlendirmesi yapılır.',
+          'Tutar bildirilmemiş dosyalarda talep tipine (maddi-araç, maddi-araç dışı, bedeni) göre ayrı tanımlanmış asgari muallak tutarı sistem tarafından zorunlu kılınır.',
       },
     ],
     approvals: [
@@ -138,20 +206,22 @@ const changeRequests: ChangeRequest[] = [
     code: 'DT-2026-009',
     targetType: 'process',
     targetId: 'nd-HSR-01',
-    targetName: 'Hasar İhbarı',
-    title: 'E-posta kanalının günlük mutabakat kapsamına alınması',
-    reason: 'Kanal mutabakatı e-posta kutusunu kapsamadığı için üç ihbarın kayda geçmediği tespit edildi.',
+    targetName: 'Evrak Yönetimi (1.1.1)',
+    title: 'E-posta kanalında geliş tarihinin ayrı alan olarak zorunlu kılınması',
+    reason:
+      'E-posta ile gelen evrakta geliş tarihi çoğu zaman kayıt tarihiyle aynı giriliyor. Zamanaşımı ve faiz başlangıcı bu tarihe bağlı olduğu için alan kanal bağımsız zorunlu olmalıdır.',
     impact: 'high',
     requestedById: 'usr-23',
     requestedAt: '2026-06-10T09:00:00Z',
     status: 'approved',
     changes: [
       {
-        field: 'controls.K-HSR-02.description',
+        field: 'controls.K-HSR-01.description',
         label: 'Kontrol açıklaması',
-        oldValue: 'Çağrı merkezi, web formu ve acente portalı ihbar adetleri karşılaştırılır.',
+        oldValue:
+          'Fiziki evraka geliş tarihi damgası basılır; DYS’de "geliş tarihi" kayıt tarihinden ayrı zorunlu alandır.',
         newValue:
-          'Çağrı merkezi, web formu, acente portalı ve hasar e-posta kutusundan gelen ihbar adetleri karşılaştırılır.',
+          'Tüm kanallarda (posta, e-posta, elden teslim) geliş tarihi DYS’de ayrı zorunlu alandır; e-postada mesajın sunucuya ulaştığı tarih otomatik doldurulur ve değiştirilemez.',
       },
     ],
     approvals: [
@@ -232,10 +302,10 @@ const handwrittenAudit: AuditEntry[] = [
     userId: 'usr-23',
     action: 'update',
     entityType: 'control',
-    entityId: 'ctl-K-HSR-21',
-    entityName: 'Rücu potansiyeli otomatik taraması',
+    entityId: 'ctl-K-HSR-23',
+    entityName: 'E+60 gün garanti çağrısı hatırlatması',
     summary: 'Kontrol etkinliği “Kısmen Etkin” → “Etkin Değil” olarak güncellendi.',
-    reason: '2026-Q2 kontrol testinde 42 dosyanın 11’inde rücu dosyası açılmadığı tespit edildi.',
+    reason: '2026-Q2 kontrol testinde 60 günü aşan 11 dosyada garanti çağrısının hiç başlatılmadığı tespit edildi.',
     changes: [
       { field: 'effectiveness', label: 'Etkinlik durumu', oldValue: 'Kısmen Etkin', newValue: 'Etkin Değil' },
       { field: 'designAdequacy', label: 'Tasarım yeterliliği', oldValue: 'Yeterli', newValue: 'İyileştirme Gerekli' },
@@ -260,12 +330,13 @@ const handwrittenAudit: AuditEntry[] = [
     action: 'update',
     entityType: 'risk',
     entityId: 'rsk-R-HSR-05',
-    entityName: 'Sahte veya tahrif edilmiş evrak ile işlem yapılması',
-    summary: 'Artık risk skoru 9 → 12 olarak revize edildi.',
-    reason: 'Son altı ayda tespit edilen suistimal girişimlerinde artış gözlendi; trend “artıyor” olarak işaretlendi.',
+    entityName: 'Muallak karşılığının eksik veya fazla ayrılması',
+    summary: 'Artık risk skoru 8 → 12 olarak revize edildi.',
+    reason:
+      'Dönem sonu düzeltme tutarlarının üç çeyrektir artması üzerine etki bir kademe yükseltildi; aylık muallak gözden geçirmesi düzensiz yapılıyor.',
     changes: [
-      { field: 'residual.likelihood', label: 'Artık olasılık', oldValue: '2', newValue: '3' },
-      { field: 'trend', label: 'Trend', oldValue: 'Yatay', newValue: 'Artıyor' },
+      { field: 'residual.impact', label: 'Artık etki', oldValue: '3', newValue: '4' },
+      { field: 'trend', label: 'Trend', oldValue: 'Yatay', newValue: 'Yatay' },
     ],
   },
   {
@@ -296,8 +367,8 @@ const handwrittenAudit: AuditEntry[] = [
     action: 'approve',
     entityType: 'change_request',
     entityId: 'chg-003',
-    entityName: 'DT-2026-009 — E-posta kanalının mutabakata alınması',
-    summary: 'İç Kontrol onayı verildi; PRS-HSR-01 prosedürü 3.1 sürümüyle yayımlandı.',
+    entityName: 'DT-2026-009 — Evrak geliş tarihinin zorunlu kılınması',
+    summary: 'İç Kontrol onayı verildi; PRS-HSR-01 Evrak Yönetimi Prosedürü 3.1 sürümüyle yayımlandı.',
     changes: [{ field: 'version', label: 'Doküman versiyonu', oldValue: '3.0', newValue: '3.1' }],
   },
   {
@@ -328,10 +399,10 @@ const handwrittenAudit: AuditEntry[] = [
     action: 'update',
     entityType: 'document',
     entityId: 'doc-PRS-HSR-09',
-    entityName: 'Hasar Ödeme Prosedürü',
-    summary: 'Prosedür 5.1 → 5.2 sürümüne güncellendi.',
-    reason: 'IBAN değişiklik taleplerinde geri arama ve ikinci onay adımı eklendi.',
-    changes: [{ field: 'version', label: 'Versiyon', oldValue: '5.1', newValue: '5.2' }],
+    entityName: 'Maddi Hasar Dosya İnceleme Prosedürü',
+    summary: 'Prosedür 2.3 → 2.4 sürümüne güncellendi.',
+    reason: 'Eksper raporunun ikinci uzman tarafından kontrol edileceği eşik ve rapor takip adımı eklendi.',
+    changes: [{ field: 'version', label: 'Versiyon', oldValue: '2.3', newValue: '2.4' }],
   },
   {
     id: 'aud-010',
@@ -362,8 +433,66 @@ function derivedAudit(nodes: ProcessNode[]): AuditEntry[] {
     }));
 }
 
+/* ------------------------------------------------------------------ */
+/* Örnek ek bağlantıları                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ekler kaydın kendisinde değil, kaynak sisteminde durur. Demo verisinde
+ * üç tipik kaynağı da gösteriyoruz: SharePoint kütüphanesi, ağ paylaşımı
+ * ve kurum içi sunucu. Ağ yolları tarayıcıdan açılamaz; arayüz bunları
+ * kopyalanabilir gösterir.
+ */
+const seedAttachments: Record<string, Attachment[]> = {
+  'doc-PRS-HSR-01': [
+    {
+      id: 'att-seed-01',
+      label: 'Evrak Yönetimi Prosedürü v3.0 (imzalı PDF)',
+      href: 'https://tmtb.sharepoint.com/sites/IcKontrol/Prosedurler/PRS-HSR-01-v3.pdf',
+      source: 'sharepoint',
+      note: 'Yürürlükteki imzalı nüsha; kâğıt kopya Hasar Destek arşivindedir.',
+      addedById: 'usr-05',
+      addedAt: '2026-03-05T08:20:00Z',
+    },
+  ],
+  'ctl-K-HSR-01': [
+    {
+      id: 'att-seed-02',
+      label: 'Günlük evrak kontrol listesi (Ağustos 2026)',
+      href: '\\\\dosya01\\Hasar\\Kontroller\\K-HSR-01\\2026-08.xlsx',
+      source: 'network',
+      note: 'Kontrol kanıtı; her ay yeni dosya açılır.',
+      addedById: 'usr-05',
+      addedAt: '2026-08-03T06:40:00Z',
+    },
+  ],
+  'rsk-R-HSR-09': [
+    {
+      id: 'att-seed-03',
+      label: 'Muallak yeterlilik analizi 2026-Q2',
+      href: 'https://intranet/raporlar/hasar/muallak-analiz-2026Q2',
+      source: 'server',
+      note: 'Risk değerlendirmesinde kullanılan rapor.',
+      addedById: 'usr-03',
+      addedAt: '2026-07-14T12:05:00Z',
+    },
+  ],
+};
+
+/** Örnek ekleri ilgili kayıtlara iliştirir. */
+function withSeedAttachments<T extends { id: string; attachments?: Attachment[] }>(items: T[]): T[] {
+  return items.map((item) =>
+    seedAttachments[item.id] ? { ...item, attachments: seedAttachments[item.id] } : item,
+  );
+}
+
 export const dataset: Dataset = {
   ...built,
+  documents: withSeedAttachments(built.documents),
+  controls: withSeedAttachments(built.controls),
+  risks: withSeedAttachments(built.risks),
+  roles: builtInRoles,
+  accounts,
   changeRequests,
   auditTrail: [...handwrittenAudit, ...derivedAudit(built.nodes)].sort(
     (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),

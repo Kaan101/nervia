@@ -54,13 +54,14 @@ export function buildSearchIndex(data: Dataset): IndexEntry[] {
       kind: 'process', id: n.id, code: n.code, title: n.name,
       subtitle: `${nodeKindLabels[n.kind]} · ${userName(n.ownerId)}`,
       context: n.parentId ? nodeName(n.parentId) : '',
-      href: `#/surecler/${n.id}`,
+      href: `#/akis/${n.id}`,
       haystack: normalize(`${n.code} ${n.name} ${body}`),
       body,
     });
   }
 
   for (const r of data.risks) {
+    if (r.archived) continue;
     const body = [r.description, r.cause, r.consequence, userName(r.ownerId), riskCategoryLabels[r.category]].join(' ');
     entries.push({
       kind: 'risk', id: r.id, code: r.code, title: r.name,
@@ -73,6 +74,7 @@ export function buildSearchIndex(data: Dataset): IndexEntry[] {
   }
 
   for (const c of data.controls) {
+    if (c.archived) continue;
     const body = [c.description, c.method, c.evidence, userName(c.ownerId), controlNatureLabels[c.nature]].join(' ');
     entries.push({
       kind: 'control', id: c.id, code: c.code, title: c.name,
@@ -85,6 +87,7 @@ export function buildSearchIndex(data: Dataset): IndexEntry[] {
   }
 
   for (const a of data.actions) {
+    if (a.archived) continue;
     const body = [a.description, a.evidence, a.managerComment, userName(a.ownerId)].join(' ');
     entries.push({
       kind: 'action', id: a.id, code: a.code, title: a.title,
@@ -97,6 +100,7 @@ export function buildSearchIndex(data: Dataset): IndexEntry[] {
   }
 
   for (const d of data.documents) {
+    if (d.archived) continue;
     const body = [d.summary, d.sections.map((s) => `${s.heading} ${s.body.join(' ')}`).join(' ')].join(' ');
     entries.push({
       kind: 'document', id: d.id, code: d.code, title: d.name,

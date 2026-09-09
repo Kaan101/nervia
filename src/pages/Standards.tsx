@@ -85,10 +85,12 @@ const standards: StandardCard[] = [
 
 export function StandardsPage() {
   const data = useData((s) => s.data);
+  const activeRisks = useData((s) => s.activeRisks);
+  const activeControls = useData((s) => s.activeControls);
 
   const cosoRows = useMemo(() => {
     const map = new Map<CosoComponent, number>();
-    for (const c of data.controls) map.set(c.cosoComponent, (map.get(c.cosoComponent) ?? 0) + 1);
+    for (const c of activeControls) map.set(c.cosoComponent, (map.get(c.cosoComponent) ?? 0) + 1);
     return [...map.entries()].map(([key, count]) => ({
       key, label: cosoComponentLabels[key], total: count,
       byLevel: { low: count, medium: 0, high: 0, critical: 0 } as never,
@@ -106,7 +108,7 @@ export function StandardsPage() {
   }, [data]);
 
   const risksByStandard = useMemo(
-    () => data.risks.filter((r) => r.standards?.length).length,
+    () => activeRisks.filter((r) => r.standards?.length).length,
     [data],
   );
 
@@ -126,7 +128,7 @@ export function StandardsPage() {
 
       <div className="grid cols-4" style={{ marginBottom: 'var(--s5)' }}>
         <div className="card card-pad"><Metric compact label="Desteklenen çerçeve" value={standards.length} /></div>
-        <div className="card card-pad"><Metric compact label="Sınıflandırılmış kontrol" value={data.controls.length} sub="COSO bileşenine göre" /></div>
+        <div className="card card-pad"><Metric compact label="Sınıflandırılmış kontrol" value={activeControls.length} sub="COSO bileşenine göre" /></div>
         <div className="card card-pad"><Metric compact label="Standarda referanslı risk" value={risksByStandard} /></div>
         <div className="card card-pad">
           <Metric compact label="Savunma hattı dağılımı"
@@ -219,7 +221,7 @@ export function StandardsPage() {
             metin etiketiyle birlikte gösterilir; hiçbir yerde tek başına renk anlam taşımaz.
           </p>
           <p className="dim" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--s2)' }}>
-            {`Örnek: ${data.risks.length} riskin ${data.risks.filter((r) => riskLevel(r.residual) === 'critical').length} tanesi kritik bantta.`}
+            {`Örnek: ${activeRisks.length} riskin ${activeRisks.filter((r) => riskLevel(r.residual) === 'critical').length} tanesi kritik bantta.`}
           </p>
         </div>
       </div>
