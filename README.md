@@ -240,26 +240,30 @@ olumsuzsa dosya **yurt içi hasar sürecine devredilir**.
 
 ---
 
-## Görünümler
+## Analiz mercekleri
 
-Aynı süreç ayrıca farklı görünümlerle incelenebilir (Bağlantı Ağı, Risk Isı Haritası,
-Standart Uyumu sayfaları):
+Süreç Akışı ekranı birleşmeden önce Süreç Haritası altı ayrı görünüm sunuyordu.
+Bunlardan üçü — Harita, Ağaç, Akış — birleşik akışın kendisi oldu: süreç seçici
+haritanın, iç içe açılma ağacın, yukarıdan aşağı sıra da akışın yerini aldı.
+Kalan üçü aynı ağaca farklı açılardan bakan mercekler olduğu için korundu ve
+akışın üstündeki görünüm şeridinden açılır:
 
-| Görünüm | Ne gösterir |
+| Mercek | Ne gösterir |
 |---|---|
-| **Harita** | Ana süreç kartları; alt süreç, risk, kritik risk, kontrol, aksiyon ve olgunluk göstergeleriyle |
-| **Ağaç** | Tam hiyerarşi; expand/collapse ile katman katman |
-| **Akış** | Journey/flow görünümü — işin baştan sona yatay ilerleyişi |
-| **Risk** | Yalnızca riskler ve kritik noktalar |
-| **Kontrol** | Yalnızca kontroller; niteliğine göre gruplanmış |
-| **Yönetim** | Risk seviyesi, aksiyon ve performans göstergelerine odaklı sade tablo |
+| **Akış** | Varsayılan — düzenlenebilir akış ve adım detayı |
+| **Risk** | Seçili ağaçtaki riskler, adım adım gruplanmış; kritik noktalar üstte |
+| **Kontrol** | Kontroller niteliğine göre (önleyici / tespit edici / düzeltici) gruplanmış, otomatik kontrol oranıyla |
+| **Yönetim** | Risk seviyesi, zayıf kontrol, açık/gecikmiş aksiyon, olgunluk ve gözden geçirme tarihine odaklı sade tablo; satıra tıklayınca akışta o adıma dönülür |
+
+Süreç ayrıca Bağlantı Ağı, Risk Isı Haritası ve Standart Uyumu sayfalarından da
+incelenebilir.
 
 ## Modüller
 
 - **Dashboard** — toplam süreç/risk/kontrol/aksiyon göstergeleri, risk trendi, birim ve
   süreç bazlı risk dağılımı, kontrol etkinliği, KRI’ler, gecikmiş aksiyonlar, süreç sağlık özeti.
-- **Süreç Haritası** — yukarıdaki altı görünüm + iş adımı detay paneli (Genel, Kontroller,
-  Riskler, Prosedür, Örnekler, **Yapı**, Analiz sekmeleri).
+- **Süreç Akışı** — düzenlenebilir tek ekran: yukarıdan aşağı akış, yerinde derinleşme,
+  adım detay paneli, yukarıdaki analiz mercekleri ve doküman şeması sekmesi.
 - **Bağlantı Ağı** — Süreç → Risk → Kontrol → Sorumlu → Aksiyon katmanlı ağ grafiği.
 - **Risk Isı Haritası** — 5×5 olasılık × etki matrisi; birim, süreç, risk türü, sahip,
   seviye, kontrol etkinliği ve değerlendirme tarihi filtreleriyle.

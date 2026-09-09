@@ -2,112 +2,10 @@
    Süreç görselleştirme, ısı haritası, ağ grafiği, detay paneli
    ============================================================ */
 
-/* ---- Ana süreç kartları (süreç haritası) ---- */
-.proc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: var(--s4); }
-
-.proc-card {
-  position: relative; display: flex; flex-direction: column;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); overflow: hidden; text-align: left;
-  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
-}
-.proc-card::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--lvl, var(--brand-500)); opacity: 0.9;
-}
-.proc-card:hover { border-color: var(--brand-200); box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.proc-card.open { border-color: var(--brand-400); box-shadow: var(--shadow-md); }
-
-.proc-card-head { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s5) var(--s5) var(--s3); }
-.proc-card-head .code { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--ink-400); letter-spacing: 0.02em; }
-.proc-card-head h3 { font-size: var(--text-md); margin-top: 2px; }
-.proc-card .desc { padding: 0 var(--s5); color: var(--ink-500); font-size: var(--text-sm); }
-
-.proc-stats {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--border); margin-top: var(--s4);
-}
-.proc-stats .stat { padding: var(--s3) var(--s4); border-right: 1px solid var(--border); }
-.proc-stats .stat:last-child { border-right: 0; }
-.proc-stats .stat .k { font-size: var(--text-2xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-400); }
-.proc-stats .stat .v { font-size: var(--text-lg); font-weight: 600; color: var(--ink-900); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.proc-stats .stat .v.alert { color: var(--risk-critical); }
-.proc-stats .stat .v.warn { color: var(--risk-high); }
-
-.proc-card-foot {
-  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
-  margin-top: auto;
-  padding: var(--s3) var(--s4); border-top: 1px solid var(--border);
-  background: var(--surface-sunken); font-size: var(--text-xs); color: var(--ink-500);
-}
-.proc-card-foot > .spacer { min-width: var(--s2); }
-
+/* ---- Olgunluk göstergesi ---- */
 .maturity { display: inline-flex; gap: 2px; align-items: center; }
 .maturity i { width: 12px; height: 4px; border-radius: 1px; background: var(--ink-200); display: block; }
 .maturity i.on { background: var(--brand-500); }
-
-/* ---- Hiyerarşik ağaç ---- */
-.tree { font-size: var(--text-sm); }
-.tree-node { position: relative; }
-.tree-row {
-  display: flex; align-items: center; gap: var(--s2);
-  width: 100%; padding: 7px var(--s3); border: 0; border-radius: var(--radius);
-  background: none; text-align: left; color: var(--ink-800);
-  transition: background var(--dur-fast) var(--ease);
-}
-.tree-row:hover { background: var(--ink-050); }
-.tree-row.selected { background: var(--brand-050); box-shadow: inset 0 0 0 1px var(--brand-200); }
-.tree-row .kind-dot { width: 6px; height: 6px; border-radius: 2px; flex: 0 0 auto; background: var(--ink-300); }
-.tree-row .kind-dot.process { background: var(--brand-600); border-radius: 50%; width: 7px; height: 7px; }
-.tree-row .kind-dot.subprocess { background: var(--brand-400); }
-.tree-row .kind-dot.activity { background: var(--ink-400); }
-.tree-row .kind-dot.step { background: var(--ink-200); border-radius: 50%; }
-.tree-row .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tree-row .code { font-family: var(--font-mono); font-size: var(--text-2xs); color: var(--ink-400); }
-.tree-row .meta { display: flex; gap: var(--s2); align-items: center; flex: 0 0 auto; }
-.tree-children { margin-left: 13px; padding-left: var(--s3); border-left: 1px solid var(--border); }
-.tree-toggle {
-  width: 16px; height: 16px; display: grid; place-items: center; flex: 0 0 auto;
-  border: 0; background: none; color: var(--ink-400); padding: 0;
-}
-.tree-toggle:hover { color: var(--ink-700); }
-.tree-toggle.placeholder { visibility: hidden; }
-
-/* ---- Akış görünümü (journey) ---- */
-.flow { display: flex; flex-direction: column; gap: var(--s6); }
-.flow-lane { position: relative; }
-.flow-lane-head { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s3); }
-.flow-lane-head .rail { flex: 1; height: 1px; background: var(--border); }
-
-.flow-track { display: flex; gap: 0; overflow-x: auto; padding-bottom: var(--s3); align-items: stretch; }
-.flow-step {
-  position: relative; flex: 0 0 232px; display: flex; flex-direction: column; gap: var(--s2);
-  padding: var(--s4); margin-right: 22px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  text-align: left; transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
-}
-.flow-step:last-child { margin-right: 0; }
-.flow-step::after {
-  content: ''; position: absolute; right: -22px; top: 50%; width: 22px; height: 1px;
-  background: var(--border-strong);
-}
-.flow-step:last-child::after { display: none; }
-.flow-step::before {
-  content: ''; position: absolute; right: -8px; top: calc(50% - 3.5px);
-  width: 0; height: 0; border-left: 6px solid var(--border-strong);
-  border-top: 3.5px solid transparent; border-bottom: 3.5px solid transparent;
-}
-.flow-step:last-child::before { display: none; }
-.flow-step:hover { border-color: var(--brand-300, var(--brand-200)); box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.flow-step.selected { border-color: var(--brand-500); box-shadow: var(--shadow-md); }
-.flow-step.dim { opacity: 0.42; }
-.flow-step .seq {
-  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
-  background: var(--brand-050); color: var(--brand-700); border: 1px solid var(--brand-200);
-  font-size: var(--text-2xs); font-weight: 700; font-variant-numeric: tabular-nums;
-}
-.flow-step h4 { font-size: var(--text-sm); line-height: 1.35; }
-.flow-step .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; padding-top: var(--s2); }
 
 /* ---- Risk / kontrol görünümü ---- */
 .rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--s4); }
@@ -555,3 +453,7 @@
 .fe-new-root { border-style: dashed; color: var(--brand-700); }
 /* Henüz alt adımı olmayan kutunun oku soluk: açılabilir ama boş. */
 .fe-box-caret-btn.is-empty { color: var(--ink-300); }
+
+/* Akış içindeki analiz mercekleri (eski Süreç Haritası görünümleri). */
+.fe-views { display: flex; margin-bottom: var(--s4); }
+.fe-analysis { display: flex; flex-direction: column; gap: var(--s4); }

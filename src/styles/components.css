@@ -313,126 +313,31 @@ table.data td .input-sm { width: 100%; min-width: 96px; }
 /* ------------------------------------------------------------------ */
 
 /* Kırıntı yolu */
-.canvas-trail {
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2);
-  font-size: var(--text-sm); color: var(--ink-600); margin-bottom: var(--s4);
-}
-.canvas-trail .link {
-  background: none; border: 0; padding: 0; cursor: pointer;
-  color: var(--brand-600); font: inherit;
-}
-.canvas-trail .link:hover { text-decoration: underline; }
 
 /* Varyant seçimi — giriş ekranındaki büyük kartlar */
-.canvas-variant {
-  display: flex; flex-direction: column; text-align: left; width: 100%;
-  padding: var(--s5); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  background: var(--surface); cursor: pointer;
-  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out),
-              transform var(--dur) var(--ease-out);
-}
-.canvas-variant:hover {
-  border-color: var(--brand-400); box-shadow: var(--shadow-md); transform: translateY(-2px);
-}
 
 /* Kutu */
-.canvas-box {
-  display: flex; flex-direction: column; min-width: 0;
-  border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface); overflow: hidden;
-  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
-}
-.canvas-box:hover { border-color: var(--brand-400); box-shadow: var(--shadow-sm); }
 /* Alt kırılımı olan kutu, olmayanla aynı görünmemeli. */
-.canvas-box.drillable { border-left: 3px solid var(--brand-400); }
-.canvas-box.leaf { border-left: 3px solid var(--ink-200); }
 
-.canvas-box-main {
-  display: flex; flex-direction: column; gap: var(--s3); width: 100%;
-  padding: var(--s4); background: none; border: 0; cursor: pointer; text-align: left;
-}
-.canvas-box-code {
-  font-size: var(--text-xs); font-variant-numeric: tabular-nums;
-  color: var(--ink-500); letter-spacing: 0.02em;
-}
-.canvas-box-name {
-  font-size: var(--text-sm); line-height: 1.35; color: var(--ink-800);
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-}
-.canvas-box-foot {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
-  padding: var(--s2) var(--s3); border-top: 1px solid var(--border-subtle, var(--border));
-  background: var(--surface-sunken);
-}
 
 /* Sayaç rozetleri — kutu dar olduğu için sabit iki sütun: dördü her
    zaman aynı yerde durur, göz kutudan kutuya kayarken aramak zorunda
    kalmaz. */
-.canvas-counts { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-.canvas-chip {
-  display: inline-flex; align-items: center; gap: 4px; min-width: 0;
-  padding: 2px 7px; border-radius: 99px; border: 1px solid var(--border);
-  background: var(--surface-sunken); font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums; color: var(--ink-700);
-  white-space: nowrap; overflow: hidden;
-}
-.canvas-chip > svg { flex: 0 0 auto; }
 /* Sıfır olan sayaç dikkat çekmemeli ama gizlenmemeli: eksikliğin kendisi bilgi.
    Ad alanı şart: yalın ".empty" uygulamanın boş-durum bileşeniyle çakışıyor. */
-.canvas-chip.is-zero { opacity: 0.45; }
-.canvas-chip.is-alert { border-color: var(--risk-critical-line); color: var(--risk-critical); }
-.canvas-chip-label { color: var(--ink-500); overflow: hidden; text-overflow: ellipsis; }
 
 /* Akış: kutular soldan sağa dizilir, aralarındaki ok sırayı gösterir.
    Sarmalayan bir ızgara yerine tek şerit kullanılıyor: süreç adımları
    sıralıdır ve satır sonunda kopan bir ok yanlış bilgi verir. Şerit kendi
    içinde kayar, sayfa gövdesi yatay kaymaz. */
-.canvas-flow {
-  display: flex; align-items: stretch; gap: 0;
-  overflow-x: auto; padding-bottom: var(--s3);
-  scroll-snap-type: x proximity;
-}
-.canvas-flow-item {
-  display: flex; align-items: center; flex: 0 0 auto; scroll-snap-align: start;
-}
-.canvas-flow-item > .canvas-box { width: 262px; }
 
 /* Bağlantı oku */
-.canvas-arrow {
-  flex: 0 0 auto; position: relative; width: var(--s6); height: 2px;
-  background: var(--ink-300); margin: 0 3px;
-}
-.canvas-arrow::after {
-  content: ''; position: absolute; right: -1px; top: -4px;
-  border-left: 7px solid var(--ink-300);
-  border-top: 5px solid transparent; border-bottom: 5px solid transparent;
-}
 
 /* Düğüm içeriği */
-.canvas-inspector {
-  padding: var(--s5); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  background: var(--surface);
-}
-.canvas-record {
-  display: flex; align-items: center; gap: var(--s2); width: 100%;
-  padding: 5px var(--s2); border: 0; border-radius: var(--radius-sm);
-  background: none; cursor: pointer; text-align: left; font-size: var(--text-xs);
-  color: var(--ink-700);
-}
-.canvas-record:hover { background: var(--surface-sunken); }
-.canvas-record-code {
-  font-variant-numeric: tabular-nums; color: var(--ink-500); flex-shrink: 0;
-}
-.canvas-record .dot {
-  width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0;
-  background: var(--lvl-mark, var(--ink-300));
-}
 
 @media (max-width: 1100px) {
-  .canvas-inspector .grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-  .canvas-inspector .grid.cols-4 { grid-template-columns: minmax(0, 1fr); }
   .grid.cols-2 { grid-template-columns: minmax(0, 1fr); }
 }
 

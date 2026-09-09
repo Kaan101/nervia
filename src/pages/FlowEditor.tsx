@@ -18,7 +18,7 @@ import {
 } from '@/components/common/Primitives';
 import {
   IconArrowDown, IconBook, IconChevronDown, IconChevronRight, IconControl, IconDoc,
-  IconFlow, IconPlus, IconProcess, IconRisk, IconSettings, IconWarning,
+  IconFlow, IconList, IconPlus, IconProcess, IconRisk, IconSettings, IconWarning,
 } from '@/components/common/Icons';
 import { NodeFormModal } from '@/components/forms/NodeForm';
 import { useApprovalSave } from '@/components/forms/useApprovalSave';
@@ -26,6 +26,7 @@ import { RiskFormModal } from '@/components/forms/RiskForm';
 import { ControlFormModal } from '@/components/forms/ControlForm';
 import { DocumentFormModal } from '@/components/forms/DocumentForm';
 import { DocumentFlowView } from '@/pages/FlowPage';
+import { ControlView, ManagementView, RiskView } from '@/components/process/Views';
 
 /**
  * SÜREÇ AKIŞI — tek ekran
@@ -106,6 +107,16 @@ function useFlowRoots(): ProcessNode[] {
   );
 }
 
+/**
+ * Akış içindeki görünümler.
+ *
+ * Eski Süreç Haritası altı görünüm sunuyordu: Harita, Ağaç, Akış, Risk,
+ * Kontrol, Yönetim. İlk üçü birleşik akışın kendisi oldu (seçici = harita,
+ * iç içe açılma = ağaç, sıra = akış). Kalan üçü aynı ağaca farklı mercekler
+ * olduğu için buraya taşındı — ekran birleşirken özellik kaybolmasın.
+ */
+type View = 'flow' | 'risk' | 'control' | 'management';
+
 type Mode = 'editor' | 'document';
 
 /**
@@ -173,6 +184,7 @@ export function FlowEditorPage() {
   const currentUser = useAuth((s) => s.currentUser);
   const canCreateProcess = userCan(currentUser, 'process.create');
   const [addingRoot, setAddingRoot] = useState(false);
+  const [view, setView] = useState<View>('flow');
   /** Ana süreçler organizasyon düğümünün altına açılır. */
   const orgNode = data.nodes.find((n) => n.kind === 'organization');
 
@@ -228,6 +240,32 @@ export function FlowEditorPage() {
         ) : null}
       </div>
 
+      <div className="fe-views">
+        <Segmented<View>
+          ariaLabel="Görünüm"
+          value={view}
+          onChange={setView}
+          options={[
+            { id: 'flow', label: 'Akış', icon: <IconFlow size={13} /> },
+            { id: 'risk', label: 'Risk', icon: <IconRisk size={13} /> },
+            { id: 'control', label: 'Kontrol', icon: <IconControl size={13} /> },
+            { id: 'management', label: 'Yönetim', icon: <IconList size={13} /> },
+          ]}
+        />
+      </div>
+
+      {view !== 'flow' ? (
+        <div className="fe-analysis">
+          {view === 'risk' ? <RiskView rootId={root.id} /> : null}
+          {view === 'control' ? <ControlView rootId={root.id} /> : null}
+          {view === 'management' ? (
+            <ManagementView
+              rootId={root.id}
+              onSelect={(id) => { setView('flow'); setSelectedId(id); setOpen((o) => new Set([...o, id])); }}
+            />
+          ) : null}
+        </div>
+      ) : (
       <div className="fe-body">
         <div className="card fe-canvas">
           <FlowBranch
@@ -258,6 +296,7 @@ export function FlowEditorPage() {
             )}
         </aside>
       </div>
+      )}
 
       <NodeFormModal
         open={addingRoot && Boolean(orgNode)}
