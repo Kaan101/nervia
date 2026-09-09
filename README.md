@@ -144,6 +144,43 @@ isimlerini görür, isterse tüm detayı açar.
 
 ## Hasar İş Akışı
 
+Ekranın iki görünümü var: **Akış Editörü** (varsayılan) ve **Doküman Şeması**.
+
+### Akış Editörü
+
+Kurumun kendi akışı — canlı veriden okur ve **düzenlenebilir**. Akış yukarıdan
+aşağı okunur: her kutu bir süreç adımıdır, kutular okla bağlanır.
+
+**Yerinde açılma.** Bir kutuya tıklandığında alt adımları *aynı akışın içinde*,
+girintili olarak açılır ve altındaki adımlar aşağı kayar. Üst kutu görüntüden
+çıkmaz. Süreç Kanvası'ndan farkı budur: kanvas her tıklamada bir seviye
+derinleşir ve üstü gizler; burada seviyeler iç içe açılır, akışın bütünü
+görünür kalır. İstenen her seviye ayrı ayrı açılıp kapanır — ok işareti
+açıp kapar, kutunun gövdesi seçer.
+
+**Akışı değiştirme.** İki kutu arasındaki **+** o konuma yeni adım ekler;
+sonraki kardeşler bir aşağı kayar. Kutunun sağ ucundaki menüden adım
+düzenlenir, yukarı/aşağı taşınır ya da akıştan çıkarılır.
+
+| İşlem | Nasıl | Sonuç |
+|---|---|---|
+| Araya adım ekleme | Kutular arasındaki **+** | Adım o sıraya girer, kardeşler kayar |
+| Sıra değiştirme | Kutu menüsü → Yukarı / Aşağı taşı | Audit trail'e yazılır |
+| Adımı düzenleme | Kutu menüsü → Adımı düzenle | Kritik alan değiştiyse onaya düşer |
+| Akıştan çıkarma | Kutu menüsü → Akıştan çıkar | `status` kritik alan olduğu için **onay zincirine** girer |
+| Risk/kontrol/prosedür/doküman ekleme | Sağ paneldeki **+ … ekle** | Kayıt o adıma bağlı açılır |
+
+**Adımın içeriği kutunun üzerindedir:** Risk, Kontrol, Prosedür ve Doküman
+sayaçları alt ağacın toplamıdır. Kutuya tıklayınca sağdaki panel o adımın
+kayıtlarını açar; kayda tıklayınca detayı gelir, panelden yenisi eklenir.
+
+**Akıştan çıkarma neden doğrudan silmiyor?** Bir adımın akıştan çıkması alt
+ağacını da görünmez yapar ve geçmiş raporları etkiler. Bu yüzden `status`
+kritik alandır: tek kişinin kararı olmaz, değişiklik talebi açılır ve onay
+tamamlanınca uygulanır. Kayıt hiçbir zaman silinmez, arşivlenir.
+
+### Doküman Şeması
+
 Süreç haritası **"ne var"** sorusunu cevaplar: ana süreç → alt süreç →
 faaliyet → adım hiyerarşisi. İş akışı **"sonra ne oluyor"** sorusunu
 cevaplar: hangi adımdan sonra ne gelir, hangi koşulda hangi dala gidilir,
@@ -274,6 +311,7 @@ Sistem yalnızca okuma odaklı değildir; kayıtlar arayüzden yönetilir.
 | **Yapı düzenleme** | Yapı sekmesi: akıştaki sırayı değiştirme (yukarı/aşağı), başka bir üst sürecin altına taşıma, alt kayıt ve kardeş ekleme |
 | **İlişkilendirme** | Risk ↔ kontrol, risk ↔ süreç adımı, kontrol ↔ süreç adımı, doküman ↔ süreç adımı, doküman ↔ kontrol — bağ iki yönde de kurulur |
 | **Onay** | Kritik alan değişiklikleri Değişiklik Yönetimi’nde onaylanır; onay tamamlanınca yama uygulanır ve yeni versiyon yayımlanır |
+| **Akışa adım ekleme / çıkarma / sıralama** | Hasar İş Akışı → Akış Editörü: kutular arasındaki **+** ve kutu menüsü |
 | **Dosya bağlantısı ekleme** | Risk, kontrol, aksiyon, doküman ve süreç formlarındaki *Ekler* bölümü; onay/ret kararında *Dayanak ekleri* |
 | Kontrol **etkinlik değerlendirmesi** | Kontrol panelinin altı (yalnızca İç Kontrol) |
 | Aksiyon **durum ve ilerleme** | Aksiyon panelinin altı |
@@ -391,8 +429,8 @@ yöneticisindedir. Yetkisi olmayan kullanıcı düğmeleri görmez, gerekçesini
 
 ## Doğrulama
 
-Yedi uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
-düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 128 kontrol.
+Sekiz uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
+düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 149 kontrol.
 
 ```bash
 npm run build
@@ -409,6 +447,7 @@ npm run test:e2e
 | `faz5-kanvas` | Varyant seçimi, kırılım, sayaçlar, bağlantı okları, kırıntı yolu, yerinde ekleme, yetki denetimi | 22 |
 | `faz6-ekler` | Ek ekleme, kaynak tespiti, açılabilir/kopyalanabilir ayrımı, zararlı şema reddi, kalıcılık, audit izi | 12 |
 | `faz7-is-akisi` | Akış ve aşama listesi, şema çizimi, karar noktaları, adım detayı, süreç adımına geçiş, ölçek | 20 |
+| `faz8-akis-editoru` | Dikey akış, yerinde açılma, araya ekleme, sıralama, panelden kayıt ekleme, onay zinciri, yetki | 21 |
 
 Ortam değişkenleri:
 

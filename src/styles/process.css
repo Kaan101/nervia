@@ -412,3 +412,142 @@
   border-color: var(--brand-400); background: var(--brand-050);
   color: var(--brand-700); font-weight: 600;
 }
+
+/* ================================================================== */
+/* AKIŞ EDİTÖRÜ — dikey, yerinde açılan akış                           */
+/* ================================================================== */
+
+.fe-body {
+  display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: var(--s4);
+  align-items: start;
+}
+@media (max-width: 1240px) {
+  .fe-body { grid-template-columns: minmax(0, 1fr); }
+}
+.fe-canvas {
+  padding: var(--s5);
+  height: clamp(360px, calc(100vh - 330px), 880px);
+  overflow-y: auto;
+}
+.fe-inspector {
+  padding: var(--s5);
+  max-height: clamp(360px, calc(100vh - 330px), 880px);
+  overflow-y: auto;
+}
+
+.fe-branch { display: flex; flex-direction: column; }
+.fe-slot { display: flex; flex-direction: column; }
+
+/* Kutu */
+.fe-box {
+  position: relative;
+  /* Ok, gövde ve sayaç şeridi tek satırda; şerit flex-basis 100% ile alta düşer. */
+  display: flex; flex-direction: row; flex-wrap: wrap; align-items: center;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
+  background: var(--surface); overflow: hidden;
+  transition: border-color .12s, box-shadow .12s;
+}
+.fe-box:hover { border-color: var(--brand-400); }
+.fe-box.is-selected { border-color: var(--brand-600); box-shadow: 0 0 0 2px var(--brand-100); }
+.fe-box.is-open { background: var(--brand-050); }
+
+.fe-box-main {
+  display: flex; align-items: center; gap: var(--s3);
+  flex: 1 1 auto; min-width: 0; padding: var(--s3) var(--s4) var(--s3) 0;
+  border: 0; background: none; font: inherit; text-align: left; cursor: pointer;
+}
+.fe-box-caret {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; align-self: stretch; color: var(--ink-500); flex: 0 0 auto;
+}
+.fe-box-caret-btn {
+  border: 0; background: none; cursor: pointer; padding: 0;
+}
+.fe-box-caret-btn:hover { color: var(--brand-600); background: var(--ink-050); }
+.fe-box-dot {
+  width: 5px; height: 5px; margin: 0 5px; border-radius: 50%;
+  background: var(--ink-300);
+}
+.fe-box-no {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 5px; flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+  background: var(--ink-100); color: var(--ink-600);
+  font-size: var(--text-2xs); font-weight: 700;
+}
+.fe-box.is-selected .fe-box-no { background: var(--brand-100); color: var(--brand-700); }
+
+/* Sayaç şeridi */
+.fe-box-chips {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2);
+  flex: 1 0 100%;
+  padding: 0 var(--s4) 10px calc(30px + var(--s4) + 22px + var(--s3));
+}
+.fe-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-sunken);
+  font-size: var(--text-2xs); color: var(--ink-600); white-space: nowrap;
+}
+.fe-chip b { color: var(--ink-800); font-weight: 700; }
+/* Sıfır sayaçlar solar ama gizlenmez: "yok" da bir bilgidir. */
+.fe-chip.is-zero { opacity: .45; }
+.fe-chip.is-alert {
+  border-color: var(--risk-high-line); background: var(--risk-high-bg); color: var(--risk-high);
+}
+.fe-box-menu { position: relative; margin-left: auto; }
+
+/* İşlem menüsü */
+.fe-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 20;
+  display: flex; flex-direction: column; min-width: 190px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+}
+.fe-menu button {
+  padding: 7px var(--s3); border: 0; border-radius: var(--radius-sm);
+  background: none; font: inherit; font-size: var(--text-sm);
+  color: var(--ink-700); text-align: left; cursor: pointer;
+}
+.fe-menu button:hover:not(:disabled) { background: var(--ink-050); }
+.fe-menu button:disabled { color: var(--ink-300); cursor: default; }
+.fe-menu button.is-danger { color: var(--risk-critical); }
+
+/* Kutular arası ok */
+.fe-arrow {
+  display: flex; flex-direction: column; align-items: center;
+  color: var(--ink-400);
+}
+.fe-arrow-line { width: 1.5px; height: 16px; background: var(--ink-300); }
+
+/* Araya ekleme tutamağı — normalde soluk, üzerine gelince belirir. */
+/* Tutamak hep görünür ama soluktur: keşfedilebilir olsun, akışı
+   okurken göze batmasın. */
+.fe-insert {
+  display: flex; align-items: center; justify-content: center;
+  height: 20px; opacity: .3; transition: opacity .12s;
+}
+.fe-branch:hover .fe-insert, .fe-insert:focus-within, .fe-insert:hover { opacity: 1; }
+.fe-insert-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; padding: 0;
+  border: 1px dashed var(--brand-400); border-radius: 50%;
+  background: var(--surface); color: var(--brand-600); cursor: pointer;
+}
+.fe-insert-btn:hover { background: var(--brand-050); border-style: solid; }
+
+/* İç içe açılan dal: girinti ve sol çizgi hiyerarşiyi gösterir. */
+.fe-nest {
+  margin: var(--s2) 0 var(--s2) var(--s5);
+  padding-left: var(--s4);
+  border-left: 2px solid var(--brand-200, var(--border-strong));
+}
+.fe-leaf {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); padding: var(--s3);
+  border: 1px dashed var(--border-strong); border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+/* Görünüm anahtarı sayfa başlığının üstünde durur. */
+.fe-mode { display: flex; justify-content: flex-start; margin-bottom: var(--s4); }

@@ -34,7 +34,7 @@ const kindLabels: Record<FlowNodeKind, string> = {
   end: 'Bitiş',
 };
 
-export function FlowPage() {
+export function DocumentFlowView() {
   const [chartId, setChartId] = useState(flowCharts[0].id);
   const chart = flowCharts.find((c) => c.id === chartId) ?? flowCharts[0];
   const [stageId, setStageId] = useState(chart.stages[0].id);

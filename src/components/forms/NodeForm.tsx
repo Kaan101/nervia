@@ -32,10 +32,16 @@ interface Props {
   nodeId?: string | null;
   /** Yeni düğüm bu üst düğümün altına eklenir. */
   parentId?: string | null;
+  /**
+   * Yeni düğümün akıştaki sırası. Verilmezse sona eklenir; verilirse o
+   * sıraya girer ve sonraki kardeşler bir aşağı kayar (akış editöründe
+   * iki kutu arasına ekleme).
+   */
+  insertAt?: number | null;
   onSaved?: (nodeId: string) => void;
 }
 
-export function NodeFormModal({ open, onClose, nodeId, parentId, onSaved }: Props) {
+export function NodeFormModal({ open, onClose, nodeId, parentId, insertAt, onSaved }: Props) {
   const data = useData((s) => s.data);
   const createNode = useData((s) => s.createNode);
   const saveWithApproval = useApprovalSave('process');
@@ -49,16 +55,16 @@ export function NodeFormModal({ open, onClose, nodeId, parentId, onSaved }: Prop
   const initial = useMemo<ProcessNode | null>(() => {
     if (existing) return existing;
     if (!parent || !childKind || !currentUser) return null;
-    const order = data.nodes.filter((n) => n.parentId === parent.id).length;
+    const order = insertAt ?? data.nodes.filter((n) => n.parentId === parent.id).length;
     return blankNode(currentUser, parent, childKind, suggestNodeCode(data, parent, childKind), order);
-  }, [existing, parent, childKind, data, currentUser]);
+  }, [existing, parent, childKind, data, currentUser, insertAt]);
 
   const [draft, setDraft] = useState<ProcessNode | null>(initial);
   const [reason, setReason] = useState('');
   const [touched, setTouched] = useState(false);
   const [seenKey, setSeenKey] = useState('');
 
-  const key = `${nodeId ?? parentId ?? 'new'}-${open}`;
+  const key = `${nodeId ?? parentId ?? 'new'}-${insertAt ?? 'son'}-${open}`;
   if (open && key !== seenKey) {
     setSeenKey(key);
     setDraft(initial);

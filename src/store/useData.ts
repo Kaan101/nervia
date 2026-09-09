@@ -576,7 +576,18 @@ export const useData = create<DataState>((set, get) => ({
   },
 
   createNode: (node, actorId) => {
-    set((state) => withIndexes({ ...state.data, nodes: [...state.data.nodes, node] }));
+    // Araya ekleme: yeni düğümün sırası zaten dolu ise o sıradan itibaren
+    // kardeşler bir aşağı kaydırılır. Akış editöründe iki kutu arasındaki
+    // "+" bunu kullanır; sona ekleyen çağrılarda kaydırılacak kardeş
+    // olmadığı için davranış değişmez.
+    set((state) => {
+      const nodes = state.data.nodes.map((n) =>
+        n.parentId === node.parentId && n.order >= node.order
+          ? { ...n, order: n.order + 1 }
+          : n,
+      );
+      return withIndexes({ ...state.data, nodes: [...nodes, node] });
+    });
     get().logAudit({
       userId: actorId,
       action: 'create',

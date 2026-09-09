@@ -20,7 +20,7 @@ import { StandardsPage } from '@/pages/Standards';
 import { ProfilePage, UsersPage } from '@/pages/People';
 import { AccessAdminPage } from '@/pages/AccessAdmin';
 import { CanvasPage } from '@/pages/Canvas';
-import { FlowPage } from '@/pages/FlowPage';
+import { FlowPage } from '@/pages/FlowEditor';
 
 export function App() {
   const currentUser = useAuth((s) => s.currentUser);
