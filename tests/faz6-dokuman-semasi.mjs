@@ -68,9 +68,10 @@ check('Adımın riskleri listeleniyor', riskChips >= 1, `${riskChips} risk`);
 await page.screenshot({ path: 'akis-03-adim-detay.png' });
 
 // Süreç adımına gidiş çalışıyor mu?
+// Süreç Haritası ekranı Süreç Akışı'nda birleşti; bağlantı artık /akis'e gider.
 await page.locator('.flow-inspector .rel-control').first().click();
 await page.waitForTimeout(800);
-check('Süreç haritasına geçildi', /#\/surecler\/nd-/.test(page.url()), page.url().split('#')[1] ?? '');
+check('Süreç akışındaki adıma geçildi', /#\/akis\/nd-/.test(page.url()), page.url().split('#')[1] ?? '');
 
 // ---------- 5. Doküman dayanağı olan kutular işaretli ----------
 await page.goto(`${BASE}/#/akis`, { waitUntil: 'domcontentloaded' });
