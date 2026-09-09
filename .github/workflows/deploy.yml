@@ -1,0 +1,63 @@
+name: Yayın
+
+# Varsayılan dala her push'ta uygulamayı derleyip GitHub Pages'e yayınlar.
+# Elle de tetiklenebilir (Actions → Yayın → Run workflow).
+on:
+  push:
+    branches: [claude/ic-kontrol-risk-yonetimi-rb613k]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Aynı anda tek yayın koşsun. cancel-in-progress: false — yarıda kesilen bir
+# yayın Pages'i tutarsız bırakabilir, sıradaki koşu beklesin.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  yayinla:
+    name: Derle ve yayınla
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      # enablement: true — depoda Pages henüz açık değilse bu adım açar,
+      # kaynağı da GitHub Actions'a ayarlar. Elle ayar gerekmiyor.
+      - name: Pages'i hazırla
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # vite.config.ts'te base: './' — varlıklar göreli yolla isteniyor,
+      # bu yüzden proje sayfasının /nervia/ alt yolu ayrıca verilmek zorunda
+      # değil. Yönlendirme de HashRouter üzerinden gittiği için Pages'in
+      # 404'e düşürdüğü derin bağlantı sorunu oluşmuyor.
+      - name: Derle
+        run: npm run build
+
+      - name: Derlenen siteyi yükle
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Pages'e yayınla
+        id: deployment
+        uses: actions/deploy-pages@v4

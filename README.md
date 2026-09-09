@@ -18,6 +18,19 @@ süreçler arasındaki ilişkileri görsel olarak izler (*progressive disclosure
 
 ---
 
+## Canlı sürüm
+
+**https://kaan101.github.io/nervia/**
+
+Varsayılan dala her push'ta `.github/workflows/deploy.yml` uygulamayı derleyip
+GitHub Pages'e yayınlar. Kurulum gerekmez; tarayıcıdan açılır.
+
+Uygulama veriyi tarayıcının `localStorage`'ında tutar — yaptığınız değişiklikler
+yalnızca sizin tarayıcınızda kalır, sunucuya gitmez ve başka kullanıcıyı
+etkilemez. Tohum veriye dönmek için tarayıcı site verisini temizlemek yeterli.
+
+---
+
 ## Hızlı başlangıç
 
 ```bash
