@@ -39,12 +39,15 @@ jobs:
       - name: Bağımlılıkları kur
         run: npm ci
 
-      # enablement: true — depoda Pages henüz açık değilse bu adım açar,
-      # kaynağı da GitHub Actions'a ayarlar. Elle ayar gerekmiyor.
+      # Pages'in depoda BİR KEZ elle açılması gerekiyor:
+      # Settings → Pages → Build and deployment → Source: "GitHub Actions".
+      #
+      # Bu adımın `enablement: true` seçeneği siteyi kendi oluşturabiliyor ama
+      # workflow'un GITHUB_TOKEN'ı buna yetkili değil; deneme
+      # "Create Pages site failed: Resource not accessible by integration"
+      # ile düşüyor. Site açıldıktan sonra bu adım yalnızca ayarı okur.
       - name: Pages'i hazırla
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       # vite.config.ts'te base: './' — varlıklar göreli yolla isteniyor,
       # bu yüzden proje sayfasının /nervia/ alt yolu ayrıca verilmek zorunda
