@@ -118,6 +118,11 @@
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .rel-control:hover { border-color: var(--brand-200); box-shadow: var(--shadow-xs); }
+/* Kayıtlar gerçek bağlantı (<a>) oldu. Varsayılan bağlantı mavisi paneli
+   boyamasın diye renk tasarımdan gelir; bağlantı olduğu hover'da anlaşılır. */
+.rel-control, .rel-control:hover { color: var(--ink-900); }
+.rel-control:hover .truncate { text-decoration: underline; text-underline-offset: 2px; }
+.rel-control:focus-visible { outline: 2px solid var(--brand-400); outline-offset: 2px; }
 .rel-control .eff { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .eff-effective { background: var(--risk-low-mark); }
 .eff-partially_effective { background: var(--risk-medium-mark); }
@@ -242,16 +247,19 @@
 /* Şema ve inceleyici yan yana; dar ekranda alt alta. */
 .flow-body {
   display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s4);
-  align-items: start;
+  align-items: stretch;
+  flex: 1 1 auto; min-height: 0;
 }
 @media (max-width: 1180px) {
   .flow-body { grid-template-columns: minmax(0, 1fr); }
 }
-.flow-canvas { overflow: hidden; }
-.flow-inspector { padding: var(--s5); max-height: 78vh; overflow-y: auto; }
+/* Kart, şemayı taşıyan kaydırma kutusunu tam kaplasın. */
+.flow-canvas { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.flow-inspector { padding: var(--s5); min-height: 0; overflow-y: auto; }
 
-/* Şema geniştir; yatay kaydırma sayfayı değil bu kutuyu kaydırır. */
-.flow-scroll { overflow-x: auto; padding: var(--s4); }
+/* Şema hem geniş hem uzun olabilir; iki eksende de sayfayı değil bu kutuyu
+   kaydırır. Yükseklik artık sabit bir sayı değil, gövdeden kalan yer. */
+.flow-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--s4); }
 .flow-svg { display: block; }
 
 .flow-edge { fill: none; stroke: var(--ink-400); stroke-width: 1.4; }
@@ -301,11 +309,6 @@
 .flow-swatch.kind-actor { border-style: dashed; border-radius: 5px; }
 .flow-swatch.kind-handoff { background: var(--risk-low-bg); border-color: var(--risk-low-line); }
 
-/* Şema alanı ekranın kalanını kaplar ve kendi içinde kaydırılır:
-   aşama şeridi, ölçek düğmeleri ve adım detayı görünürde kalır — akış
-   "bir ekranda" durur. Çıkarılan 470px, üstteki başlık + varyant + aşama
-   şeridi + kart başlığının yaklaşık yüksekliğidir. */
-.flow-scroll { height: clamp(300px, calc(100vh - 470px), 760px); overflow: auto; }
 .flow-zoom .btn.is-active {
   border-color: var(--brand-400); background: var(--brand-050);
   color: var(--brand-700); font-weight: 600;
@@ -315,23 +318,41 @@
 /* AKIŞ EDİTÖRÜ — dikey, yerinde açılan akış                           */
 /* ================================================================== */
 
+/* Sayfa kabuğu: görünen alanı doldurur, kendisi kaymaz.
+   Yükseklik sabit bir sayıyla tahmin edilmiyor — üstteki başlık, süreç
+   seçici ve görünüm şeridi ne kadar yer kaplarsa kaplasın, kalan yeri
+   gövde alır. Süreç seçici iki satıra sardığında da doğru çalışır. */
+.fe-page {
+  height: calc(100vh - var(--topbar-h));
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+/* Kabuğun içindeki sabit yükseklikli şeritler küçülmesin. */
+.fe-page > .fe-mode,
+.fe-page > .page-head,
+.fe-page > .fe-variants,
+.fe-page > .fe-views,
+.fe-page > .flow-variants,
+.fe-page > .flow-stages { flex: 0 0 auto; }
+
+.fe-head { margin-bottom: var(--s4); }
+.fe-head h1 { font-size: var(--text-xl); }
+
 .fe-body {
   display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: var(--s4);
-  align-items: start;
+  align-items: stretch;
+  flex: 1 1 auto; min-height: 0;
 }
 @media (max-width: 1240px) {
   .fe-body { grid-template-columns: minmax(0, 1fr); }
 }
-.fe-canvas {
+/* Kaydırma yalnızca burada olur; sayfanın kendisi taşmaz. */
+.fe-canvas, .fe-inspector {
   padding: var(--s5);
-  height: clamp(360px, calc(100vh - 330px), 880px);
-  overflow-y: auto;
+  min-height: 0; overflow-y: auto;
 }
-.fe-inspector {
-  padding: var(--s5);
-  max-height: clamp(360px, calc(100vh - 330px), 880px);
-  overflow-y: auto;
-}
+/* Analiz mercekleri de gövde yüksekliğini paylaşır. */
+.fe-analysis { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 .fe-branch { display: flex; flex-direction: column; }
 .fe-slot { display: flex; flex-direction: column; }
@@ -390,6 +411,21 @@
 .fe-chip b { color: var(--ink-800); font-weight: 700; }
 /* Sıfır sayaçlar solar ama gizlenmez: "yok" da bir bilgidir. */
 .fe-chip.is-zero { opacity: .45; }
+
+/* Sayaç aynı zamanda bir kapı: o kayıtların listesine götürür.
+   Tıklanabilirliği hover'da belli olur, sıfır olan da solukluğunu bırakır —
+   oradan ilk kaydı eklemek mümkün. */
+.fe-chip-btn {
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.fe-chip-btn:hover {
+  opacity: 1; border-color: var(--brand-400);
+  background: var(--brand-050); color: var(--brand-700);
+}
+.fe-chip-btn:hover b { color: var(--brand-700); }
+.fe-chip-btn:focus-visible { outline: 2px solid var(--brand-400); outline-offset: 1px; opacity: 1; }
 .fe-chip.is-alert {
   border-color: var(--risk-high-line); background: var(--risk-high-bg); color: var(--risk-high);
 }
@@ -456,4 +492,3 @@
 
 /* Akış içindeki analiz mercekleri (eski Süreç Haritası görünümleri). */
 .fe-views { display: flex; margin-bottom: var(--s4); }
-.fe-analysis { display: flex; flex-direction: column; gap: var(--s4); }

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { ProcessNode } from '@/types/grc';
 import { useData } from '@/store/useData';
 import { useUi } from '@/store/useUi';
@@ -130,8 +130,19 @@ type Mode = 'editor' | 'document';
  */
 export function FlowPage() {
   const [mode, setMode] = useState<Mode>('editor');
+  /**
+   * Ekranın tek sayfa kabuğu burasıdır.
+   *
+   * Önceden hem bu bileşen hem de iki görünüm ayrı ayrı `.page` açıyordu ve
+   * akış kutusunun yüksekliği `calc(100vh - 330px)` gibi sabit bir sayıyla
+   * tahmin ediliyordu. Üstteki krom (başlık, süreç seçici, görünüm şeridi)
+   * o sayıdan uzun olduğu için kutunun altı ekranın dışına taşıyordu —
+   * hele süreç seçici iki satıra sarınca. Artık tek kabuk var: yükseklik
+   * görünen alana sabitlenir, kalan yeri gövde alır, kaydırma da kutunun
+   * kendi içinde olur. Hiçbir sabit sayı yok, sarma da bozmuyor.
+   */
   return (
-    <>
+    <div className="page fe-page">
       <div className="fe-mode">
         <Segmented<Mode>
           ariaLabel="Akış görünümü"
@@ -144,7 +155,7 @@ export function FlowPage() {
         />
       </div>
       {mode === 'editor' ? <FlowEditorPage /> : <DocumentFlowView />}
-    </>
+    </div>
   );
 }
 
@@ -158,6 +169,21 @@ export function FlowEditorPage() {
   /** Açık olan kutular. Kök her zaman açıktır. */
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /**
+   * Kutudaki sayaçtan gelen bölüm isteği.
+   *
+   * Sayı taşıyan bir nesne, o sayıyı açan bir yol sunmalı. Sayaca
+   * tıklandığında adım seçilir ve panel o bölüme kaydırılır. Aynı bölüme
+   * arka arkaya tıklanabilsin diye sayaç da tutulur — yoksa değer
+   * değişmediği için efekt yeniden çalışmaz.
+   */
+  const [focus, setFocus] = useState<{ slot: Slot; n: number } | null>(null);
+
+  const openSlot = (id: string, slot: Slot) => {
+    setSelectedId(id);
+    setOpen((o) => new Set([...o, id]));
+    setFocus((f) => ({ slot, n: (f?.n ?? 0) + 1 }));
+  };
 
   /**
    * Adres çubuğundan gelen düğüm.
@@ -196,25 +222,17 @@ export function FlowEditorPage() {
     });
   };
 
-  if (!root) {
-    return (
-      <div className="page">
-        <EmptyState title="Akışa dönüştürülecek ana süreç yok" />
-      </div>
-    );
-  }
+  if (!root) return <EmptyState title="Akışa dönüştürülecek ana süreç yok" />;
 
   return (
-    <div className="page">
-      <div className="page-head">
+    <>
+      {/* Başlık bilinçli olarak kısa: ekran yüksekliği artık sabit, üstte
+          harcanan her piksel akışın kendisinden gidiyor. Nasıl kullanıldığı
+          sağ panelin boş durumunda anlatılıyor. */}
+      <div className="page-head fe-head">
         <div className="stack gap-1">
           <span className="eyebrow">İş Akışı</span>
           <h1>{root.name}</h1>
-          <p className="muted" style={{ maxWidth: '92ch' }}>
-            Akış yukarıdan aşağı okunur. Bir kutuya tıklayın; alt adımları aynı akışın içinde
-            açılır. Kutular arasındaki <strong>+</strong> ile araya yeni adım eklenir. Her adımın
-            riski, kontrolü, prosedürü ve dokümanı kutunun üzerindedir.
-          </p>
         </div>
       </div>
 
@@ -275,6 +293,7 @@ export function FlowEditorPage() {
             toggle={toggle}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            onOpenSlot={openSlot}
           />
         </div>
 
@@ -283,6 +302,7 @@ export function FlowEditorPage() {
             ? (
               <StepPanel
                 nodeId={selectedId}
+                focus={focus}
                 onClose={() => setSelectedId(null)}
                 onSelect={(id) => { setSelectedId(id); setOpen((o) => new Set([...o, id])); }}
               />
@@ -308,7 +328,7 @@ export function FlowEditorPage() {
           setSelectedId(id);
         }}
       />
-    </div>
+    </>
   );
 }
 
@@ -317,7 +337,7 @@ export function FlowEditorPage() {
 /* ------------------------------------------------------------------ */
 
 function FlowBranch({
-  parent, depth, open, toggle, selectedId, onSelect,
+  parent, depth, open, toggle, selectedId, onSelect, onOpenSlot,
 }: {
   parent: ProcessNode;
   depth: number;
@@ -325,6 +345,8 @@ function FlowBranch({
   toggle: (id: string) => void;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Kutudaki sayaca tıklandığında: adımı seç ve panelde o bölüme git. */
+  onOpenSlot: (id: string, slot: Slot) => void;
 }) {
   const data = useData((s) => s.data);
   const currentUser = useAuth((s) => s.currentUser);
@@ -382,6 +404,7 @@ function FlowBranch({
             onToggle={() => toggle(node.id)}
             selected={selectedId === node.id}
             onSelect={() => onSelect(node.id)}
+            onOpenSlot={(slot) => onOpenSlot(node.id, slot)}
             isLast={i === steps.length - 1}
           />
 
@@ -395,6 +418,7 @@ function FlowBranch({
                 toggle={toggle}
                 selectedId={selectedId}
                 onSelect={onSelect}
+                onOpenSlot={onOpenSlot}
               />
             </div>
           ) : null}
@@ -442,7 +466,7 @@ function InsertHandle({ label, onClick }: { label: string; onClick: () => void }
 /* ------------------------------------------------------------------ */
 
 function StepBox({
-  node, index, depth, expanded, onToggle, selected, onSelect, isLast,
+  node, index, depth, expanded, onToggle, selected, onSelect, onOpenSlot, isLast,
 }: {
   node: ProcessNode;
   index: number;
@@ -451,6 +475,7 @@ function StepBox({
   onToggle: () => void;
   selected: boolean;
   onSelect: () => void;
+  onOpenSlot: (slot: Slot) => void;
   isLast: boolean;
 }) {
   const data = useData((s) => s.data);
@@ -536,10 +561,19 @@ function StepBox({
       </button>
 
       <div className="fe-box-chips">
+        {/* Sayaçlar ölü rozet değil: tıklanınca adımı seçer ve sağ panelde
+            o bölüme kaydırır. Sıfır olanlar da tıklanabilir — oradan
+            "+ ... ekle" ile ilk kayıt açılır. */}
         {chips.map((c) => (
-          <span key={c.slot} className={`fe-chip${c.n ? '' : ' is-zero'}`}>
+          <button
+            key={c.slot}
+            type="button"
+            className={`fe-chip fe-chip-btn${c.n ? '' : ' is-zero'}`}
+            onClick={(e) => { e.stopPropagation(); onOpenSlot(c.slot); }}
+            title={`${node.name} — ${c.label.toLocaleLowerCase('tr')} listesi`}
+          >
             {c.label} <b>{c.n}</b>
-          </span>
+          </button>
         ))}
         {counts.reviewOverdue ? (
           <span className="fe-chip is-alert" title="Gözden geçirmesi gecikmiş">
@@ -589,9 +623,11 @@ function StepBox({
 /* ------------------------------------------------------------------ */
 
 function StepPanel({
-  nodeId, onClose, onSelect,
+  nodeId, focus, onClose, onSelect,
 }: {
   nodeId: string;
+  /** Kutudaki sayaçtan gelen bölüm isteği; panel oraya kaydırılır. */
+  focus: { slot: Slot; n: number } | null;
   onClose: () => void;
   /** İş adımına tıklandığında akışta o adıma geçilir. */
   onSelect: (id: string) => void;
@@ -599,9 +635,14 @@ function StepPanel({
   const data = useData((s) => s.data);
   const currentUser = useAuth((s) => s.currentUser);
   const select = useUi((s) => s.select);
-  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState<Slot | null>(null);
+  const sectionRefs = useRef<Partial<Record<Slot, HTMLDivElement | null>>>({});
+
+  useEffect(() => {
+    if (!focus) return;
+    sectionRefs.current[focus.slot]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [focus]);
 
   const node = data.nodes.find((n) => n.id === nodeId);
   const info = useMemo(() => (node ? contentOf(data, node.id) : null), [data, node]);
@@ -674,7 +715,8 @@ function StepPanel({
         empty="Bu adımın altında iş adımı tanımlı değil."
       >
         {info.steps.map((st, i) => (
-          <button key={st.id} className="rel-control" onClick={() => onSelect(st.id)}>
+          <RecordLink key={st.id} to={`/akis/${st.id}`} inPlace={() => onSelect(st.id)}
+            title={`${st.name} — akışta aç`}>
             <span className="fe-box-no">{i + 1}</span>
             <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
               <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{st.name}</span>
@@ -683,11 +725,12 @@ function StepPanel({
               </span>
             </span>
             <IconChevronRight size={14} className="dim" />
-          </button>
+          </RecordLink>
         ))}
       </PanelSection>
 
       <PanelSection
+        sectionRef={(el) => { sectionRefs.current.risk = el; }}
         title="Riskler"
         count={info.risks.length}
         onAdd={canCreate ? () => setAdding('risk') : undefined}
@@ -695,18 +738,20 @@ function StepPanel({
         empty="Bu adımda tanımlı risk yok."
       >
         {info.risks.map((r) => (
-          <button key={r.id} className="rel-control" onClick={() => select('risk', r.id)}>
+          <RecordLink key={r.id} to={`/riskler/${r.id}`} inPlace={() => select('risk', r.id)}
+            title={`${r.code} — risk kütüphanesinde aç`}>
             <IconRisk size={15} className="dim" />
             <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
               <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{r.name}</span>
               <span className="dim" style={{ fontSize: 'var(--text-2xs)' }}>{r.code}</span>
             </span>
             <ScoreChip assessment={r.residual} />
-          </button>
+          </RecordLink>
         ))}
       </PanelSection>
 
       <PanelSection
+        sectionRef={(el) => { sectionRefs.current.control = el; }}
         title="Kontroller"
         count={info.controls.length}
         onAdd={canCreate ? () => setAdding('control') : undefined}
@@ -714,18 +759,20 @@ function StepPanel({
         empty="Bu adımda tanımlı kontrol yok."
       >
         {info.controls.map((c) => (
-          <button key={c.id} className="rel-control" onClick={() => select('control', c.id)}>
+          <RecordLink key={c.id} to={`/kontroller/${c.id}`} inPlace={() => select('control', c.id)}
+            title={`${c.code} — kontrol kütüphanesinde aç`}>
             <IconControl size={15} className="dim" />
             <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
               <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{c.name}</span>
               <span className="dim" style={{ fontSize: 'var(--text-2xs)' }}>{c.code}</span>
             </span>
             {c.keyControl ? <Badge tone="brand">Kritik</Badge> : null}
-          </button>
+          </RecordLink>
         ))}
       </PanelSection>
 
       <PanelSection
+        sectionRef={(el) => { sectionRefs.current.procedure = el; }}
         title="Prosedürler"
         count={procedures.length}
         onAdd={canCreate ? () => setAdding('procedure') : undefined}
@@ -733,17 +780,18 @@ function StepPanel({
         empty="Bu adıma bağlı prosedür yok."
       >
         {procedures.map((d) => (
-          <button key={d.id} className="rel-control" onClick={() => navigate(`/dokumanlar/${d.id}`)}>
+          <RecordLink key={d.id} to={`/dokumanlar/${d.id}`} title={`${d.code} — dokümanı aç`}>
             <IconDoc size={15} className="dim" />
             <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
               <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{d.name}</span>
               <span className="dim" style={{ fontSize: 'var(--text-2xs)' }}>{d.code} · v{d.version}</span>
             </span>
-          </button>
+          </RecordLink>
         ))}
       </PanelSection>
 
       <PanelSection
+        sectionRef={(el) => { sectionRefs.current.document = el; }}
         title="Diğer dokümanlar"
         count={others.length}
         onAdd={canCreate ? () => setAdding('document') : undefined}
@@ -751,13 +799,13 @@ function StepPanel({
         empty="Bu adıma bağlı başka doküman yok."
       >
         {others.map((d) => (
-          <button key={d.id} className="rel-control" onClick={() => navigate(`/dokumanlar/${d.id}`)}>
+          <RecordLink key={d.id} to={`/dokumanlar/${d.id}`} title={`${d.code} — dokümanı aç`}>
             <IconDoc size={15} className="dim" />
             <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
               <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{d.name}</span>
               <span className="dim" style={{ fontSize: 'var(--text-2xs)' }}>{d.code} · v{d.version}</span>
             </span>
-          </button>
+          </RecordLink>
         ))}
       </PanelSection>
 
@@ -777,8 +825,49 @@ function StepPanel({
   );
 }
 
+/**
+ * Panel kaydı — gerçek bağlantı.
+ *
+ * Kayıtlar eskiden düğmeydi: tıklanınca çekmece açılıyordu, ama adresi
+ * yoktu. Üzerine gelince nereye gittiği görünmüyor, sağ tıkla yeni sekmede
+ * açılamıyor, kopyalanamıyordu. Artık her kayıt kendi sayfasına bakan bir
+ * bağlantıdır (/riskler/:id, /kontroller/:id, /dokumanlar/:id, /akis/:id):
+ * üzerine gelince adres çubuğunda hedefi görünür, Ctrl/Cmd+tık ve orta tık
+ * yeni sekmede açar, sağ tık menüsü çalışır.
+ *
+ * `inPlace` verilirse DÜZ tıklama sayfadan ayrılmaz; kaydı yerinde açar.
+ * Akış ekranında bağlamı kaybetmemek için tercih edilen davranış budur —
+ * bir riske bakmak için akıştaki yerinizi terk etmeniz gerekmez. Değiştirici
+ * tuşlu tıklamalar bu araya girmeden geçer, yani bağlantı gerçekten canlıdır.
+ */
+function RecordLink({
+  to, inPlace, title, children,
+}: {
+  to: string;
+  inPlace?: () => void;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className="rel-control"
+      title={title}
+      onClick={(e) => {
+        if (!inPlace) return;
+        // Yeni sekme / yeni pencere isteklerine dokunma.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        inPlace();
+      }}
+    >
+      {children}
+    </Link>
+  );
+}
+
 function PanelSection({
-  title, count, onAdd, addLabel, empty, children,
+  title, count, onAdd, addLabel, empty, children, sectionRef,
 }: {
   title: string;
   count: number;
@@ -786,9 +875,11 @@ function PanelSection({
   addLabel: string;
   empty: string;
   children: React.ReactNode;
+  /** Kutudaki sayaçtan gelen kaydırma bu düğüme yapılır. */
+  sectionRef?: (el: HTMLDivElement | null) => void;
 }) {
   return (
-    <div className="detail-section">
+    <div className="detail-section" ref={sectionRef}>
       <SectionHeading
         title={title}
         count={count}

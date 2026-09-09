@@ -182,10 +182,17 @@ görüntüden çıkmaz — eski kanvasın en can sıkıcı yanı buydu: her tık
 üst seviyeyi gizliyordu. Ok işareti açıp kapar, kutunun gövdesi seçer;
 istenen her seviye ayrı ayrı açık kalabilir.
 
-**Sayaçlar kutunun üzerindedir.** Risk, Kontrol, Prosedür ve Doküman
-sayıları altındaki her şeyin toplamıdır: kutuya girmeden "burada ne var"
-cevaplanır. Sıfır olan sayaç gizlenmez, soluklaşır — eksikliğin kendisi de
-bilgidir.
+**Sayaçlar kutunun üzerindedir ve tıklanır.** Risk, Kontrol, Prosedür ve
+Doküman sayıları altındaki her şeyin toplamıdır: kutuya girmeden "burada ne
+var" cevaplanır. Sayaç ölü bir rozet değildir — tıklandığında o adım seçilir
+ve sağdaki panel doğrudan ilgili bölüme kayar. Sıfır olan sayaç da tıklanır;
+soluklaşır ama gizlenmez, çünkü eksikliğin kendisi de bilgidir ve oradan
+**+ … ekle** ile ilk kayıt açılır.
+
+**Ekran görünen alanı doldurur.** Yükseklik sabit bir sayıyla tahmin
+edilmez: başlık, süreç seçici ve görünüm şeridi ne kadar yer kaplarsa
+kaplasın kalan yeri akış alır, kaydırma da akışın kendi kutusunda olur.
+Sayfa hiçbir ekran boyutunda alttan taşmaz.
 
 ### Adım detayı
 
@@ -196,7 +203,23 @@ Kutuya tıklayınca sağdaki panel açılır:
 | **Künye** | Açıklama, amaç |
 | **Sorumluluk** | Süreç sahibi, sorumlu birim, **ilgili birimler** (alt ağacın tamamı), görevli kişiler, sistem, girdi, çıktı, hedef süre |
 | **İş adımları** | Doğrudan alt adımlar, sırasıyla — tıklayınca akışta o adıma geçilir |
-| **Riskler / Kontroller / Prosedürler / Dokümanlar** | Kayda tıklayınca detayı açılır; **+ … ekle** ile yenisi bu adıma bağlı açılır |
+| **Riskler / Kontroller / Prosedürler / Dokümanlar** | Her kayıt canlı bir bağlantıdır; **+ … ekle** ile yenisi bu adıma bağlı açılır |
+
+**Kayıtlar gerçek bağlantıdır.** Paneldeki her risk, kontrol, prosedür,
+doküman ve iş adımı kendi sayfasına bakan bir `<a>`'dır:
+
+| Kayıt | Hedef |
+|---|---|
+| Risk | `/riskler/:id` |
+| Kontrol | `/kontroller/:id` |
+| Prosedür / Doküman | `/dokumanlar/:id` |
+| İş adımı | `/akis/:id` |
+
+Üzerine gelince hedef adres tarayıcının durum çubuğunda görünür, sağ tık
+menüsü çalışır, **Ctrl/Cmd+tık ve orta tık yeni sekmede açar**. Düz tıklama
+ise sayfadan ayırmaz: kaydı yerinde açar. Bir riske bakmak için akıştaki
+yerinizi terk etmeniz gerekmesin diye böyle — bağlantı yine de canlıdır,
+yalnızca düz tıklamanın varsayılanı akış lehine değiştirilmiştir.
 
 ### Akışı tasarlama
 

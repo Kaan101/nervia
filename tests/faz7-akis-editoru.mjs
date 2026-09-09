@@ -182,4 +182,47 @@ check('Çalışan rolünde adım menüsü yok',
 check('Çalışan rolü akışı yine de görebiliyor', (await boxCount()) >= 2);
 await page.screenshot({ path: 'ed-06-calisan.png' });
 
+// ---------- 10. Ekran taşmıyor ----------
+// Akış kutusunun yüksekliği sabit bir sayıyla tahmin ediliyordu ve üstteki
+// başlık/seçici şeridi o sayıdan uzun olduğunda kutunun altı ekranın
+// dışına kayıyordu. Yerleşim artık kalan yeri ölçüyor; birkaç ekran
+// boyutunda da taşmadığı doğrulanır.
+await setPersona('usr-22');
+for (const [w, h] of [[1440, 820], [1280, 720], [1366, 768]]) {
+  await page.setViewportSize({ width: w, height: h });
+  await page.goto(`${BASE}/#/akis`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  const over = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+  check(`Sayfa ${w}x${h} ölçüsünde taşmıyor`, over <= 1, `${over}px`);
+}
+await page.setViewportSize({ width: 1500, height: 980 });
+
+// ---------- 11. Sayaçlar ve kayıtlar canlı ----------
+await page.goto(`${BASE}/#/akis`, { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(1200);
+
+// Sayaç ölü rozet değil, o bölüme götüren bir kapı.
+const riskChip = page.locator('.fe-box').first().locator('.fe-chip-btn', { hasText: 'Risk' }).first();
+check('Sayaç tıklanabilir düğme', (await riskChip.count()) === 1);
+await riskChip.click();
+await page.waitForTimeout(1000);
+check('Sayaç adımı seçti ve paneli açtı',
+  (await page.locator('.fe-inspector .detail-section').count()) >= 4);
+
+// Kayıtlar gerçek <a>: adresleri var, yeni sekmede açılabilirler.
+const hrefs = await page.locator('.fe-inspector a.rel-control')
+  .evaluateAll((els) => els.map((e) => e.getAttribute('href') ?? ''));
+step(`Panel bağlantıları: ${hrefs.length}`);
+check('Kayıtlar bağlantı (<a href>) oldu', hrefs.length >= 4, `${hrefs.length} bağlantı`);
+check('Risk kaydı risk kütüphanesine bakıyor', hrefs.some((h) => /riskler\//.test(h)));
+check('Kontrol kaydı kontrol kütüphanesine bakıyor', hrefs.some((h) => /kontroller\//.test(h)));
+
+// Düz tıklama akıştaki yeri korumalı; bağlantı yine de canlı.
+const urlBefore = page.url();
+await page.locator('.fe-inspector a.rel-control[href*="riskler/"]').first().click();
+await page.waitForTimeout(900);
+check('Düz tıklama akış ekranından çıkarmıyor', page.url() === urlBefore,
+  page.url().split('#')[1] ?? '');
+await page.screenshot({ path: 'ed-07-canli-baglanti.png' });
+
 await finish();

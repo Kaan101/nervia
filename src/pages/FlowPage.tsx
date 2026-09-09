@@ -59,18 +59,16 @@ export function DocumentFlowView() {
     ),
   }), [chart]);
 
+  // Sayfa kabuğunu FlowPage tutuyor; burada yalnızca içerik var.
   return (
-    <div className="page">
-      <div className="page-head">
+    <>
+      <div className="page-head fe-head">
         <div className="stack gap-1">
           <span className="eyebrow">İş Akışı</span>
           <h1>{chart.name}</h1>
-          <p className="muted" style={{ maxWidth: '96ch' }}>
-            {chart.description}{' '}
-            <span className="dim">
-              Kaynak: TMTB Süreç ve İş Akışı Dokümanı Ver 10.0 (Aralık 2024), Bölüm 9 – İş Akışları ·
-              {' '}{totals.stages} aşama, {totals.steps} adım, {totals.decisions} karar noktası.
-            </span>
+          <p className="muted dim" style={{ maxWidth: '96ch', fontSize: 'var(--text-xs)' }}>
+            TMTB Süreç ve İş Akışı Dokümanı Ver 10.0 (Aralık 2024), Bölüm 9 ·
+            {' '}{totals.stages} aşama, {totals.steps} adım, {totals.decisions} karar noktası.
           </p>
         </div>
       </div>
@@ -144,7 +142,7 @@ export function DocumentFlowView() {
           )}
         </aside>
       </div>
-    </div>
+    </>
   );
 }
 
