@@ -309,8 +309,8 @@
 /* İŞ AKIŞI ŞEMASI                                                     */
 /* ================================================================== */
 
-.flow-variants { margin-bottom: var(--s4); }
-.flow-variant.is-active {
+.flow-variants, .fe-variants { margin-bottom: var(--s4); }
+.flow-variant.is-active, .fe-variant.is-active {
   border-color: var(--brand-400); background: var(--brand-050);
   color: var(--brand-700); font-weight: 600;
 }

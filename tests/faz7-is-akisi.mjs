@@ -13,6 +13,11 @@ const { page, check, step, setPersona, finish } = await startRun('usr-22');
 await page.goto(`${BASE}/#/is-akisi`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1000);
 
+// Ekran varsayılan olarak düzenlenebilir Akış Editörü'nü açar; bu süit
+// dokümandan okunan salt okunur şemayı sınar, o yüzden görünüm değiştirilir.
+await page.getByRole('button', { name: 'Doküman Şeması' }).click();
+await page.waitForTimeout(800);
+
 // ---------- 1. Varyantlar ve aşamalar ----------
 const variants = await page.locator('.flow-variant').allInnerTexts();
 check('Yurt içi akışı listeleniyor', variants.some((v) => /Yurt İçi Hasar İş Akışı/.test(v)));
@@ -70,6 +75,8 @@ check('Süreç haritasına geçildi', /#\/surecler\/nd-/.test(page.url()), page.
 // ---------- 5. Doküman dayanağı olan kutular işaretli ----------
 await page.goto(`${BASE}/#/is-akisi`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(800);
+await page.getByRole('button', { name: 'Doküman Şeması' }).click();
+await page.waitForTimeout(600);
 await page.locator('.flow-stage', { hasText: 'Dosya Oluşturma' }).first().click();
 await page.waitForTimeout(600);
 const dots = await page.locator('.flow-node .flow-dot').count();
@@ -100,6 +107,8 @@ await page.screenshot({ path: 'akis-04-yurtdisi.png' });
 await setPersona('usr-04'); // Barış Öztürk — yalnızca 'employee' rolü
 await page.goto(`${BASE}/#/is-akisi`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(900);
+await page.getByRole('button', { name: 'Doküman Şeması' }).click();
+await page.waitForTimeout(600);
 const employeeTitle = await page.locator('h1').first().innerText().catch(() => '');
 check('Çalışan rolü akışı görebiliyor', /Hasar İş Akışı/.test(employeeTitle), employeeTitle);
 

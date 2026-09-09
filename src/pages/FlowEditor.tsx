@@ -150,11 +150,11 @@ export function FlowEditorPage() {
         </div>
       </div>
 
-      <div className="row gap-2 wrap flow-variants">
+      <div className="row gap-2 wrap fe-variants">
         {roots.map((r) => (
           <button
             key={r.id}
-            className={`btn flow-variant${r.id === root.id ? ' is-active' : ''}`}
+            className={`btn fe-variant${r.id === root.id ? ' is-active' : ''}`}
             onClick={() => { setRootId(r.id); setOpen(new Set()); setSelectedId(null); }}
           >
             <IconProcess size={14} /> {r.name}
