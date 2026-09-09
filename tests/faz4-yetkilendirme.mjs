@@ -72,7 +72,7 @@ await open('#/');
 const employeeMenu = await page.locator('.sidebar-nav').innerText();
 check('Çalışan audit trail görmüyor', !/Audit Trail/.test(employeeMenu));
 check('Çalışan değişiklik yönetimini görmüyor', !/Değişiklik Yönetimi/.test(employeeMenu));
-check('Çalışan süreç haritasını görüyor', /Süreç Haritası/.test(employeeMenu));
+check('Çalışan süreç akışını görüyor', /Süreç Akışı/.test(employeeMenu));
 await page.screenshot({ path: 'f4-03-calisan-menu.png' });
 
 // ---------- 4. Rota koruması: adres çubuğundan atlatılamıyor ----------

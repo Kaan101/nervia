@@ -14,10 +14,9 @@ const suites = [
   ['Faz 2 — süreç yapısı', 'faz2-surec-yapisi.mjs'],
   ['Faz 3 — onay mekanizması', 'faz3-onay-mekanizmasi.mjs'],
   ['Faz 4 — yetkilendirme', 'faz4-yetkilendirme.mjs'],
-  ['Faz 5 — süreç kanvası', 'faz5-kanvas.mjs'],
-  ['Faz 6 — dosya ekleri', 'faz6-ekler.mjs'],
-  ['Faz 7 — hasar iş akışı', 'faz7-is-akisi.mjs'],
-  ['Faz 8 — akış editörü', 'faz8-akis-editoru.mjs'],
+  ['Faz 5 — dosya ekleri', 'faz5-ekler.mjs'],
+  ['Faz 6 — doküman şeması', 'faz6-dokuman-semasi.mjs'],
+  ['Faz 7 — süreç akışı editörü', 'faz7-akis-editoru.mjs'],
 ];
 
 const run = (file) =>

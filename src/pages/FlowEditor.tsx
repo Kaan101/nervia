@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { ProcessNode } from '@/types/grc';
 import { useData } from '@/store/useData';
 import { useUi } from '@/store/useUi';
@@ -7,11 +7,12 @@ import {
   useAuth, canEditNode, canCreateRecords, userCan,
 } from '@/store/useAuth';
 import {
-  activeNodes, controlsOf, documentsOf, risksOf, rollup, sortRisksBySeverity,
+  activeNodes, controlsOf, descendants, documentsOf, pathTo, risksOf, rollup,
+  sortRisksBySeverity,
 } from '@/lib/selectors';
 import { childKindOf } from '@/lib/entityMeta';
 import { nodeKindLabels } from '@/lib/labels';
-import { userName } from '@/data/org';
+import { unitName, userName } from '@/data/org';
 import {
   Badge, EmptyState, ScoreChip, SectionHeading, Segmented,
 } from '@/components/common/Primitives';
@@ -27,7 +28,14 @@ import { DocumentFormModal } from '@/components/forms/DocumentForm';
 import { DocumentFlowView } from '@/pages/FlowPage';
 
 /**
- * HASAR İŞ AKIŞI — akış çizme ve düzenleme ekranı
+ * SÜREÇ AKIŞI — tek ekran
+ *
+ * Bu ekran daha önce üçe bölünmüş olan Süreç Haritası, Süreç Kanvası ve
+ * Hasar İş Akışı'nın yerini alır. Üçü de aynı ağacı farklı kabuklarla
+ * gösteriyordu: harita ağacı listeliyor, kanvas seviye seviye derinleşiyor,
+ * akış sırayı çiziyordu. Tek yapı, tek ekran:
+ *
+ *   akış (sıra) + yerinde derinleşme (kanvas) + adım detayı (harita)
  *
  * Akış yukarıdan aşağı okunur: her kutu bir süreç adımıdır, kutular okla
  * bağlanır. Bir kutuya tıklandığında alt adımları AYNI AKIŞIN İÇİNDE,
@@ -55,16 +63,34 @@ function stepsOf(nodes: ProcessNode[], parentId: string): ProcessNode[] {
   return nodes.filter((n) => n.parentId === parentId).sort((a, b) => a.order - b.order);
 }
 
-/** rollup id listesi döndürür; kutuda ve panelde kaydın kendisi gerekir. */
+/**
+ * Bir adımın taşıdığı her şey.
+ *
+ * rollup yalnızca kimlik listesi döndürür; kutuda sayaç, panelde kaydın
+ * kendisi gerekir. İlgili birimler alt ağacın tamamından toplanır: bir
+ * aşamanın hangi birimleri ilgilendirdiği, tek tek adımlara girmeden
+ * görünsün.
+ */
 function contentOf(data: ReturnType<typeof useData.getState>['data'], nodeId: string) {
   const r = rollup(data, nodeId);
   const documents = documentsOf(data, r.documentIds);
+  const visible = activeNodes(data.nodes);
+  const node = visible.find((n) => n.id === nodeId);
+  const subtree = node ? [node, ...descendants(visible, nodeId)] : [];
+
+  const unitIds: string[] = [];
+  for (const n of subtree) if (!unitIds.includes(n.unitId)) unitIds.push(n.unitId);
+
   return {
     risks: sortRisksBySeverity(risksOf(data, r.riskIds)),
     controls: controlsOf(data, r.controlIds),
     procedures: documents.filter((d) => d.type === 'procedure'),
     documents,
     reviewOverdue: r.reviewOverdue,
+    /** Doğrudan alt adımlar, akış sırasıyla. */
+    steps: stepsOf(visible, nodeId),
+    /** Bu adımın ve altındaki her şeyin dokunduğu birimler. */
+    unitIds,
   };
 }
 
@@ -113,12 +139,42 @@ export function FlowPage() {
 
 export function FlowEditorPage() {
   const roots = useFlowRoots();
-  const [rootId, setRootId] = useState<string | null>(null);
-  const root = roots.find((r) => r.id === rootId) ?? roots[0];
+  const data = useData((s) => s.data);
+  const { nodeId } = useParams();
+  const navigate = useNavigate();
 
+  const [rootId, setRootId] = useState<string | null>(null);
   /** Açık olan kutular. Kök her zaman açıktır. */
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  /**
+   * Adres çubuğundan gelen düğüm.
+   *
+   * Eski Süreç Haritası ve Kanvas bağlantıları (/surecler/:id, /kanvas/:id)
+   * buraya yönleniyor; arama, asistan ve dashboard da doğrudan buraya
+   * bağlanıyor. Gelen düğümün ATALARI açılır, kendisi seçilir — böylece
+   * derin bir adım da akışın içinde, bağlamıyla birlikte görünür.
+   */
+  useEffect(() => {
+    if (!nodeId) return;
+    const target = data.nodes.find((n) => n.id === nodeId);
+    if (!target) return;
+    const trail = pathTo(data.nodes, nodeId);
+    const mainProcess = trail.find((n) => n.kind === 'process');
+    if (mainProcess) setRootId(mainProcess.id);
+    // Hedefin kendisi de açılır: alt adımları varsa görünsün.
+    setOpen(new Set([...trail.map((n) => n.id), nodeId]));
+    setSelectedId(nodeId);
+  }, [nodeId, data.nodes]);
+
+  const root = roots.find((r) => r.id === rootId) ?? roots[0];
+
+  const currentUser = useAuth((s) => s.currentUser);
+  const canCreateProcess = userCan(currentUser, 'process.create');
+  const [addingRoot, setAddingRoot] = useState(false);
+  /** Ana süreçler organizasyon düğümünün altına açılır. */
+  const orgNode = data.nodes.find((n) => n.kind === 'organization');
 
   const toggle = (id: string) => {
     setOpen((prev) => {
@@ -155,11 +211,21 @@ export function FlowEditorPage() {
           <button
             key={r.id}
             className={`btn fe-variant${r.id === root.id ? ' is-active' : ''}`}
-            onClick={() => { setRootId(r.id); setOpen(new Set()); setSelectedId(null); }}
+            onClick={() => {
+              setRootId(r.id); setOpen(new Set()); setSelectedId(null);
+              if (nodeId) navigate('/akis', { replace: true });
+            }}
           >
             <IconProcess size={14} /> {r.name}
           </button>
         ))}
+        {/* Eski Süreç Haritası'nın "Yeni ana süreç" düğmesi buraya taşındı:
+            akış ekranı artık süreç envanterinin de tek girişi. */}
+        {canCreateProcess ? (
+          <button className="btn fe-new-root" onClick={() => setAddingRoot(true)}>
+            <IconPlus size={14} /> Yeni ana süreç
+          </button>
+        ) : null}
       </div>
 
       <div className="fe-body">
@@ -176,7 +242,13 @@ export function FlowEditorPage() {
 
         <aside className="card fe-inspector">
           {selectedId
-            ? <StepPanel nodeId={selectedId} onClose={() => setSelectedId(null)} />
+            ? (
+              <StepPanel
+                nodeId={selectedId}
+                onClose={() => setSelectedId(null)}
+                onSelect={(id) => { setSelectedId(id); setOpen((o) => new Set([...o, id])); }}
+              />
+            )
             : (
               <EmptyState
                 icon={<IconArrowDown size={26} />}
@@ -186,6 +258,17 @@ export function FlowEditorPage() {
             )}
         </aside>
       </div>
+
+      <NodeFormModal
+        open={addingRoot && Boolean(orgNode)}
+        onClose={() => setAddingRoot(false)}
+        parentId={orgNode?.id ?? null}
+        onSaved={(id) => {
+          setRootId(id);
+          setOpen(new Set());
+          setSelectedId(id);
+        }}
+      />
     </div>
   );
 }
@@ -340,6 +423,13 @@ function StepBox({
 
   const counts = useMemo(() => contentOf(data, node.id), [data, node.id]);
   const hasChildren = stepsOf(activeNodes(data.nodes), node.id).length > 0;
+  /**
+   * Alt adımı olmayan ama olabilecek kutular da açılabilir olmalı.
+   * Aksi hâlde boş bir adımın altına ilk adımı eklemenin yolu kalmıyor —
+   * "… ekle" düğmesi yalnızca açık dalda görünüyor.
+   */
+  const canHaveChildren = childKindOf(node.kind) !== null;
+  const openable = hasChildren || canHaveChildren;
   const canEdit = canEditNode(currentUser, node);
 
   const chips: { slot: Slot; label: string; n: number }[] = [
@@ -378,9 +468,9 @@ function StepBox({
       {/* Ok işareti yalnızca açıp kapar; gövde seçer ve kapalıysa açar.
           Açık bir kutuyu seçmek onu kapatmamalı — kullanıcı içeriğine
           bakmak için tıklıyor, akışı toplamak için değil. */}
-      {hasChildren ? (
+      {openable ? (
         <button
-          className="fe-box-caret fe-box-caret-btn"
+          className={`fe-box-caret fe-box-caret-btn${hasChildren ? '' : ' is-empty'}`}
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
           aria-expanded={expanded}
           aria-label={`${node.name} alt adımlarını ${expanded ? 'kapat' : 'aç'}`}
@@ -392,7 +482,7 @@ function StepBox({
       )}
       <button
         className="fe-box-main"
-        onClick={() => { onSelect(); if (hasChildren && !expanded) onToggle(); }}
+        onClick={() => { onSelect(); if (openable && !expanded) onToggle(); }}
       >
         <span className="fe-box-no">{index}</span>
         <span className="stack gap-1 grow" style={{ minWidth: 0 }}>
@@ -459,7 +549,14 @@ function StepBox({
 /* Sağ panel: seçili adımın içeriği                                    */
 /* ------------------------------------------------------------------ */
 
-function StepPanel({ nodeId, onClose }: { nodeId: string; onClose: () => void }) {
+function StepPanel({
+  nodeId, onClose, onSelect,
+}: {
+  nodeId: string;
+  onClose: () => void;
+  /** İş adımına tıklandığında akışta o adıma geçilir. */
+  onSelect: (id: string) => void;
+}) {
   const data = useData((s) => s.data);
   const currentUser = useAuth((s) => s.currentUser);
   const select = useUi((s) => s.select);
@@ -491,15 +588,65 @@ function StepPanel({ nodeId, onClose }: { nodeId: string; onClose: () => void })
           <button className="btn btn-sm btn-ghost" onClick={onClose} aria-label="Paneli kapat">×</button>
         </div>
         <p className="muted" style={{ fontSize: 'var(--text-sm)' }}>{node.description}</p>
-        <div className="row gap-2 wrap">
-          {canEdit ? (
+        {node.purpose ? (
+          <p className="dim" style={{ fontSize: 'var(--text-xs)' }}><strong>Amaç:</strong> {node.purpose}</p>
+        ) : null}
+        {canEdit ? (
+          <div className="row gap-2 wrap">
             <button className="btn btn-sm" onClick={() => setEditing(true)}>Adımı düzenle</button>
-          ) : null}
-          <button className="btn btn-sm btn-ghost" onClick={() => navigate(`/surecler/${node.id}`)}>
-            Süreç haritasında aç
-          </button>
-        </div>
+          </div>
+        ) : null}
       </div>
+
+      {/* Künye: eskiden Süreç Haritası'nın detay panelindeydi. */}
+      <div className="detail-section">
+        <SectionHeading title="Sorumluluk" />
+        <dl className="dl">
+          <dt>Süreç sahibi</dt><dd>{userName(node.ownerId)}</dd>
+          <dt>Sorumlu birim</dt><dd>{unitName(node.unitId)}</dd>
+          {info.unitIds.length > 1 ? (
+            <>
+              <dt>İlgili birimler</dt>
+              <dd>
+                <span className="row gap-2 wrap">
+                  {info.unitIds.map((u) => <span key={u} className="tag">{unitName(u)}</span>)}
+                </span>
+              </dd>
+            </>
+          ) : null}
+          {node.participantIds.length ? (
+            <>
+              <dt>Görevli kişiler</dt>
+              <dd>{node.participantIds.map((id) => userName(id)).join(' · ')}</dd>
+            </>
+          ) : null}
+          {node.systems.length ? (<><dt>Kullanılan sistem</dt><dd>{node.systems.join(' · ')}</dd></>) : null}
+          {node.inputs.length ? (<><dt>Girdi</dt><dd>{node.inputs.join(' · ')}</dd></>) : null}
+          {node.outputs.length ? (<><dt>Çıktı</dt><dd>{node.outputs.join(' · ')}</dd></>) : null}
+          {node.slaDays ? (<><dt>Hedef süre</dt><dd>{node.slaDays} iş günü</dd></>) : null}
+        </dl>
+      </div>
+
+      {/* İş adımları: bu adımın altındaki sıra. Akıştaki kutuya bağlıdır. */}
+      <PanelSection
+        title="İş adımları"
+        count={info.steps.length}
+        addLabel=""
+        empty="Bu adımın altında iş adımı tanımlı değil."
+      >
+        {info.steps.map((st, i) => (
+          <button key={st.id} className="rel-control" onClick={() => onSelect(st.id)}>
+            <span className="fe-box-no">{i + 1}</span>
+            <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
+              <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>{st.name}</span>
+              <span className="dim" style={{ fontSize: 'var(--text-2xs)' }}>
+                {st.code} · {unitName(st.unitId)}
+              </span>
+            </span>
+            <IconChevronRight size={14} className="dim" />
+          </button>
+        ))}
+      </PanelSection>
 
       <PanelSection
         title="Riskler"
@@ -606,7 +753,7 @@ function PanelSection({
       <SectionHeading
         title={title}
         count={count}
-        action={onAdd ? (
+        action={onAdd && addLabel ? (
           <button className="btn btn-sm btn-ghost" onClick={onAdd}>
             <IconPlus size={12} /> {addLabel}
           </button>

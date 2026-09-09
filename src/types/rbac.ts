@@ -38,7 +38,7 @@ export type SystemPermission = (typeof systemPermissions)[number];
 
 /** Menü/rota erişimi. Anahtarlar rota tanımlarıyla birebir eşleşir. */
 export const menuKeys = [
-  'dashboard', 'kanvas', 'is-akisi', 'surecler', 'iliskiler', 'isi-haritasi', 'riskler', 'kontroller',
+  'dashboard', 'akis', 'iliskiler', 'isi-haritasi', 'riskler', 'kontroller',
   'kri', 'aksiyonlar', 'dokumanlar', 'gozden-gecirme', 'degisiklikler',
   'asistan', 'arama', 'audit', 'standartlar', 'kullanicilar', 'yetkiler',
 ] as const;

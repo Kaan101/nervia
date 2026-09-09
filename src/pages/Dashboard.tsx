@@ -149,7 +149,7 @@ export function Dashboard() {
             <LevelLegend />
           </div>
           <div className="card-body">
-            <StackedBarList rows={byProcess} onSelect={(key) => navigate(`/surecler/${key}`)} />
+            <StackedBarList rows={byProcess} onSelect={(key) => navigate(`/akis/${key}`)} />
           </div>
         </div>
       </div>
@@ -304,7 +304,7 @@ export function Dashboard() {
                   const total = Math.max(1, roll.riskIds.length);
                   const risks = roll.riskIds.map((id) => data.risks.find((r) => r.id === id)!).filter(Boolean);
                   return (
-                    <tr key={n.id} className="clickable" onClick={() => navigate(`/surecler/${n.id}`)}>
+                    <tr key={n.id} className="clickable" onClick={() => navigate(`/akis/${n.id}`)}>
                       <td style={{ fontWeight: 600 }}>{n.name}</td>
                       <td className="dim">{userName(n.ownerId)}</td>
                       <td className="num">{roll.riskIds.length}</td>

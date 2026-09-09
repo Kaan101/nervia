@@ -570,7 +570,7 @@ export function answerQuestion(data: Dataset, question: string): NlAnswer {
       results: stale.slice(0, 20).map((n) => ({
         kind: 'process' as const, id: n.id, title: n.name,
         meta: `${monthsSince(n.lastReviewedAt)} ay önce · ${userName(n.ownerId)}`,
-        href: `#/surecler/${n.id}`,
+        href: `#/akis/${n.id}`,
       })),
       followUps: ['Gözden geçirmesi geciken süreçleri kim güncellemeli?', 'Kritik riskleri göster'],
     };

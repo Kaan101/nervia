@@ -1,4 +1,4 @@
-// Faz 7 — Hasar İş Akışı ekranı
+// Faz 6 — doküman şeması görünümü
 //
 // Akış şeması, süreç haritasından ayrı bir veridir: sıra ve karar ağı.
 // Bu süit üç şeyi doğrular:
@@ -10,7 +10,7 @@ import { startRun, BASE } from './harness.mjs';
 
 const { page, check, step, setPersona, finish } = await startRun('usr-22');
 
-await page.goto(`${BASE}/#/is-akisi`, { waitUntil: 'domcontentloaded' });
+await page.goto(`${BASE}/#/akis`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1000);
 
 // Ekran varsayılan olarak düzenlenebilir Akış Editörü'nü açar; bu süit
@@ -73,7 +73,7 @@ await page.waitForTimeout(800);
 check('Süreç haritasına geçildi', /#\/surecler\/nd-/.test(page.url()), page.url().split('#')[1] ?? '');
 
 // ---------- 5. Doküman dayanağı olan kutular işaretli ----------
-await page.goto(`${BASE}/#/is-akisi`, { waitUntil: 'domcontentloaded' });
+await page.goto(`${BASE}/#/akis`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(800);
 await page.getByRole('button', { name: 'Doküman Şeması' }).click();
 await page.waitForTimeout(600);
@@ -105,7 +105,7 @@ await page.screenshot({ path: 'akis-04-yurtdisi.png' });
 // ancak menü izni kaldırıldığında rota korunmalı. Burada yalnızca menüde
 // göründüğü doğrulanır; rota koruması Faz 4'te sınanıyor.
 await setPersona('usr-04'); // Barış Öztürk — yalnızca 'employee' rolü
-await page.goto(`${BASE}/#/is-akisi`, { waitUntil: 'domcontentloaded' });
+await page.goto(`${BASE}/#/akis`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(900);
 await page.getByRole('button', { name: 'Doküman Şeması' }).click();
 await page.waitForTimeout(600);

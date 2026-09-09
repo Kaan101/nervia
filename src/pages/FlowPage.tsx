@@ -204,7 +204,7 @@ function StepDetail({ node }: { node: FlowNode }) {
       {processNode ? (
         <div className="detail-section">
           <SectionHeading title="Bağlı süreç adımı" />
-          <button className="rel-control" onClick={() => navigate(`/surecler/${processNode.id}`)}>
+          <button className="rel-control" onClick={() => navigate(`/akis/${processNode.id}`)}>
             <IconProcess size={15} className="dim" />
             <span className="stack grow" style={{ gap: 2, minWidth: 0 }}>
               <span className="truncate" style={{ fontSize: 'var(--text-sm)', fontWeight: 500 }}>

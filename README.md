@@ -140,126 +140,110 @@ ORGANİZASYON
 ```
 
 Her seviye `expand / collapse` mantığıyla açılır. Kullanıcı isterse yalnızca süreç
-isimlerini görür, isterse tüm detayı açar.
+isimlerini görür, isterse tüm detayı açar. Bu ağacın tek görüntülendiği yer
+**Süreç Akışı** ekranıdır.
 
-## Hasar İş Akışı
+## Süreç Akışı — tek ekran
 
-Ekranın iki görünümü var: **Akış Editörü** (varsayılan) ve **Doküman Şeması**.
+Daha önce üç ayrı ekran vardı: **Süreç Haritası** ağacı listeliyordu,
+**Süreç Kanvası** seviye seviye derinleşiyordu, **Hasar İş Akışı** sırayı
+çiziyordu. Üçü de aynı veriyi farklı kabuklarla gösterdiği için birbirini
+tekrar ediyordu. Şimdi tek ekran var: **Süreç Akışı** (`#/akis`).
 
-### Akış Editörü
+    akış (sıra) + yerinde derinleşme (kanvas) + adım detayı (harita)
 
-Kurumun kendi akışı — canlı veriden okur ve **düzenlenebilir**. Akış yukarıdan
-aşağı okunur: her kutu bir süreç adımıdır, kutular okla bağlanır.
+Eski adresler (`/surecler`, `/surecler/:id`, `/kanvas`, `/kanvas/:id`,
+`/is-akisi`) yeni ekrana yönlendirilir; kayıtlı bağlantılar ve yer imleri
+kırılmaz.
 
-**Yerinde açılma.** Bir kutuya tıklandığında alt adımları *aynı akışın içinde*,
-girintili olarak açılır ve altındaki adımlar aşağı kayar. Üst kutu görüntüden
-çıkmaz. Süreç Kanvası'ndan farkı budur: kanvas her tıklamada bir seviye
-derinleşir ve üstü gizler; burada seviyeler iç içe açılır, akışın bütünü
-görünür kalır. İstenen her seviye ayrı ayrı açılıp kapanır — ok işareti
-açıp kapar, kutunun gövdesi seçer.
+### Akış nasıl okunur
 
-**Akışı değiştirme.** İki kutu arasındaki **+** o konuma yeni adım ekler;
-sonraki kardeşler bir aşağı kayar. Kutunun sağ ucundaki menüden adım
-düzenlenir, yukarı/aşağı taşınır ya da akıştan çıkarılır.
+Yukarıdan aşağı. Yurt İçi Hasar akışı başvurudan kapanışa gider:
+
+    Başvuru ve İhbar → Dosya Açılış → İnceleme ve Değerlendirme
+        → Ödeme → Rücu ve Tahsilat → Dosya Kapanış
+
+**Yerinde derinleşme.** Bir kutuya tıklandığında alt adımları *aynı akışın
+içinde*, girintili olarak açılır ve altındaki adımlar aşağı kayar. Üst kutu
+görüntüden çıkmaz — eski kanvasın en can sıkıcı yanı buydu: her tıklama bir
+üst seviyeyi gizliyordu. Ok işareti açıp kapar, kutunun gövdesi seçer;
+istenen her seviye ayrı ayrı açık kalabilir.
+
+**Sayaçlar kutunun üzerindedir.** Risk, Kontrol, Prosedür ve Doküman
+sayıları altındaki her şeyin toplamıdır: kutuya girmeden "burada ne var"
+cevaplanır. Sıfır olan sayaç gizlenmez, soluklaşır — eksikliğin kendisi de
+bilgidir.
+
+### Adım detayı
+
+Kutuya tıklayınca sağdaki panel açılır:
+
+| Bölüm | İçerik |
+|---|---|
+| **Künye** | Açıklama, amaç |
+| **Sorumluluk** | Süreç sahibi, sorumlu birim, **ilgili birimler** (alt ağacın tamamı), görevli kişiler, sistem, girdi, çıktı, hedef süre |
+| **İş adımları** | Doğrudan alt adımlar, sırasıyla — tıklayınca akışta o adıma geçilir |
+| **Riskler / Kontroller / Prosedürler / Dokümanlar** | Kayda tıklayınca detayı açılır; **+ … ekle** ile yenisi bu adıma bağlı açılır |
+
+### Akışı tasarlama
 
 | İşlem | Nasıl | Sonuç |
 |---|---|---|
+| Yeni ana süreç | Süreç seçicinin yanındaki **Yeni ana süreç** | Yeni akış açılır |
 | Araya adım ekleme | Kutular arasındaki **+** | Adım o sıraya girer, kardeşler kayar |
+| İlk alt adım | Boş kutuyu açıp **… ekle** | Alt seviye kurulur |
 | Sıra değiştirme | Kutu menüsü → Yukarı / Aşağı taşı | Audit trail'e yazılır |
 | Adımı düzenleme | Kutu menüsü → Adımı düzenle | Kritik alan değiştiyse onaya düşer |
 | Akıştan çıkarma | Kutu menüsü → Akıştan çıkar | `status` kritik alan olduğu için **onay zincirine** girer |
-| Risk/kontrol/prosedür/doküman ekleme | Sağ paneldeki **+ … ekle** | Kayıt o adıma bağlı açılır |
-
-**Adımın içeriği kutunun üzerindedir:** Risk, Kontrol, Prosedür ve Doküman
-sayaçları alt ağacın toplamıdır. Kutuya tıklayınca sağdaki panel o adımın
-kayıtlarını açar; kayda tıklayınca detayı gelir, panelden yenisi eklenir.
+| Kayıt ekleme | Sağ paneldeki **+ … ekle** | Kayıt o adıma bağlanır |
 
 **Akıştan çıkarma neden doğrudan silmiyor?** Bir adımın akıştan çıkması alt
 ağacını da görünmez yapar ve geçmiş raporları etkiler. Bu yüzden `status`
 kritik alandır: tek kişinin kararı olmaz, değişiklik talebi açılır ve onay
-tamamlanınca uygulanır. Kayıt hiçbir zaman silinmez, arşivlenir.
+tamamlanınca uygulanır. Kayıt hiçbir zaman silinmez, arşivlenir. (Taslak
+durumundaki yeni kayıtlar onaya girmez; henüz yayımlanmamışlardır.)
 
-### Doküman Şeması
+### Doküman Şeması görünümü
 
-Süreç haritası **"ne var"** sorusunu cevaplar: ana süreç → alt süreç →
-faaliyet → adım hiyerarşisi. İş akışı **"sonra ne oluyor"** sorusunu
-cevaplar: hangi adımdan sonra ne gelir, hangi koşulda hangi dala gidilir,
-akış nerede biter. İkisi aynı şey değildir ve biri diğerinden türetilemez —
-bu yüzden akış ayrı bir veridir (`src/data/flows/hasar-akis.ts`) ve
-`nodeCode` alanıyla süreç ağacına bağlanır.
-
-Kaynak: **TMTB Süreç ve İş Akışı Dokümanı Ver 10.0 (Aralık 2024), Bölüm 9 –
-İş Akışları**, Madde 42 (Yurt Dışı) ve Madde 43 (Yurt İçi). Kutu adları
-dokümandaki şemalarla birebirdir; şemada olmayan hiçbir adım eklenmemiştir.
+Aynı ekranın ikinci sekmesi. TMTB Süreç Dokümanı v10.0 Bölüm 9'daki resmî
+akış şemalarını gösterir — **değiştirilemez**, çünkü onlar yayımlanmış
+belgenin kendisi. Kutu adları şemalarla birebirdir; şemada olmayan hiçbir
+adım eklenmemiştir.
 
 | Akış | Aşamalar |
 |---|---|
-| **Yurt İçi Hasar** | Ana Süreçler · Kaza Bildirim · Dosya Oluşturma · Araştırma · Ödeme · Rücu İşlemleri |
-| **Yurt Dışı Hasar** | Kaza Bildirim · Dosya Oluşturma · Araştırma |
+| **Yurt İçi Hasar** (Madde 43) | Ana Süreçler · Kaza Bildirim · Dosya Oluşturma · Araştırma · Ödeme · Rücu İşlemleri |
+| **Yurt Dışı Hasar** (Madde 42) | Kaza Bildirim · Dosya Oluşturma · Araştırma |
 
-**Tek ekranda durur.** Aşama şeridi, ölçek düğmeleri ve adım detayı görünürde
-kalır; yalnızca şema kendi kutusunun içinde kayar. Geniş şemalar (Araştırma
-11 sütun) için %60 / %80 / %100 ölçek seçilebilir.
+Adıma tıklayınca dokümandaki dayanak maddesi (örn. *Madde 18/4*), varsa
+sayısal eşik, bağlı süreç adımı ve o adımın riskleri açılır. İki sekmeyi
+tek ekranda tutmak "bizim akışımız belgeyle uyuşuyor mu?" sorusunu tek
+yerde cevaplatıyor.
 
-**Kutu türleri şekille ayrılır:** başlangıç ve bitiş yuvarlatılmış, karar
-noktaları eşkenar dörtgen, sistem adımları mavi, taraflar kesikli çerçeve,
-başka akışa devir yeşil. Sağ üst köşesinde nokta taşıyan kutuların
-dokümanda sayısal bir dayanağı vardır.
+### Yurt içi ve yurt dışı aynı şey değil
 
-**Adıma tıklayınca** sağdaki panel açılır: dokümandaki dayanak maddesi
-(örn. *Madde 18/4*), varsa eşik ve kural metni, bağlı süreç adımı ve o
-adımın riskleri, kontrolleri ve dayanak dokümanları. Böylece akış ile
-kontrol ortamı aynı ekranda birleşir; süreç adımına tek tıkla geçilir.
+İkisi de TMTB'nin gerçek akışlarından modellenmiştir ve **birbirinin aynası
+değildir** — yön tersine döner:
 
-## Süreç Kanvası
-
-Sürecin tıkladıkça derinleşen kutu görünümü. Giriş ekranı hangi süreci
-açacağınızı sorar; hasarda iki varyant vardır çünkü **hasarın nerede
-gerçekleştiği süreci baştan aşağı değiştirir**:
-
-İkisi de TMTB'nin gerçek akış diyagramlarından modellenmiştir ve **birbirinin
-aynası değildir** — yön tersine döner:
-
-| | Yurt İçi Hasar (1.0) | Yurt Dışı Hasar (2.0) |
+| | Yurt İçi Hasar | Yurt Dışı Hasar |
 |---|---|---|
 | Olay | Yabancı araç Türkiye'de zarar verir | Türk aracı yurt dışında zarar verir |
 | Talep sahibi | Zarar gören üçüncü şahıs | Yurt dışı büro / muhabir |
 | Ödeyen | TMTB öder | İlgili ülke bürosu öder, TMTB karşılar |
-| Tespit | Eksper / bilirkişi ağı | Muhabir + destek (eksper, aktüer, tıbbi bilirkişi, araştırmacı) |
+| Tespit | Eksper / bilirkişi ağı | Muhabir + destek (eksper, aktüer, tıbbi bilirkişi) |
 | Ödeme kaynağı | Güvence Hesabı veya öz kaynak | Üye şirket mahsuplaşması |
 | Ağırlık merkezi | Tazminat tespiti ve ödeme | Muhabir koordinasyonu ve **mali mutabakat** |
 | Sonrası | Ülke bürosundan rücu, G Call | SBM mutabakatı, dekont, reasürans ihbarı, sigortalıya rücu |
-| Hedef süre | 30 iş günü | 45 iş günü |
 
 Akışta ikisi birbirine bağlanır: yurt dışı hattında "yurt dışı mı?" kararı
 olumsuzsa dosya **yurt içi hasar sürecine devredilir**.
-
-Seçimden sonra kırılım:
-
-```
-ANA SÜREÇ → ALT SÜREÇ → FAALİYET → İŞ ADIMI
-```
-
-Her kutu **altındaki her şeyin toplamını** taşır — risk, kontrol, prosedür
-ve doküman sayaçları. Kutuya girmeden "burada ne var" sorusu cevaplanır;
-kritik risk taşıyan kutunun risk sayacı kırmızıya döner. Sıfır olan sayaç
-gizlenmez, soluklaşır: eksikliğin kendisi de bilgidir.
-
-Kutular sıra oklarıyla bağlıdır ve şerit kendi içinde kayar; sayfa gövdesi
-yatay kaymaz. Sol üstteki kırıntı yolu her seviyeye geri döner.
-
-### Yerinde ekleme
-
-Her seviyede **"Bu seviyeye ekle"** düğmesi vardır: risk, kontrol, prosedür
-veya doküman eklersiniz, kayıt bulunduğunuz düğüme bağlanır. Ekleme
-yetkisi kayıt bazlı denetlenir — yetkisi olmayan kullanıcıda düğme hiç
-görünmez. Eklenen kayıt aynı ekranda sayaçlara ve listeye yansır.
 
 ---
 
 ## Görünümler
 
-Aynı süreç altı farklı görünümle incelenebilir (`Süreç Haritası` sayfası):
+Aynı süreç ayrıca farklı görünümlerle incelenebilir (Bağlantı Ağı, Risk Isı Haritası,
+Standart Uyumu sayfaları):
 
 | Görünüm | Ne gösterir |
 |---|---|
@@ -429,8 +413,12 @@ yöneticisindedir. Yetkisi olmayan kullanıcı düğmeleri görmez, gerekçesini
 
 ## Doğrulama
 
-Sekiz uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
-düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 149 kontrol.
+Yedi uçtan uca süit uygulamayı gerçek tarayıcıda sürer: kaydı arayüzden oluşturur,
+düzenler, sonucu ekranda **ve** audit trail'de doğrular. Toplam 158 kontrol.
+
+Üç ekran tek ekranda birleşince süitler de birleşti: eski `faz5-kanvas`'ın
+kendine özgü kontrolleri (varyant listesi, sayaçlar, süreçler arası geçiş)
+akış editörü süitine taşındı, süit kaldırıldı.
 
 ```bash
 npm run build
@@ -441,13 +429,12 @@ npm run test:e2e
 | Süit | Kapsam | Kontrol |
 |---|---|---|
 | `faz1-kayit-yonetimi` | Kayıt oluşturma, düzenleme, risk–kontrol bağlama, arşivleme, kalıcılık, rol bazlı yetki reddi | 16 |
-| `faz2-surec-yapisi` | Ana süreç → alt süreç → faaliyet ağacı, sıralama, kritik nokta, doküman bağlama, süreç arşivleme | 15 |
+| `faz2-surec-yapisi` | Yeni ana süreç, alt kayıt, sıralama, kritik nokta, doküman bağlama, arşivleme, audit izi | 15 |
 | `faz3-onay-mekanizmasi` | Kritik alan tespiti, talep üretimi, kendi talebini onaylayamama, iki kademeli zincir, uygulama | 19 |
 | `faz4-yetkilendirme` | Giriş, hatalı parola, menü filtresi, rota koruması, rol düzenleme, kullanıcı istisnası, pasif hesap | 24 |
-| `faz5-kanvas` | Varyant seçimi, kırılım, sayaçlar, bağlantı okları, kırıntı yolu, yerinde ekleme, yetki denetimi | 22 |
-| `faz6-ekler` | Ek ekleme, kaynak tespiti, açılabilir/kopyalanabilir ayrımı, zararlı şema reddi, kalıcılık, audit izi | 12 |
-| `faz7-is-akisi` | Akış ve aşama listesi, şema çizimi, karar noktaları, adım detayı, süreç adımına geçiş, ölçek | 20 |
-| `faz8-akis-editoru` | Dikey akış, yerinde açılma, araya ekleme, sıralama, panelden kayıt ekleme, onay zinciri, yetki | 21 |
+| `faz5-ekler` | Ek ekleme, kaynak tespiti, açılabilir/kopyalanabilir ayrımı, zararlı şema reddi, kalıcılık, audit izi | 12 |
+| `faz6-dokuman-semasi` | Doküman şeması: aşama listesi, şema çizimi, karar noktaları, adım detayı, ölçek | 20 |
+| `faz7-akis-editoru` | Süreç seçimi, akış sırası, sayaçlar, yerinde açılma, araya ekleme, sıralama, panelden ekleme, onay zinciri, yetki | 31 |
 
 Ortam değişkenleri:
 
@@ -661,8 +648,10 @@ tests/
   faz2-surec-yapisi.mjs   # süreç ağacı, sıralama, doküman yönetimi
   faz3-onay-mekanizmasi.mjs # kritik alan → onay zinciri → uygulama
   faz4-yetkilendirme.mjs  # giriş, menü/rota denetimi, rol ve istisna yönetimi
-  faz5-kanvas.mjs         # varyant seçimi, kırılım, sayaçlar, yerinde ekleme
-  run-all.mjs             # üç süiti sırayla koşan toplu koşucu
+  faz5-ekler.mjs          # dosya bağlantısı ekleri: kaynak tespiti, kalıcılık
+  faz6-dokuman-semasi.mjs # TMTB dokümanındaki resmî akış şemaları
+  faz7-akis-editoru.mjs   # süreç akışı: sıra, sayaç, yerinde açılma, düzenleme
+  run-all.mjs             # süitleri ayrı süreçlerde sırayla koşan toplu koşucu
 ```
 
 Grafiklerin tamamı bağımlılık kullanmadan, doğrudan SVG olarak çizilmiştir.

@@ -1,4 +1,4 @@
-// Faz 6 — dosya bağlantısı ekleri
+// Faz 5 — dosya bağlantısı ekleri
 //
 // Ekler dosyanın kendisini değil adresini tutar. Bu süit üç şeyi doğrular:
 // (1) forma girilen ek kayda yazılıyor ve yenilemeden sonra duruyor,

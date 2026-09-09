@@ -551,3 +551,7 @@
 
 /* Görünüm anahtarı sayfa başlığının üstünde durur. */
 .fe-mode { display: flex; justify-content: flex-start; margin-bottom: var(--s4); }
+/* Yeni ana süreç düğmesi seçicilerden ayrışsın. */
+.fe-new-root { border-style: dashed; color: var(--brand-700); }
+/* Henüz alt adımı olmayan kutunun oku soluk: açılabilir ama boş. */
+.fe-box-caret-btn.is-empty { color: var(--ink-300); }

@@ -60,27 +60,24 @@ export const hasarYonetimi: NodeSpec = {
     /* ============================================================ */
     /* 1.1 — HASAR DESTEK                                            */
     /* ============================================================ */
-    {
+        {
       code: 'HSR-A',
-      name: 'Hasar Destek (1.1)',
+      name: 'Başvuru ve İhbar',
       owner: 'usr-05',
       description:
-        'Talebin karşılanması, evrak kontrolü, dosya açılışı, zarar gören girişi ve '
-        + 'muallak karşılığının belirlenmesi.',
+        'Kazanın TMTB’ye bildirilmesi: telefon, e-posta ve posta kanallarından gelen evrakın kayda alınması, talep türünün belirlenmesi ve dosya açılıp açılmayacağına karar verilmesi.',
       purpose:
-        'Talebin doğru sınıflandırılarak eksiksiz evrakla dosyaya dönüşmesini ve karşılığın '
-        + 'baştan doğru ayrılmasını sağlamak.',
+        'Kuruma ulaşan her talebin izlenebilir biçimde kayda geçmesini ve doğru sınıflandırılmasını sağlamak.',
       systems: ['Büro Hasar Sistemi', 'DYS', 'Outlook'],
-      inputs: ['Telefon / e-posta / posta ile gelen talep'],
-      outputs: ['Açılmış hasar dosyası', 'Muallak kaydı'],
+      inputs: ['Telefon / e-posta / posta ile gelen talep', 'Kaza tespit tutanağı'],
+      outputs: ['Kayda geçmiş başvuru', 'Talep türü kararı'],
       maturity: 3,
-      slaDays: 5,
+      slaDays: 3,
 
       children: [
-        /* ---------- 1.1.1 Evrak Yönetimi ---------- */
         {
           code: 'HSR-01',
-          name: 'Evrak Yönetimi (1.1.1)',
+          name: 'Evrak ve Başvuru Kaydı (1.1)',
           owner: 'usr-05',
           participants: ['usr-04'],
           description:
@@ -273,11 +270,9 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
-
-        /* ---------- 1.1.2 Talep Değerlendirme ---------- */
         {
           code: 'HSR-02',
-          name: 'Talep Değerlendirme (1.1.2)',
+          name: 'Talep Değerlendirme (1.2)',
           owner: 'usr-05',
           participants: ['usr-04'],
           description:
@@ -468,11 +463,26 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
+      ],
+    },
+    {
+      code: 'HSR-B',
+      name: 'Dosya Açılış',
+      owner: 'usr-05',
+      description:
+        'Talebin dosyaya dönüşmesi: Yeşil Kart ve mükerrerlik kontrolü, dosya numarası verilmesi, zarar gören kaydı, muallak karşılığının ayrılması ve dosya sorumlusunun atanması.',
+      purpose:
+        'Dosyanın eksiksiz bilgiyle açılmasını ve karşılığın baştan doğru ayrılmasını sağlamak.',
+      systems: ['Büro Hasar Sistemi', 'DYS', 'Outlook'],
+      inputs: ['Kayda geçmiş başvuru', 'Yeşil Kart bilgisi'],
+      outputs: ['Açılmış hasar dosyası', 'Muallak kaydı', 'Atanmış dosya sorumlusu'],
+      maturity: 3,
+      slaDays: 5,
 
-        /* ---------- 1.1.3 Dosya Oluşturma ---------- */
+      children: [
         {
           code: 'HSR-03',
-          name: 'Dosya Oluşturma (1.1.3)',
+          name: 'Dosya Oluşturma (2.1)',
           owner: 'usr-05',
           description:
             'Yeşil Kart kontrolü, poliçe/sigortacı tespiti ve hasar dosyasının açılması. UHT '
@@ -629,11 +639,9 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
-
-        /* ---------- 1.1.4 Zarar Gören Girişi ---------- */
         {
           code: 'HSR-04',
-          name: 'Zarar Gören Girişi (1.1.4)',
+          name: 'Zarar Gören Girişi (2.2)',
           owner: 'usr-05',
           participants: ['usr-04'],
           description:
@@ -797,11 +805,9 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
-
-        /* ---------- 1.1.5 Muallak Girişi ---------- */
         {
           code: 'HSR-05',
-          name: 'Muallak Girişi (1.1.5)',
+          name: 'Muallak Girişi (2.3)',
           owner: 'usr-05',
           description:
             'Talep tutarına ve tahmini tedvir ücretine göre muallak (ödenmemiş hasar) karşılığının '
@@ -1021,31 +1027,9 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
-      ],
-    },
-
-    /* ============================================================ */
-    /* 1.2 — SERVİS YÖNETİCİSİ                                       */
-    /* ============================================================ */
-    {
-      code: 'HSR-B',
-      name: 'Servis Yöneticisi (1.2)',
-      owner: 'usr-02',
-      description:
-        'Dosyanın sorumluya atanması, ödeme talebinin onaylanması ve ödeme gününün oluşturulması.',
-      purpose:
-        'Her dosyanın bir sahibi olmasını ve hiçbir ödemenin tek kişinin kararıyla çıkmamasını sağlamak.',
-      systems: ['Büro Hasar Sistemi', 'Güvence Hesabı', 'Excel'],
-      inputs: ['Muallak girilmiş dosya', 'Talep girişi'],
-      outputs: ['Atanmış dosya', 'Onaylanmış talep', 'Ödeme günü listesi'],
-      maturity: 3,
-      slaDays: 5,
-
-      children: [
-        /* ---------- 1.2.1 Dosya Sorumlu Ataması ---------- */
         {
           code: 'HSR-06',
-          name: 'Dosya Sorumlu Ataması (1.2.1)',
+          name: 'Dosya Sorumlu Ataması (2.4)',
           owner: 'usr-02',
           description:
             'Açılan dosyanın ve alt dosyaların uzmanlık ve iş yüküne göre bir dosya sorumlusuna atanması.',
@@ -1142,394 +1126,26 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
-
-        /* ---------- 1.2.2 Talep Onay ---------- */
-        {
-          code: 'HSR-07',
-          name: 'Talep Onay (1.2.2)',
-          owner: 'usr-02',
-          participants: ['usr-06', 'usr-08'],
-          description:
-            'Dosya sorumlusunun girdiği ödeme talebinin yönetici tarafından kontrol edilip onaylanması, '
-            + 'Güvence Hesabı’ndan talep edilmesi ve gelen tutarların dosyalara işlenmesi.',
-          purpose:
-            'Hiçbir ödemenin tek kişinin kararıyla çıkmamasını ve talep tutarının dosyayla tutarlı olmasını sağlamak.',
-          systems: ['Büro Hasar Sistemi', 'Güvence Hesabı'],
-          inputs: ['Girilmiş ödeme talebi'],
-          outputs: ['Onaylanmış talep', 'Güvence talep yazısı', 'Gelen tutar kaydı'],
-          maturity: 3,
-          slaDays: 3,
-          lastReviewedAt: '2026-03-05',
-          critical: [
-            ['authorization', 'Yetki Ayrımı',
-              'Talebi giren ile onaylayan farklı kişi olmalıdır; aynı kişinin her ikisini yapması görevler ayrılığını bozar.'],
-            ['financial', 'Finansal Etki',
-              'Onaylanan tutar doğrudan Güvence Hesabı’ndan talep edilir; hatalı onay geri alınması güç bir ödeme doğurur.'],
-          ],
-          examples: [
-            {
-              title: 'Zarar görene ödeme bilgisinin iletilmemesi',
-              scenario:
-                'Talep onaylanıp Güvence’ye iletiliyor ve ödeme yapılıyor, ancak zarar görene hiçbir '
-                + 'bildirim gitmiyor. Zarar gören durumu öğrenmek için defalarca arıyor.',
-              risk: 'Gereksiz çağrı yükü, memnuniyetsizlik ve şikâyet.',
-              control: 'Ödeme onayı sonrası zarar görene otomatik e-posta veya SMS bildirimi.',
-              controlType: 'Önleyici — otomatik bildirim',
-              evidence: 'Bildirim gönderim kaydı',
-              criticalNote: 'Bildirim, ödeme gününün oluşturulmasıyla birlikte tetiklenmelidir.',
-            },
-          ],
-          risks: [
-            {
-              code: 'R-HSR-07',
-              name: 'Talebi girenin aynı zamanda onaylaması',
-              description:
-                'Görevler ayrılığının uygulanmaması sonucu ödeme talebini giren kişinin aynı talebi '
-                + 'onaylayabilmesi.',
-              cause: 'Sistemde giren ve onaylayan kullanıcı farkının zorunlu kılınmaması.',
-              consequence: 'Suistimal ve hatalı ödemenin fark edilmeden çıkması.',
-              category: 'financial',
-              inherent: [3, 5],
-              residual: [2, 5],
-              target: [1, 5],
-              appetite: 'averse',
-              treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-02',
-              identifiedAt: '2025-05-22',
-              lastAssessedAt: '2026-03-05',
-              standards: ['COSO'],
-            },
-            {
-              code: 'R-HSR-25',
-              name: 'Zarar görenin ödeme hakkında bilgilendirilmemesi',
-              description:
-                'Ödeme onaylandığında ve ödeme günü verildiğinde zarar görene otomatik bildirim '
-                + 'yapılmaması.',
-              cause: 'Bildirimin süreçte tanımlı olmaması.',
-              consequence: 'Çağrı merkezinde gereksiz yük, memnuniyetsizlik ve şikâyet.',
-              category: 'reputational',
-              inherent: [4, 2],
-              residual: [3, 2],
-              target: [1, 2],
-              appetite: 'cautious',
-              treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-02',
-              identifiedAt: '2025-09-16',
-              lastAssessedAt: '2026-03-05',
-              standards: ['ISO 9001'],
-            },
-          ],
-          controls: [
-            {
-              code: 'K-HSR-12',
-              name: 'Talebi giren ile onaylayan ayrımı',
-              description:
-                'Sistem, ödeme talebini giren kullanıcının aynı talebi onaylamasına izin vermez; '
-                + 'onay yalnızca servis yöneticisi rolündeki farklı bir kullanıcı tarafından verilebilir.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['segregation_of_duties', 'authorization'],
-              frequency: 'per_transaction',
-              method: 'Onay ekranında kullanıcı kimliği karşılaştırması.',
-              evidence: 'Onay kaydı ve kullanıcı logu',
-              mitigates: ['R-HSR-07'],
-              owner: 'usr-02',
-              key: true,
-              coso: 'control_activities',
-              design: 'adequate',
-              effectiveness: 'effective',
-              strength: 5,
-              lastPerformedAt: '2026-08-28',
-              lastTestedAt: '2026-07-10',
-              testResult: '120 onayın tamamında giren ve onaylayan farklı; kontrol atlatılamıyor.',
-            },
-            {
-              code: 'K-HSR-13',
-              name: 'Ödeme onayı sonrası zarar görene otomatik bildirim',
-              description:
-                'Talep onaylanıp ödeme günü verildiğinde zarar görene e-posta veya SMS ile bildirim '
-                + 'gönderilir ve gönderim kaydı dosyaya işlenir.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['system'],
-              frequency: 'per_transaction',
-              method: 'Ödeme günü kaydına bağlı otomatik bildirim tetikleyicisi.',
-              evidence: 'Bildirim gönderim kaydı',
-              mitigates: ['R-HSR-25'],
-              owner: 'usr-02',
-              coso: 'control_activities',
-              design: 'inadequate',
-              effectiveness: 'ineffective',
-              strength: 1,
-              lastPerformedAt: '2026-08-28',
-              lastTestedAt: '2026-06-22',
-              testResult: 'Bildirim mekanizması henüz kurulmadı; talep geliştirme listesinde.',
-            },
-          ],
-          docs: [
-            {
-              code: 'TLM-HSR-07',
-              name: 'Ödeme Talebi Onay Talimatı',
-              type: 'instruction',
-              version: '2.0',
-              owner: 'usr-02',
-              publishedAt: '2025-06-01',
-              updatedAt: '2026-03-05',
-              nextReviewAt: '2027-06-01',
-              summary: 'Talep onayı, Güvence Hesabı’ndan talep ve gelen tutarların işlenmesi.',
-              sections: [
-                {
-                  heading: 'Onay Öncesi Kontroller',
-                  body: [
-                    'Talep tutarı dosyadaki evrak ve eksper raporuyla karşılaştırılır.',
-                    'Peşin ödeme yapılmışsa mahsup edilir.',
-                    'Talebi giren ile onaylayan aynı kişi olamaz.',
-                  ],
-                },
-                {
-                  heading: 'Güvence Talebi',
-                  body: [
-                    'Onaylanan talepler PDF talep yazısı ve dosya listesiyle Güvence Hesabı’na iletilir.',
-                    'Gelen tutarlar dosya bazında sisteme işlenir ve Güvence referansı girilir.',
-                  ],
-                },
-              ],
-              controlCodes: ['K-HSR-12', 'K-HSR-13'],
-            },
-          ],
-          children: [
-            {
-              code: 'HSR-07-1',
-              name: 'Ödemeye ilişkin dosya kontrolü',
-              description: 'Talep tutarının ve evrakın dosyayla tutarlılığının kontrolü.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Girilmiş talep'],
-              outputs: ['Kontrol sonucu'],
-              controlRefs: ['K-HSR-12'],
-            },
-            {
-              code: 'HSR-07-2',
-              name: 'Talebin onaylanması ve Güvence’ye iletilmesi',
-              description: 'Talep tarihinin girilip onaylanması, PDF talep yazısı ve listenin iletilmesi.',
-              systems: ['Büro Hasar Sistemi', 'Güvence Hesabı'],
-              inputs: ['Onaylanmış talep'],
-              outputs: ['Güvence talep yazısı'],
-            },
-            {
-              code: 'HSR-07-3',
-              name: 'Gelen tutarların dosyalara işlenmesi',
-              description: 'Güvence’den gelen ödeme ve dosya bilgilerinin referansla sisteme kaydı.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Güvence ödeme bildirimi'],
-              outputs: ['Ödeme kaydı', 'Güvence referansı'],
-              controlRefs: ['K-HSR-13'],
-            },
-          ],
-        },
-
-        /* ---------- 1.2.3 Ödeme Günü Verme ---------- */
-        {
-          code: 'HSR-08',
-          name: 'Ödeme Günü Verme (1.2.3)',
-          owner: 'usr-02',
-          participants: ['usr-08'],
-          description:
-            'Güvence Hesabı’ndan gelen veya öz kaynaktan yapılacak ödemeler için ödeme gününün '
-            + 'oluşturulması ve muhasebeye iletilmesi.',
-          purpose: 'Ödemelerin planlı, kontrollü ve izlenebilir biçimde yapılmasını sağlamak.',
-          systems: ['Büro Hasar Sistemi', 'Excel'],
-          inputs: ['Güvence ödemesi', 'Öz kaynak ödeme kararı'],
-          outputs: ['Ödeme günü listesi', 'Muhasebe bildirimi'],
-          maturity: 2,
-          slaDays: 2,
-          lastReviewedAt: '2026-03-05',
-          critical: [
-            ['financial', 'Finansal Etki',
-              'Ödeme günü listesi ödemenin tek dayanağıdır; liste üzerinde kontrolsüz değişiklik doğrudan hatalı ödeme demektir.'],
-          ],
-          examples: [
-            {
-              title: 'Excel ödeme listesinde kontrolsüz düzeltme',
-              scenario:
-                'Ödeme günü listesi Excel olarak üretiliyor. Muhasebeye gönderilmeden önce bir tutar '
-                + 'elle düzeltiliyor; sistemdeki kayıtla liste arasında fark oluşuyor.',
-              risk: 'Sistemde görünenden farklı tutar ödeniyor ve fark ancak mutabakatta fark ediliyor.',
-              control: 'Ödeme günü listesinin sistemden kilitli üretilmesi ve elle değiştirilememesi.',
-              controlType: 'Önleyici — çıktı bütünlüğü',
-              evidence: 'Sistem listesi ile muhasebeye giden listenin karşılaştırması',
-              criticalNote: 'Liste üzerinde değişiklik gerekiyorsa sistemde düzeltilip yeniden üretilmelidir.',
-            },
-          ],
-          risks: [
-            {
-              code: 'R-HSR-08',
-              name: 'Ödeme günü listesinin sistem dışında değiştirilebilmesi',
-              description:
-                'Ödeme günü listesinin Excel olarak üretilmesi ve muhasebeye iletilmeden önce '
-                + 'elle değiştirilebilmesi.',
-              cause: 'Listenin kilitli olmayan bir formatta üretilmesi ve sistemle mutabakatının yapılmaması.',
-              consequence:
-                'Sistemde görünenden farklı tutarın ödenmesi, suistimal ve mutabakatsızlık.',
-              category: 'financial',
-              inherent: [4, 5],
-              residual: [3, 5],
-              target: [1, 5],
-              appetite: 'averse',
-              treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-06',
-              identifiedAt: '2025-01-28',
-              lastAssessedAt: '2026-03-05',
-              standards: ['COSO'],
-            },
-            {
-              code: 'R-HSR-26',
-              name: 'Peşin ödemenin sistemde görünmemesi ve mükerrer ödeme',
-              description:
-                'Muhasebe tarafından yapılan peşin ödemenin sisteme girilmemesi sonucu aynı tutarın '
-                + 'ikinci kez ödenmesi.',
-              cause: 'Peşin ödemenin sistemde uyarı üretmemesi ve muhasebe girişinin zorunlu olmaması.',
-              consequence: 'Mükerrer ödeme ve geri tahsil güçlüğü.',
-              category: 'financial',
-              inherent: [3, 5],
-              residual: [2, 5],
-              target: [1, 5],
-              appetite: 'averse',
-              treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-06',
-              identifiedAt: '2025-11-05',
-              lastAssessedAt: '2026-03-05',
-              standards: ['COSO'],
-            },
-          ],
-          controls: [
-            {
-              code: 'K-HSR-14',
-              name: 'Ödeme günü listesinin kilitli üretilmesi',
-              description:
-                'Ödeme günü listesi sistemden değiştirilemez biçimde (PDF/kilitli) üretilir; '
-                + 'muhasebeye giden liste ile sistem kaydı gün sonunda mutabık kılınır.',
-              nature: 'preventive',
-              execution: 'automated',
-              categories: ['system', 'reconciliation'],
-              frequency: 'daily',
-              method: 'Kilitli liste üretimi ve gün sonu mutabakatı.',
-              evidence: 'Kilitli liste ve mutabakat kaydı',
-              mitigates: ['R-HSR-08'],
-              owner: 'usr-06',
-              key: true,
-              coso: 'control_activities',
-              design: 'inadequate',
-              effectiveness: 'ineffective',
-              strength: 1,
-              lastPerformedAt: '2026-08-28',
-              lastTestedAt: '2026-07-02',
-              testResult:
-                'Liste hâlâ Excel olarak üretiliyor ve düzenlenebiliyor. Mutabakat elle ve düzensiz yapılıyor. Öncelikli bulgu.',
-            },
-            {
-              code: 'K-HSR-15',
-              name: 'Peşin ödeme uyarısı ve muhasebe girişi zorunluluğu',
-              description:
-                'Peşin ödeme yapılan dosyalarda sistem ödeme günü oluşturulurken uyarı üretir; '
-                + 'muhasebenin peşin ödemeyi sisteme girmesi zorunludur.',
-              nature: 'preventive',
-              execution: 'semi_automated',
-              categories: ['system', 'reconciliation'],
-              frequency: 'per_transaction',
-              method: 'Peşin ödeme alanı ve ödeme günü ekranında uyarı.',
-              evidence: 'Peşin ödeme kaydı ve uyarı logu',
-              mitigates: ['R-HSR-26'],
-              owner: 'usr-06',
-              key: true,
-              coso: 'control_activities',
-              design: 'needs_improvement',
-              effectiveness: 'partially_effective',
-              strength: 2,
-              lastPerformedAt: '2026-08-28',
-              lastTestedAt: '2026-06-30',
-              testResult: 'Alan mevcut ancak uyarı üretilmiyor; peşin ödemelerin 3’ü geç girilmiş.',
-            },
-          ],
-          actions: [
-            {
-              code: 'AKS-007',
-              title: 'Ödeme günü listesinin kilitli çıktıya çevrilmesi',
-              description:
-                'Ödeme günü listesinin Excel yerine değiştirilemez PDF olarak üretilmesi, Excel çıktısının '
-                + 'kaldırılması ve sistem–liste mutabakatının otomatikleştirilmesi.',
-              riskCode: 'R-HSR-08',
-              controlCode: 'K-HSR-14',
-              owner: 'usr-11',
-              dueDate: '2026-10-31',
-              priority: 'critical',
-              status: 'in_progress',
-              progress: 25,
-              source: 'internal_control',
-              createdAt: '2026-07-12',
-              createdBy: 'usr-08',
-              managerComment:
-                'Muhasebe ile ortak çalışılıyor; kilitli çıktı geliştirmesi öncelik listesinin başında.',
-            },
-          ],
-          children: [
-            {
-              code: 'HSR-08-1',
-              name: 'Genel dosya kontrolü',
-              description: 'Ödeme öncesi dosyanın ve peşin ödeme durumunun kontrolü.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Ödeme bekleyen dosyalar'],
-              outputs: ['Kontrol sonucu'],
-              controlRefs: ['K-HSR-15'],
-            },
-            {
-              code: 'HSR-08-2',
-              name: 'Ödeme gününün oluşturulması',
-              description: 'Güvence ve öz kaynak ödemeleri için ödeme gününün sistemde oluşturulması.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Onaylanmış ödemeler'],
-              outputs: ['Ödeme günü kaydı'],
-              controlRefs: ['K-HSR-14'],
-            },
-            {
-              code: 'HSR-08-3',
-              name: 'Listenin muhasebeye iletilmesi',
-              description: 'Tüm ödemeler listesinin muhasebe ödeme sürecine devredilmesi.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Ödeme günü listesi'],
-              outputs: ['Muhasebe bildirimi'],
-            },
-          ],
-        },
       ],
     },
-
-    /* ============================================================ */
-    /* 1.3 — DOSYA SORUMLUSU                                         */
-    /* ============================================================ */
     {
       code: 'HSR-C',
-      name: 'Dosya Sorumlusu (1.3)',
+      name: 'İnceleme ve Değerlendirme',
       owner: 'usr-03',
       description:
-        'Dosyanın esastan incelenmesi, sigortacı ve teminat teyidi, bilirkişi/eksper yönetimi, '
-        + 'talep girişi, ret değerlendirmesi ve ödenen tutarın rücusu.',
+        'Dosya sorumlusunun ön incelemesi ve kusur değerlendirmesi: maddi ve bedeni taleplerin ayrı ele alınması, Tramer ve eksper değerlendirmesi, ZK taleplerinin yürütülmesi ve gerekirse talebin gerekçeli reddi.',
       purpose:
-        'Her dosyada ödenecek tutarın doğru tespit edilmesini ve ödenen tutarın geri alınmasını sağlamak.',
-      systems: ['Büro Hasar Sistemi', 'Tramer', 'Oracle', 'Outlook'],
-      inputs: ['Atanmış dosya', 'Eksper/bilirkişi raporu', 'Sigortacı yanıtı'],
-      outputs: ['Ödeme talebi', 'Rücu faturası', 'Ret yazısı'],
+        'Talebin sigorta kapsamında olup olmadığını ve ödenecek tutarı doğru belirlemek.',
+      systems: ['Büro Hasar Sistemi', 'DYS', 'Outlook'],
+      inputs: ['Açılmış dosya', 'Talep evrakı', 'Eksper ve aktüer raporları'],
+      outputs: ['Kusur ve tutar değerlendirmesi', 'Ret yazısı'],
       maturity: 3,
       slaDays: 20,
 
       children: [
-        /* ---------- 1.3.1 Maddi Hasar Dosya İnceleme ---------- */
         {
           code: 'HSR-09',
-          name: 'Maddi Hasar Dosya İnceleme (1.3.1)',
+          name: 'Maddi Hasar Dosya İnceleme (3.1)',
           owner: 'usr-03',
           participants: ['usr-04'],
           description:
@@ -1730,11 +1346,9 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
-
-        /* ---------- 1.3.2 Bedeni Hasar Dosya İnceleme ---------- */
         {
           code: 'HSR-10',
-          name: 'Bedeni Hasar Dosya İnceleme (1.3.2)',
+          name: 'Bedeni Hasar Dosya İnceleme (3.2)',
           owner: 'usr-03',
           description:
             'Bedeni zarar dosyalarında tıbbi evrakın incelenmesi, aktüer ve tıbbi bilirkişi ataması, '
@@ -1843,11 +1457,166 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
-
-        /* ---------- 1.3.3 ZK Süreci ---------- */
+        {
+          code: 'HSR-16',
+          name: 'Tramer Değerlendirme (3.3)',
+          owner: 'usr-04',
+          description:
+            'Tramer üzerinden gelen kaza ve hasar kayıtlarının dosyayla karşılaştırılması, '
+            + 'tutanak takibi ve mükerrer kayıt tespiti.',
+          purpose: 'Dosya bilgisinin sektör kayıtlarıyla tutarlı olmasını sağlamak.',
+          systems: ['Tramer', 'Büro Hasar Sistemi'],
+          inputs: ['Tramer kaydı', 'Kaza tespit tutanağı'],
+          outputs: ['Tutarlılık teyidi'],
+          maturity: 3,
+          slaDays: 3,
+          lastReviewedAt: '2026-03-05',
+          risks: [
+            {
+              code: 'R-HSR-16',
+              name: 'Kaza tespit tutanağının takip edilmemesi',
+              description:
+                'Tramer üzerinden beklenen kaza tespit tutanağının gelip gelmediğinin izlenmemesi.',
+              cause: 'Tutanak bekleyen dosyalar için hafta içi uyarı üretilmemesi.',
+              consequence: 'Dosyanın eksik belgeyle ilerlemesi ve sonradan düzeltme gereği.',
+              category: 'operational',
+              inherent: [3, 3],
+              residual: [2, 3],
+              target: [2, 2],
+              appetite: 'cautious',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-04',
+              identifiedAt: '2025-11-18',
+              lastAssessedAt: '2026-03-05',
+              standards: ['ISO 9001'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSR-25',
+              name: 'Tutanak bekleyen dosya haftalık uyarısı',
+              description:
+                'Kaza tespit tutanağı beklenen dosyalar hafta içinde gelmezse sistem uyarı üretir.',
+              nature: 'detective',
+              execution: 'automated',
+              categories: ['monitoring'],
+              frequency: 'weekly',
+              method: 'Tutanak bekleyen dosya listesi ve süre uyarısı.',
+              evidence: 'Uyarı listesi',
+              mitigates: ['R-HSR-16'],
+              owner: 'usr-04',
+              coso: 'monitoring',
+              design: 'adequate',
+              effectiveness: 'partially_effective',
+              strength: 3,
+              lastPerformedAt: '2026-08-25',
+              lastTestedAt: '2026-06-19',
+              testResult: 'Uyarı üretiliyor ancak kapatma takibi yapılmıyor.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSR-16-1',
+              name: 'Tramer kaydının sorgulanması',
+              description: 'Kaza ve hasar kayıtlarının Tramer üzerinden sorgulanması.',
+              systems: ['Tramer'],
+              inputs: ['Plaka', 'Kaza tarihi'],
+              outputs: ['Tramer kaydı'],
+            },
+            {
+              code: 'HSR-16-2',
+              name: 'Dosya ile karşılaştırma',
+              description: 'Tramer kaydının dosya bilgileriyle karşılaştırılması ve tutanak takibi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Tramer kaydı'],
+              outputs: ['Tutarlılık teyidi'],
+              controlRefs: ['K-HSR-25'],
+            },
+          ],
+        },
+        {
+          code: 'HSR-17',
+          name: 'Eksper Başvuruları Değerlendirme (3.4)',
+          owner: 'usr-05',
+          description:
+            'Büro eksper havuzuna yapılan başvuruların değerlendirilmesi, yetkinlik kontrolü ve '
+            + 'onaylı eksper listesinin güncellenmesi.',
+          purpose: 'Dosyalara yalnızca yetkinliği doğrulanmış eksperlerin atanmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'DYS'],
+          inputs: ['Eksper başvuru dosyası'],
+          outputs: ['Onaylı eksper listesi'],
+          maturity: 3,
+          slaDays: 15,
+          lastReviewedAt: '2026-03-05',
+          risks: [
+            {
+              code: 'R-HSR-17',
+              name: 'Onaylı eksper listesinin güncel tutulmaması',
+              description:
+                'Ruhsatı sona ermiş veya yetkinliği düşen eksperlerin listeden çıkarılmaması.',
+              cause: 'Liste güncellemesinin dönemsel bir kontrole bağlanmamış olması.',
+              consequence: 'Yetkisiz eksper ataması, raporun geçersizliği ve dosyanın yeniden açılması.',
+              category: 'supplier',
+              inherent: [3, 4],
+              residual: [2, 4],
+              target: [2, 3],
+              appetite: 'cautious',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-05',
+              identifiedAt: '2025-12-10',
+              lastAssessedAt: '2026-03-05',
+              standards: ['ISO 9001'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSR-26',
+              name: 'Eksper ruhsat geçerliliği dönemsel kontrolü',
+              description:
+                'Onaylı eksper listesindeki ruhsat geçerlilik tarihleri üç ayda bir kontrol edilir; '
+                + 'süresi dolanlar listeden otomatik çıkarılır.',
+              nature: 'detective',
+              execution: 'semi_automated',
+              categories: ['monitoring', 'authorization'],
+              frequency: 'quarterly',
+              method: 'Ruhsat tarihi taraması ve liste güncellemesi.',
+              evidence: 'Liste güncelleme kaydı',
+              mitigates: ['R-HSR-17'],
+              owner: 'usr-05',
+              coso: 'monitoring',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 4,
+              lastPerformedAt: '2026-07-15',
+              lastTestedAt: '2026-07-15',
+              testResult: 'Q3 kontrolünde ruhsatı dolan 3 eksper listeden çıkarıldı.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSR-17-1',
+              name: 'Başvuru evrakının incelenmesi',
+              description: 'Eksper ruhsatı, referans ve uzmanlık alanının doğrulanması.',
+              systems: ['DYS'],
+              inputs: ['Başvuru dosyası'],
+              outputs: ['İnceleme sonucu'],
+            },
+            {
+              code: 'HSR-17-2',
+              name: 'Listeye ekleme ve dönemsel gözden geçirme',
+              description: 'Onaylanan eksperin listeye eklenmesi ve ruhsat geçerliliğinin izlenmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Onay kararı'],
+              outputs: ['Onaylı eksper listesi'],
+              controlRefs: ['K-HSR-26'],
+            },
+          ],
+        },
         {
           code: 'HSR-11',
-          name: 'ZK Süreci (1.3.3)',
+          name: 'ZK Süreci (3.5)',
           owner: 'usr-04',
           description:
             'Zorunlu Karşılama (ZK) kapsamındaki taleplerin değerlendirilmesi, matbu yazışmaların '
@@ -1929,11 +1698,113 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
+        {
+          code: 'HSR-15',
+          name: 'Ret Değerlendirme (3.6)',
+          owner: 'usr-03',
+          description:
+            'Teminat dışı, zamanaşımına uğramış veya evrakı tamamlanmayan taleplerin gerekçeli '
+            + 'olarak reddedilmesi ve ret yazısının iletilmesi.',
+          purpose: 'Reddedilen taleplerin gerekçesinin tutarlı, hukuken savunulabilir ve izlenebilir olmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi'],
+          inputs: ['Ret kararı gerektiren dosya'],
+          outputs: ['Ret yazısı', 'Ret nedeni kaydı'],
+          maturity: 2,
+          slaDays: 5,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['regulatory', 'Hukuki Sonuç',
+              'Ret gerekçesi dava dosyasının temelini oluşturur; standart dışı gerekçeler savunmayı zayıflatır.'],
+          ],
+          risks: [
+            {
+              code: 'R-HSR-15',
+              name: 'Ret yazılarının standart dışı ve elle hazırlanması',
+              description:
+                'Ret gerekçelerinin sistemde tanımlı liste yerine elle yazılması ve gerekçelerin '
+                + 'dosyadan dosyaya farklılaşması.',
+              cause:
+                'Sistemdeki ret nedeni listesinin yetersiz olması ve kullanıcının yeni neden ekleyememesi.',
+              consequence:
+                'Tutarsız gerekçe, hukuki savunmanın zayıflaması ve ret istatistiklerinin üretilememesi.',
+              category: 'compliance',
+              inherent: [3, 4],
+              residual: [3, 3],
+              target: [2, 3],
+              appetite: 'cautious',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-09',
+              identifiedAt: '2025-09-04',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO', 'ISO 9001'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSR-24',
+              name: 'Standart ret nedeni listesi ve matbu yazı',
+              description:
+                'Ret nedenleri sistemde tanımlı listeden seçilir ve ret yazısı matbu şablondan '
+                + 'üretilir; yeni neden ihtiyacı hukuk onayıyla listeye eklenir.',
+              nature: 'preventive',
+              execution: 'semi_automated',
+              categories: ['data_validation', 'authorization'],
+              frequency: 'per_transaction',
+              method: 'Ret nedeni seçim listesi ve şablon yazı üretimi.',
+              evidence: 'Ret nedeni kaydı ve üretilen yazı',
+              mitigates: ['R-HSR-15'],
+              owner: 'usr-09',
+              coso: 'control_activities',
+              design: 'needs_improvement',
+              effectiveness: 'partially_effective',
+              strength: 2,
+              lastPerformedAt: '2026-08-22',
+              lastTestedAt: '2026-06-02',
+              testResult:
+                'Liste var ama dar; 22 ret yazısının 9’u serbest metinle yazılmış. Kullanıcı yeni neden ekleyemiyor.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSR-15-1',
+              name: 'Ret gerekçesinin belirlenmesi',
+              description: 'Teminat, zamanaşımı veya evrak eksikliği gerekçelerinin değerlendirilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Dosya inceleme sonucu'],
+              outputs: ['Ret gerekçesi'],
+              controlRefs: ['K-HSR-24'],
+            },
+            {
+              code: 'HSR-15-2',
+              name: 'Ret yazısının iletilmesi',
+              description: 'Matbu ret yazısının üretilip talep sahibine gönderilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Ret gerekçesi'],
+              outputs: ['Ret yazısı'],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: 'HSR-D',
+      name: 'Ödeme',
+      owner: 'usr-03',
+      description:
+        'Tespit edilen tutarın ödeme talebine dönüşmesi, birim yöneticisi onayından geçmesi ve ödeme günü verilerek Muhasebe’ye iletilmesi.',
+      purpose:
+        'Ödemenin doğru kişiye, doğru tutarla ve yetkili onayıyla yapılmasını sağlamak.',
+      systems: ['Büro Hasar Sistemi', 'DYS', 'Outlook'],
+      inputs: ['Tespit edilmiş tazminat tutarı', 'Hak sahibi ve IBAN bilgisi'],
+      outputs: ['Onaylı ödeme talebi', 'Ödeme günü listesi'],
+      maturity: 3,
+      slaDays: 5,
 
-        /* ---------- 1.3.4 Talep Girişi ---------- */
+      children: [
         {
           code: 'HSR-12',
-          name: 'Talep Girişi (1.3.4)',
+          name: 'Talep Girişi (4.1)',
           owner: 'usr-03',
           participants: ['usr-04', 'usr-08'],
           description:
@@ -2092,11 +1963,384 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
+        {
+          code: 'HSR-07',
+          name: 'Talep Onay (4.2)',
+          owner: 'usr-02',
+          participants: ['usr-06', 'usr-08'],
+          description:
+            'Dosya sorumlusunun girdiği ödeme talebinin yönetici tarafından kontrol edilip onaylanması, '
+            + 'Güvence Hesabı’ndan talep edilmesi ve gelen tutarların dosyalara işlenmesi.',
+          purpose:
+            'Hiçbir ödemenin tek kişinin kararıyla çıkmamasını ve talep tutarının dosyayla tutarlı olmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'Güvence Hesabı'],
+          inputs: ['Girilmiş ödeme talebi'],
+          outputs: ['Onaylanmış talep', 'Güvence talep yazısı', 'Gelen tutar kaydı'],
+          maturity: 3,
+          slaDays: 3,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['authorization', 'Yetki Ayrımı',
+              'Talebi giren ile onaylayan farklı kişi olmalıdır; aynı kişinin her ikisini yapması görevler ayrılığını bozar.'],
+            ['financial', 'Finansal Etki',
+              'Onaylanan tutar doğrudan Güvence Hesabı’ndan talep edilir; hatalı onay geri alınması güç bir ödeme doğurur.'],
+          ],
+          examples: [
+            {
+              title: 'Zarar görene ödeme bilgisinin iletilmemesi',
+              scenario:
+                'Talep onaylanıp Güvence’ye iletiliyor ve ödeme yapılıyor, ancak zarar görene hiçbir '
+                + 'bildirim gitmiyor. Zarar gören durumu öğrenmek için defalarca arıyor.',
+              risk: 'Gereksiz çağrı yükü, memnuniyetsizlik ve şikâyet.',
+              control: 'Ödeme onayı sonrası zarar görene otomatik e-posta veya SMS bildirimi.',
+              controlType: 'Önleyici — otomatik bildirim',
+              evidence: 'Bildirim gönderim kaydı',
+              criticalNote: 'Bildirim, ödeme gününün oluşturulmasıyla birlikte tetiklenmelidir.',
+            },
+          ],
+          risks: [
+            {
+              code: 'R-HSR-07',
+              name: 'Talebi girenin aynı zamanda onaylaması',
+              description:
+                'Görevler ayrılığının uygulanmaması sonucu ödeme talebini giren kişinin aynı talebi '
+                + 'onaylayabilmesi.',
+              cause: 'Sistemde giren ve onaylayan kullanıcı farkının zorunlu kılınmaması.',
+              consequence: 'Suistimal ve hatalı ödemenin fark edilmeden çıkması.',
+              category: 'financial',
+              inherent: [3, 5],
+              residual: [2, 5],
+              target: [1, 5],
+              appetite: 'averse',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-02',
+              identifiedAt: '2025-05-22',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+            {
+              code: 'R-HSR-25',
+              name: 'Zarar görenin ödeme hakkında bilgilendirilmemesi',
+              description:
+                'Ödeme onaylandığında ve ödeme günü verildiğinde zarar görene otomatik bildirim '
+                + 'yapılmaması.',
+              cause: 'Bildirimin süreçte tanımlı olmaması.',
+              consequence: 'Çağrı merkezinde gereksiz yük, memnuniyetsizlik ve şikâyet.',
+              category: 'reputational',
+              inherent: [4, 2],
+              residual: [3, 2],
+              target: [1, 2],
+              appetite: 'cautious',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-02',
+              identifiedAt: '2025-09-16',
+              lastAssessedAt: '2026-03-05',
+              standards: ['ISO 9001'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSR-12',
+              name: 'Talebi giren ile onaylayan ayrımı',
+              description:
+                'Sistem, ödeme talebini giren kullanıcının aynı talebi onaylamasına izin vermez; '
+                + 'onay yalnızca servis yöneticisi rolündeki farklı bir kullanıcı tarafından verilebilir.',
+              nature: 'preventive',
+              execution: 'automated',
+              categories: ['segregation_of_duties', 'authorization'],
+              frequency: 'per_transaction',
+              method: 'Onay ekranında kullanıcı kimliği karşılaştırması.',
+              evidence: 'Onay kaydı ve kullanıcı logu',
+              mitigates: ['R-HSR-07'],
+              owner: 'usr-02',
+              key: true,
+              coso: 'control_activities',
+              design: 'adequate',
+              effectiveness: 'effective',
+              strength: 5,
+              lastPerformedAt: '2026-08-28',
+              lastTestedAt: '2026-07-10',
+              testResult: '120 onayın tamamında giren ve onaylayan farklı; kontrol atlatılamıyor.',
+            },
+            {
+              code: 'K-HSR-13',
+              name: 'Ödeme onayı sonrası zarar görene otomatik bildirim',
+              description:
+                'Talep onaylanıp ödeme günü verildiğinde zarar görene e-posta veya SMS ile bildirim '
+                + 'gönderilir ve gönderim kaydı dosyaya işlenir.',
+              nature: 'preventive',
+              execution: 'automated',
+              categories: ['system'],
+              frequency: 'per_transaction',
+              method: 'Ödeme günü kaydına bağlı otomatik bildirim tetikleyicisi.',
+              evidence: 'Bildirim gönderim kaydı',
+              mitigates: ['R-HSR-25'],
+              owner: 'usr-02',
+              coso: 'control_activities',
+              design: 'inadequate',
+              effectiveness: 'ineffective',
+              strength: 1,
+              lastPerformedAt: '2026-08-28',
+              lastTestedAt: '2026-06-22',
+              testResult: 'Bildirim mekanizması henüz kurulmadı; talep geliştirme listesinde.',
+            },
+          ],
+          docs: [
+            {
+              code: 'TLM-HSR-07',
+              name: 'Ödeme Talebi Onay Talimatı',
+              type: 'instruction',
+              version: '2.0',
+              owner: 'usr-02',
+              publishedAt: '2025-06-01',
+              updatedAt: '2026-03-05',
+              nextReviewAt: '2027-06-01',
+              summary: 'Talep onayı, Güvence Hesabı’ndan talep ve gelen tutarların işlenmesi.',
+              sections: [
+                {
+                  heading: 'Onay Öncesi Kontroller',
+                  body: [
+                    'Talep tutarı dosyadaki evrak ve eksper raporuyla karşılaştırılır.',
+                    'Peşin ödeme yapılmışsa mahsup edilir.',
+                    'Talebi giren ile onaylayan aynı kişi olamaz.',
+                  ],
+                },
+                {
+                  heading: 'Güvence Talebi',
+                  body: [
+                    'Onaylanan talepler PDF talep yazısı ve dosya listesiyle Güvence Hesabı’na iletilir.',
+                    'Gelen tutarlar dosya bazında sisteme işlenir ve Güvence referansı girilir.',
+                  ],
+                },
+              ],
+              controlCodes: ['K-HSR-12', 'K-HSR-13'],
+            },
+          ],
+          children: [
+            {
+              code: 'HSR-07-1',
+              name: 'Ödemeye ilişkin dosya kontrolü',
+              description: 'Talep tutarının ve evrakın dosyayla tutarlılığının kontrolü.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Girilmiş talep'],
+              outputs: ['Kontrol sonucu'],
+              controlRefs: ['K-HSR-12'],
+            },
+            {
+              code: 'HSR-07-2',
+              name: 'Talebin onaylanması ve Güvence’ye iletilmesi',
+              description: 'Talep tarihinin girilip onaylanması, PDF talep yazısı ve listenin iletilmesi.',
+              systems: ['Büro Hasar Sistemi', 'Güvence Hesabı'],
+              inputs: ['Onaylanmış talep'],
+              outputs: ['Güvence talep yazısı'],
+            },
+            {
+              code: 'HSR-07-3',
+              name: 'Gelen tutarların dosyalara işlenmesi',
+              description: 'Güvence’den gelen ödeme ve dosya bilgilerinin referansla sisteme kaydı.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Güvence ödeme bildirimi'],
+              outputs: ['Ödeme kaydı', 'Güvence referansı'],
+              controlRefs: ['K-HSR-13'],
+            },
+          ],
+        },
+        {
+          code: 'HSR-08',
+          name: 'Ödeme Günü Verme (4.3)',
+          owner: 'usr-02',
+          participants: ['usr-08'],
+          description:
+            'Güvence Hesabı’ndan gelen veya öz kaynaktan yapılacak ödemeler için ödeme gününün '
+            + 'oluşturulması ve muhasebeye iletilmesi.',
+          purpose: 'Ödemelerin planlı, kontrollü ve izlenebilir biçimde yapılmasını sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'Excel'],
+          inputs: ['Güvence ödemesi', 'Öz kaynak ödeme kararı'],
+          outputs: ['Ödeme günü listesi', 'Muhasebe bildirimi'],
+          maturity: 2,
+          slaDays: 2,
+          lastReviewedAt: '2026-03-05',
+          critical: [
+            ['financial', 'Finansal Etki',
+              'Ödeme günü listesi ödemenin tek dayanağıdır; liste üzerinde kontrolsüz değişiklik doğrudan hatalı ödeme demektir.'],
+          ],
+          examples: [
+            {
+              title: 'Excel ödeme listesinde kontrolsüz düzeltme',
+              scenario:
+                'Ödeme günü listesi Excel olarak üretiliyor. Muhasebeye gönderilmeden önce bir tutar '
+                + 'elle düzeltiliyor; sistemdeki kayıtla liste arasında fark oluşuyor.',
+              risk: 'Sistemde görünenden farklı tutar ödeniyor ve fark ancak mutabakatta fark ediliyor.',
+              control: 'Ödeme günü listesinin sistemden kilitli üretilmesi ve elle değiştirilememesi.',
+              controlType: 'Önleyici — çıktı bütünlüğü',
+              evidence: 'Sistem listesi ile muhasebeye giden listenin karşılaştırması',
+              criticalNote: 'Liste üzerinde değişiklik gerekiyorsa sistemde düzeltilip yeniden üretilmelidir.',
+            },
+          ],
+          risks: [
+            {
+              code: 'R-HSR-08',
+              name: 'Ödeme günü listesinin sistem dışında değiştirilebilmesi',
+              description:
+                'Ödeme günü listesinin Excel olarak üretilmesi ve muhasebeye iletilmeden önce '
+                + 'elle değiştirilebilmesi.',
+              cause: 'Listenin kilitli olmayan bir formatta üretilmesi ve sistemle mutabakatının yapılmaması.',
+              consequence:
+                'Sistemde görünenden farklı tutarın ödenmesi, suistimal ve mutabakatsızlık.',
+              category: 'financial',
+              inherent: [4, 5],
+              residual: [3, 5],
+              target: [1, 5],
+              appetite: 'averse',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-06',
+              identifiedAt: '2025-01-28',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+            {
+              code: 'R-HSR-26',
+              name: 'Peşin ödemenin sistemde görünmemesi ve mükerrer ödeme',
+              description:
+                'Muhasebe tarafından yapılan peşin ödemenin sisteme girilmemesi sonucu aynı tutarın '
+                + 'ikinci kez ödenmesi.',
+              cause: 'Peşin ödemenin sistemde uyarı üretmemesi ve muhasebe girişinin zorunlu olmaması.',
+              consequence: 'Mükerrer ödeme ve geri tahsil güçlüğü.',
+              category: 'financial',
+              inherent: [3, 5],
+              residual: [2, 5],
+              target: [1, 5],
+              appetite: 'averse',
+              treatment: 'mitigate',
+              trend: 'stable',
+              owner: 'usr-06',
+              identifiedAt: '2025-11-05',
+              lastAssessedAt: '2026-03-05',
+              standards: ['COSO'],
+            },
+          ],
+          controls: [
+            {
+              code: 'K-HSR-14',
+              name: 'Ödeme günü listesinin kilitli üretilmesi',
+              description:
+                'Ödeme günü listesi sistemden değiştirilemez biçimde (PDF/kilitli) üretilir; '
+                + 'muhasebeye giden liste ile sistem kaydı gün sonunda mutabık kılınır.',
+              nature: 'preventive',
+              execution: 'automated',
+              categories: ['system', 'reconciliation'],
+              frequency: 'daily',
+              method: 'Kilitli liste üretimi ve gün sonu mutabakatı.',
+              evidence: 'Kilitli liste ve mutabakat kaydı',
+              mitigates: ['R-HSR-08'],
+              owner: 'usr-06',
+              key: true,
+              coso: 'control_activities',
+              design: 'inadequate',
+              effectiveness: 'ineffective',
+              strength: 1,
+              lastPerformedAt: '2026-08-28',
+              lastTestedAt: '2026-07-02',
+              testResult:
+                'Liste hâlâ Excel olarak üretiliyor ve düzenlenebiliyor. Mutabakat elle ve düzensiz yapılıyor. Öncelikli bulgu.',
+            },
+            {
+              code: 'K-HSR-15',
+              name: 'Peşin ödeme uyarısı ve muhasebe girişi zorunluluğu',
+              description:
+                'Peşin ödeme yapılan dosyalarda sistem ödeme günü oluşturulurken uyarı üretir; '
+                + 'muhasebenin peşin ödemeyi sisteme girmesi zorunludur.',
+              nature: 'preventive',
+              execution: 'semi_automated',
+              categories: ['system', 'reconciliation'],
+              frequency: 'per_transaction',
+              method: 'Peşin ödeme alanı ve ödeme günü ekranında uyarı.',
+              evidence: 'Peşin ödeme kaydı ve uyarı logu',
+              mitigates: ['R-HSR-26'],
+              owner: 'usr-06',
+              key: true,
+              coso: 'control_activities',
+              design: 'needs_improvement',
+              effectiveness: 'partially_effective',
+              strength: 2,
+              lastPerformedAt: '2026-08-28',
+              lastTestedAt: '2026-06-30',
+              testResult: 'Alan mevcut ancak uyarı üretilmiyor; peşin ödemelerin 3’ü geç girilmiş.',
+            },
+          ],
+          actions: [
+            {
+              code: 'AKS-007',
+              title: 'Ödeme günü listesinin kilitli çıktıya çevrilmesi',
+              description:
+                'Ödeme günü listesinin Excel yerine değiştirilemez PDF olarak üretilmesi, Excel çıktısının '
+                + 'kaldırılması ve sistem–liste mutabakatının otomatikleştirilmesi.',
+              riskCode: 'R-HSR-08',
+              controlCode: 'K-HSR-14',
+              owner: 'usr-11',
+              dueDate: '2026-10-31',
+              priority: 'critical',
+              status: 'in_progress',
+              progress: 25,
+              source: 'internal_control',
+              createdAt: '2026-07-12',
+              createdBy: 'usr-08',
+              managerComment:
+                'Muhasebe ile ortak çalışılıyor; kilitli çıktı geliştirmesi öncelik listesinin başında.',
+            },
+          ],
+          children: [
+            {
+              code: 'HSR-08-1',
+              name: 'Genel dosya kontrolü',
+              description: 'Ödeme öncesi dosyanın ve peşin ödeme durumunun kontrolü.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Ödeme bekleyen dosyalar'],
+              outputs: ['Kontrol sonucu'],
+              controlRefs: ['K-HSR-15'],
+            },
+            {
+              code: 'HSR-08-2',
+              name: 'Ödeme gününün oluşturulması',
+              description: 'Güvence ve öz kaynak ödemeleri için ödeme gününün sistemde oluşturulması.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Onaylanmış ödemeler'],
+              outputs: ['Ödeme günü kaydı'],
+              controlRefs: ['K-HSR-14'],
+            },
+            {
+              code: 'HSR-08-3',
+              name: 'Listenin muhasebeye iletilmesi',
+              description: 'Tüm ödemeler listesinin muhasebe ödeme sürecine devredilmesi.',
+              systems: ['Büro Hasar Sistemi'],
+              inputs: ['Ödeme günü listesi'],
+              outputs: ['Muhasebe bildirimi'],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      code: 'HSR-E',
+      name: 'Rücu ve Tahsilat',
+      owner: 'usr-03',
+      description:
+        'Ödenen tutarın yeşil kart sigortacısına ya da ilgili ülke bürosuna faturalandırılması, tahsilatın izlenmesi ve gelmemesi hâlinde Garanti Çağrısı (G Call) prosedürünün işletilmesi.',
+      purpose:
+        'Büronun ödediği tutarın eksiksiz ve zamanında geri alınmasını sağlamak.',
+      systems: ['Büro Hasar Sistemi', 'DYS', 'Outlook'],
+      inputs: ['Ödeme dekontu', 'Dosya bilgileri'],
+      outputs: ['Rücu faturası', 'Tahsilat kaydı', 'G Call dosyası'],
+      maturity: 3,
+      slaDays: 30,
 
-        /* ---------- 1.3.5 Rücu İşlemleri ---------- */
+      children: [
         {
           code: 'HSR-13',
-          name: 'Rücu İşlemleri (1.3.5)',
+          name: 'Rücu İşlemleri (5.1)',
           owner: 'usr-03',
           participants: ['usr-08'],
           description:
@@ -2208,11 +2452,9 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
-
-        /* ---------- 1.3.6 Garanti Çağrısı ---------- */
         {
           code: 'HSR-14',
-          name: 'Garanti Çağrısı — G Call (1.3.6)',
+          name: 'Garanti Çağrısı — G Call (5.2)',
           owner: 'usr-03',
           description:
             'Rücu faturasına rağmen ödemesi gelmeyen dosyalarda, Yeşil Kart sistemi kuralları '
@@ -2371,257 +2613,168 @@ export const hasarYonetimi: NodeSpec = {
             },
           ],
         },
+      ],
+    },
+    {
+      code: 'HSR-F',
+      name: 'Dosya Kapanış',
+      owner: 'usr-03',
+      description:
+        'Nihai talebin karşılanması ve rücu talebinin iletilmesinin ardından dosyanın kapatılması, '
+        + 'muallak bakiyesinin sıfırlanması ve evrakın arşive alınması.',
+      purpose:
+        'Kapanan dosyanın mali tabloda ve muallak raporunda doğru görünmesini ve evrakın '
+        + 'bulunabilir biçimde saklanmasını sağlamak.',
+      systems: ['Büro Hasar Sistemi', 'DYS'],
+      inputs: ['Nihai ödeme kaydı', 'İletilmiş rücu talebi'],
+      outputs: ['Kapatılmış dosya', 'Sıfırlanmış muallak', 'Arşiv kaydı'],
+      maturity: 3,
+      slaDays: 5,
 
-        /* ---------- 1.3.7 Ret Değerlendirme ---------- */
+      children: [
         {
-          code: 'HSR-15',
-          name: 'Ret Değerlendirme (1.3.7)',
+          code: 'HSR-18',
+          name: 'Dosya Kapanış ve Arşiv (6.1)',
           owner: 'usr-03',
+          participants: ['usr-05'],
           description:
-            'Teminat dışı, zamanaşımına uğramış veya evrakı tamamlanmayan taleplerin gerekçeli '
-            + 'olarak reddedilmesi ve ret yazısının iletilmesi.',
-          purpose: 'Reddedilen taleplerin gerekçesinin tutarlı, hukuken savunulabilir ve izlenebilir olmasını sağlamak.',
-          systems: ['Büro Hasar Sistemi'],
-          inputs: ['Ret kararı gerektiren dosya'],
-          outputs: ['Ret yazısı', 'Ret nedeni kaydı'],
-          maturity: 2,
-          slaDays: 5,
-          lastReviewedAt: '2026-03-05',
-          critical: [
-            ['regulatory', 'Hukuki Sonuç',
-              'Ret gerekçesi dava dosyasının temelini oluşturur; standart dışı gerekçeler savunmayı zayıflatır.'],
-          ],
-          risks: [
-            {
-              code: 'R-HSR-15',
-              name: 'Ret yazılarının standart dışı ve elle hazırlanması',
-              description:
-                'Ret gerekçelerinin sistemde tanımlı liste yerine elle yazılması ve gerekçelerin '
-                + 'dosyadan dosyaya farklılaşması.',
-              cause:
-                'Sistemdeki ret nedeni listesinin yetersiz olması ve kullanıcının yeni neden ekleyememesi.',
-              consequence:
-                'Tutarsız gerekçe, hukuki savunmanın zayıflaması ve ret istatistiklerinin üretilememesi.',
-              category: 'compliance',
-              inherent: [3, 4],
-              residual: [3, 3],
-              target: [2, 3],
-              appetite: 'cautious',
-              treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-09',
-              identifiedAt: '2025-09-04',
-              lastAssessedAt: '2026-03-05',
-              standards: ['COSO', 'ISO 9001'],
-            },
-          ],
-          controls: [
-            {
-              code: 'K-HSR-24',
-              name: 'Standart ret nedeni listesi ve matbu yazı',
-              description:
-                'Ret nedenleri sistemde tanımlı listeden seçilir ve ret yazısı matbu şablondan '
-                + 'üretilir; yeni neden ihtiyacı hukuk onayıyla listeye eklenir.',
-              nature: 'preventive',
-              execution: 'semi_automated',
-              categories: ['data_validation', 'authorization'],
-              frequency: 'per_transaction',
-              method: 'Ret nedeni seçim listesi ve şablon yazı üretimi.',
-              evidence: 'Ret nedeni kaydı ve üretilen yazı',
-              mitigates: ['R-HSR-15'],
-              owner: 'usr-09',
-              coso: 'control_activities',
-              design: 'needs_improvement',
-              effectiveness: 'partially_effective',
-              strength: 2,
-              lastPerformedAt: '2026-08-22',
-              lastTestedAt: '2026-06-02',
-              testResult:
-                'Liste var ama dar; 22 ret yazısının 9’u serbest metinle yazılmış. Kullanıcı yeni neden ekleyemiyor.',
-            },
-          ],
-          children: [
-            {
-              code: 'HSR-15-1',
-              name: 'Ret gerekçesinin belirlenmesi',
-              description: 'Teminat, zamanaşımı veya evrak eksikliği gerekçelerinin değerlendirilmesi.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Dosya inceleme sonucu'],
-              outputs: ['Ret gerekçesi'],
-              controlRefs: ['K-HSR-24'],
-            },
-            {
-              code: 'HSR-15-2',
-              name: 'Ret yazısının iletilmesi',
-              description: 'Matbu ret yazısının üretilip talep sahibine gönderilmesi.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Ret gerekçesi'],
-              outputs: ['Ret yazısı'],
-            },
-          ],
-        },
-
-        /* ---------- 1.3.9 Tramer Değerlendirme ---------- */
-        {
-          code: 'HSR-16',
-          name: 'Tramer Değerlendirme (1.3.9)',
-          owner: 'usr-04',
-          description:
-            'Tramer üzerinden gelen kaza ve hasar kayıtlarının dosyayla karşılaştırılması, '
-            + 'tutanak takibi ve mükerrer kayıt tespiti.',
-          purpose: 'Dosya bilgisinin sektör kayıtlarıyla tutarlı olmasını sağlamak.',
-          systems: ['Tramer', 'Büro Hasar Sistemi'],
-          inputs: ['Tramer kaydı', 'Kaza tespit tutanağı'],
-          outputs: ['Tutarlılık teyidi'],
+            'Talebin nihai olduğunun teyit edilmesi, dosyanın kapatılması, kalan muallak '
+            + 'karşılığının kapatılması ve dosya evrakının arşive alınması. Kapatılan dosyaya '
+            + 'yeniden talep gelmesi hâlinde dosya yeniden açılır.',
+          purpose: 'Dosyanın izlenebilir biçimde kapanmasını ve gerektiğinde yeniden açılabilmesini sağlamak.',
+          systems: ['Büro Hasar Sistemi', 'DYS'],
+          inputs: ['Nihai talep', 'Ödeme kaydı', 'Rücu talebi'],
+          outputs: ['Kapatılmış dosya', 'Arşiv kaydı'],
           maturity: 3,
-          slaDays: 3,
-          lastReviewedAt: '2026-03-05',
+          slaDays: 5,
+          lastReviewedAt: '2024-12-12',
+          critical: [
+            ['financial', 'Finansal Risk',
+              'Dosya kapatılırken kalan muallak karşılığı kapatılmazsa yükümlülük mali tabloda '
+              + 'olduğundan fazla görünür.'],
+            ['control', 'Kontrol Noktası',
+              'Kısmi talep ile nihai talep ayrımı yapılmadan kapatılan dosya, sonraki talepte '
+              + 'yeniden açılmak zorunda kalır ve muallak geçmişi bozulur.'],
+          ],
+          examples: [
+            {
+              title: 'Kısmi talebin nihai sanılıp dosyanın kapatılması',
+              scenario:
+                'Zarar görenin tedavi giderleri için gelen kısmi talebi ödendikten sonra dosya '
+                + 'kapatılıyor; birkaç ay sonra maluliyet raporu gelince dosya yeniden açılıyor.',
+              risk:
+                'Kapanış ile yeniden açılış arasındaki dönemde muallak sıfır göründüğü için '
+                + 'yükümlülük olduğundan düşük raporlanıyor.',
+              control:
+                'Kapanış ekranında talebin nihai mi kısmi mi olduğunun işaretlenmesi ve kısmi '
+                + 'talepte dosyanın açık bırakılarak kalan muallağın korunması.',
+              controlType: 'Önleyici — zorunlu alan',
+              evidence: 'Kapanış kaydı ve muallak hareket dökümü',
+              criticalNote:
+                'Kısmi talepte dosya açık bırakılır; ileride talep edilmesi öngörülen tutar muallak olarak durur.',
+            },
+          ],
           risks: [
             {
-              code: 'R-HSR-16',
-              name: 'Kaza tespit tutanağının takip edilmemesi',
+              code: 'R-HSR-30',
+              name: 'Kapanışta muallak karşılığının kapatılmaması',
               description:
-                'Tramer üzerinden beklenen kaza tespit tutanağının gelip gelmediğinin izlenmemesi.',
-              cause: 'Tutanak bekleyen dosyalar için hafta içi uyarı üretilmemesi.',
-              consequence: 'Dosyanın eksik belgeyle ilerlemesi ve sonradan düzeltme gereği.',
+                'Dosya kapatıldığı hâlde kalan muallak karşılığının sistemde açık kalması.',
+              cause: 'Kapanış işleminin muallak kaydını otomatik kapatmaması.',
+              consequence: 'Mali tabloda fazla yükümlülük ve muallak raporunun gerçeği yansıtmaması.',
+              category: 'financial',
+              inherent: [3, 4],
+              residual: [2, 3],
+              target: [1, 3],
+              appetite: 'minimal',
+              treatment: 'mitigate',
+              owner: 'usr-03',
+              identifiedAt: '2024-12-12',
+              lastAssessedAt: '2026-09-09',
+            },
+            {
+              code: 'R-HSR-31',
+              name: 'Kısmi talepte dosyanın erken kapatılması',
+              description:
+                'Kısmi ödeme sonrası dosyanın nihai sayılarak kapatılması ve sonraki talepte '
+                + 'yeniden açılmak zorunda kalınması.',
+              cause: 'Kapanış ekranında nihai/kısmi ayrımının zorunlu alan olmaması.',
+              consequence: 'Muallak geçmişinin bozulması ve dönem raporlarında tutarsızlık.',
               category: 'operational',
               inherent: [3, 3],
               residual: [2, 3],
-              target: [2, 2],
               appetite: 'cautious',
               treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-04',
-              identifiedAt: '2025-11-18',
-              lastAssessedAt: '2026-03-05',
-              standards: ['ISO 9001'],
+              owner: 'usr-03',
+              identifiedAt: '2024-12-12',
+              lastAssessedAt: '2026-09-09',
             },
           ],
           controls: [
             {
-              code: 'K-HSR-25',
-              name: 'Tutanak bekleyen dosya haftalık uyarısı',
+              code: 'K-HSR-30',
+              name: 'Kapanışta muallak sıfırlama kontrolü',
               description:
-                'Kaza tespit tutanağı beklenen dosyalar hafta içinde gelmezse sistem uyarı üretir.',
+                'Dosya kapatılırken kalan muallak karşılığı sistem tarafından kapatılır; kapanış '
+                + 'sonrası muallak bakiyesi sıfırdan farklı olan dosyalar aylık listede raporlanır.',
               nature: 'detective',
-              execution: 'automated',
-              categories: ['monitoring'],
-              frequency: 'weekly',
-              method: 'Tutanak bekleyen dosya listesi ve süre uyarısı.',
-              evidence: 'Uyarı listesi',
-              mitigates: ['R-HSR-16'],
-              owner: 'usr-04',
-              coso: 'monitoring',
+              execution: 'semi_automated',
+              categories: ['system', 'reconciliation'],
+              frequency: 'monthly',
+              method: 'Kapalı dosya + muallak bakiyesi raporu çalıştırılır; fark varsa düzeltilir.',
+              evidence: 'Aylık kapalı dosya muallak bakiyesi raporu',
+              mitigates: ['R-HSR-30'],
+              owner: 'usr-08',
+              key: true,
+              coso: 'control_activities',
               design: 'adequate',
               effectiveness: 'partially_effective',
               strength: 3,
-              lastPerformedAt: '2026-08-25',
-              lastTestedAt: '2026-06-19',
-              testResult: 'Uyarı üretiliyor ancak kapatma takibi yapılmıyor.',
+              lastPerformedAt: '2026-08-31',
+              lastTestedAt: '2026-06-30',
+              testResult: 'Rapor alınıyor; son dönemde 4 dosyada bakiye tespit edilip düzeltilmiş.',
+            },
+            {
+              code: 'K-HSR-31',
+              name: 'Nihai / kısmi talep işaretlemesi',
+              description:
+                'Kapanış öncesi talebin nihai mi kısmi mi olduğu işaretlenir; kısmi işaretli '
+                + 'dosyalar kapatılamaz, ileride beklenen tutar muallakta bırakılır.',
+              nature: 'preventive',
+              execution: 'manual',
+              categories: ['data_validation'],
+              frequency: 'per_transaction',
+              method: 'Kapanış ekranında zorunlu alan.',
+              evidence: 'Kapanış kaydı ve talep türü işareti',
+              mitigates: ['R-HSR-31'],
+              owner: 'usr-03',
+              coso: 'control_activities',
+              design: 'needs_improvement',
+              effectiveness: 'not_tested',
+              strength: 2,
+              lastPerformedAt: '2026-08-20',
+              lastTestedAt: null,
             },
           ],
           children: [
             {
-              code: 'HSR-16-1',
-              name: 'Tramer kaydının sorgulanması',
-              description: 'Kaza ve hasar kayıtlarının Tramer üzerinden sorgulanması.',
-              systems: ['Tramer'],
-              inputs: ['Plaka', 'Kaza tarihi'],
-              outputs: ['Tramer kaydı'],
+              code: 'HSR-18-1',
+              name: 'Nihai talep teyidi',
+              description: 'Gelen talebin nihai mi kısmi mi olduğunun belirlenmesi.',
             },
             {
-              code: 'HSR-16-2',
-              name: 'Dosya ile karşılaştırma',
-              description: 'Tramer kaydının dosya bilgileriyle karşılaştırılması ve tutanak takibi.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Tramer kaydı'],
-              outputs: ['Tutarlılık teyidi'],
-              controlRefs: ['K-HSR-25'],
-            },
-          ],
-        },
-
-        /* ---------- 1.3.11 Eksper Değerlendirme ---------- */
-        {
-          code: 'HSR-17',
-          name: 'Eksper Başvuruları Değerlendirme (1.3.11)',
-          owner: 'usr-05',
-          description:
-            'Büro eksper havuzuna yapılan başvuruların değerlendirilmesi, yetkinlik kontrolü ve '
-            + 'onaylı eksper listesinin güncellenmesi.',
-          purpose: 'Dosyalara yalnızca yetkinliği doğrulanmış eksperlerin atanmasını sağlamak.',
-          systems: ['Büro Hasar Sistemi', 'DYS'],
-          inputs: ['Eksper başvuru dosyası'],
-          outputs: ['Onaylı eksper listesi'],
-          maturity: 3,
-          slaDays: 15,
-          lastReviewedAt: '2026-03-05',
-          risks: [
-            {
-              code: 'R-HSR-17',
-              name: 'Onaylı eksper listesinin güncel tutulmaması',
-              description:
-                'Ruhsatı sona ermiş veya yetkinliği düşen eksperlerin listeden çıkarılmaması.',
-              cause: 'Liste güncellemesinin dönemsel bir kontrole bağlanmamış olması.',
-              consequence: 'Yetkisiz eksper ataması, raporun geçersizliği ve dosyanın yeniden açılması.',
-              category: 'supplier',
-              inherent: [3, 4],
-              residual: [2, 4],
-              target: [2, 3],
-              appetite: 'cautious',
-              treatment: 'mitigate',
-              trend: 'stable',
-              owner: 'usr-05',
-              identifiedAt: '2025-12-10',
-              lastAssessedAt: '2026-03-05',
-              standards: ['ISO 9001'],
-            },
-          ],
-          controls: [
-            {
-              code: 'K-HSR-26',
-              name: 'Eksper ruhsat geçerliliği dönemsel kontrolü',
-              description:
-                'Onaylı eksper listesindeki ruhsat geçerlilik tarihleri üç ayda bir kontrol edilir; '
-                + 'süresi dolanlar listeden otomatik çıkarılır.',
-              nature: 'detective',
-              execution: 'semi_automated',
-              categories: ['monitoring', 'authorization'],
-              frequency: 'quarterly',
-              method: 'Ruhsat tarihi taraması ve liste güncellemesi.',
-              evidence: 'Liste güncelleme kaydı',
-              mitigates: ['R-HSR-17'],
-              owner: 'usr-05',
-              coso: 'monitoring',
-              design: 'adequate',
-              effectiveness: 'effective',
-              strength: 4,
-              lastPerformedAt: '2026-07-15',
-              lastTestedAt: '2026-07-15',
-              testResult: 'Q3 kontrolünde ruhsatı dolan 3 eksper listeden çıkarıldı.',
-            },
-          ],
-          children: [
-            {
-              code: 'HSR-17-1',
-              name: 'Başvuru evrakının incelenmesi',
-              description: 'Eksper ruhsatı, referans ve uzmanlık alanının doğrulanması.',
-              systems: ['DYS'],
-              inputs: ['Başvuru dosyası'],
-              outputs: ['İnceleme sonucu'],
+              code: 'HSR-18-2',
+              name: 'Dosyanın kapatılması',
+              description: 'Dosya kapanış kaydının yapılması ve kalan muallağın kapatılması.',
             },
             {
-              code: 'HSR-17-2',
-              name: 'Listeye ekleme ve dönemsel gözden geçirme',
-              description: 'Onaylanan eksperin listeye eklenmesi ve ruhsat geçerliliğinin izlenmesi.',
-              systems: ['Büro Hasar Sistemi'],
-              inputs: ['Onay kararı'],
-              outputs: ['Onaylı eksper listesi'],
-              controlRefs: ['K-HSR-26'],
+              code: 'HSR-18-3',
+              name: 'Arşivleme',
+              description: 'Dosya evrakının dijital arşive alınması ve erişim kaydının oluşturulması.',
             },
           ],
         },
       ],
-    },
+    }
   ],
 };

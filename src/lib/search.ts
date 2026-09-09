@@ -54,7 +54,7 @@ export function buildSearchIndex(data: Dataset): IndexEntry[] {
       kind: 'process', id: n.id, code: n.code, title: n.name,
       subtitle: `${nodeKindLabels[n.kind]} · ${userName(n.ownerId)}`,
       context: n.parentId ? nodeName(n.parentId) : '',
-      href: `#/surecler/${n.id}`,
+      href: `#/akis/${n.id}`,
       haystack: normalize(`${n.code} ${n.name} ${body}`),
       body,
     });

@@ -37,11 +37,11 @@ function menus(...keys: MenuKey[]): PermissionMap {
 }
 
 /** Her rolün gördüğü temel menüler — analiz ve arama herkese açıktır. */
-const baseMenus = menus('dashboard', 'kanvas', 'is-akisi', 'surecler', 'arama');
+const baseMenus = menus('dashboard', 'akis', 'arama');
 
 /** Okuma ağırlıklı rollerin gördüğü menüler. */
 const readerMenus = menus(
-  'dashboard', 'kanvas', 'is-akisi', 'surecler', 'iliskiler', 'isi-haritasi', 'riskler', 'kontroller',
+  'dashboard', 'akis', 'iliskiler', 'isi-haritasi', 'riskler', 'kontroller',
   'kri', 'aksiyonlar', 'dokumanlar', 'gozden-gecirme', 'degisiklikler',
   'asistan', 'arama', 'standartlar',
 );

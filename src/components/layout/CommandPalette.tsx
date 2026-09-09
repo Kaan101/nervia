@@ -8,7 +8,7 @@ import { IconArrowRight, IconSearch } from '@/components/common/Icons';
 
 const quickActions: { label: string; hint: string; to: string }[] = [
   { label: 'Dashboard', hint: 'Kurumsal risk görünümü', to: '/' },
-  { label: 'Süreç Haritası', hint: 'Organizasyonun süreç envanteri', to: '/surecler' },
+  { label: 'Süreç Akışı', hint: 'Başvurudan kapanışa akış; adım detayları ve düzenleme', to: '/akis' },
   { label: 'Risk Isı Haritası', hint: 'Olasılık × etki matrisi', to: '/isi-haritasi' },
   { label: 'Kontrol Kütüphanesi', hint: 'Tüm kontroller ve etkinlikleri', to: '/kontroller' },
   { label: 'Gecikmiş Aksiyonlar', hint: 'Hedef tarihi geçen aksiyonlar', to: '/aksiyonlar?filtre=gecikmis' },

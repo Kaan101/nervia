@@ -4,7 +4,6 @@ import { useAuth } from '@/store/useAuth';
 import { AppShell } from '@/components/layout/AppShell';
 import { Login } from '@/pages/Login';
 import { Dashboard } from '@/pages/Dashboard';
-import { ProcessesPage } from '@/pages/Processes';
 import { RiskHeatmapPage } from '@/pages/RiskHeatmap';
 import { ControlLibrary, RiskLibrary } from '@/pages/Libraries';
 import { ActionsPage } from '@/pages/Actions';
@@ -19,8 +18,14 @@ import { NetworkPage } from '@/pages/Network';
 import { StandardsPage } from '@/pages/Standards';
 import { ProfilePage, UsersPage } from '@/pages/People';
 import { AccessAdminPage } from '@/pages/AccessAdmin';
-import { CanvasPage } from '@/pages/Canvas';
 import { FlowPage } from '@/pages/FlowEditor';
+import { useParams } from 'react-router-dom';
+
+/** /surecler/:nodeId ve /kanvas/:nodeId adreslerini yeni akış ekranına taşır. */
+function LegacyNodeRedirect() {
+  const { nodeId } = useParams();
+  return <Navigate to={nodeId ? `/akis/${nodeId}` : '/akis'} replace />;
+}
 
 export function App() {
   const currentUser = useAuth((s) => s.currentUser);
@@ -32,11 +37,15 @@ export function App() {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={<RequireMenu menu="dashboard"><Dashboard /></RequireMenu>} />
-          <Route path="kanvas" element={<RequireMenu menu="kanvas"><CanvasPage /></RequireMenu>} />
-          <Route path="kanvas/:nodeId" element={<RequireMenu menu="kanvas"><CanvasPage /></RequireMenu>} />
-          <Route path="is-akisi" element={<RequireMenu menu="is-akisi"><FlowPage /></RequireMenu>} />
-          <Route path="surecler" element={<RequireMenu menu="surecler"><ProcessesPage /></RequireMenu>} />
-          <Route path="surecler/:nodeId" element={<RequireMenu menu="surecler"><ProcessesPage /></RequireMenu>} />
+          <Route path="akis" element={<RequireMenu menu="akis"><FlowPage /></RequireMenu>} />
+          <Route path="akis/:nodeId" element={<RequireMenu menu="akis"><FlowPage /></RequireMenu>} />
+          {/* Eski üç ekran tek Süreç Akışı'nda birleşti; kayıtlı bağlantılar
+              ve yer imleri kırılmasın diye yönlendiriliyor. */}
+          <Route path="surecler" element={<Navigate to="/akis" replace />} />
+          <Route path="surecler/:nodeId" element={<LegacyNodeRedirect />} />
+          <Route path="kanvas" element={<Navigate to="/akis" replace />} />
+          <Route path="kanvas/:nodeId" element={<LegacyNodeRedirect />} />
+          <Route path="is-akisi" element={<Navigate to="/akis" replace />} />
           <Route path="iliskiler" element={<RequireMenu menu="iliskiler"><NetworkPage /></RequireMenu>} />
           <Route path="isi-haritasi" element={<RequireMenu menu="isi-haritasi"><RiskHeatmapPage /></RequireMenu>} />
           <Route path="riskler" element={<RequireMenu menu="riskler"><RiskLibrary /></RequireMenu>} />

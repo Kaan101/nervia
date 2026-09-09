@@ -1,4 +1,4 @@
-// Faz 8 — akış editörü
+// Faz 7 — süreç akışı editörü
 //
 // Akış editörü, süreç ağacını yukarıdan aşağı akan kutular hâlinde gösterir
 // ve düzenlemeye açar. Süreç Kanvası'ndan farkı, seviyelerin AYNI ekranda
@@ -33,12 +33,34 @@ const topNames = async () =>
     .locator('.fe-canvas > .fe-branch > .fe-slot > .fe-box > .fe-box-main strong')
     .allInnerTexts()).map((t) => t.trim());
 
-await page.goto(`${BASE}/#/is-akisi`, { waitUntil: 'domcontentloaded' });
+await page.goto(`${BASE}/#/akis`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1200);
 
-// ---------- 1. Dikey akış çiziliyor ----------
+// ---------- 1. Süreç seçimi ve dikey akış ----------
+// Kanvasın varyant seçicisi bu ekrana taşındı: her ana süreç bir akış.
+const variants = (await page.locator('.fe-variant').allInnerTexts()).map((v) => v.trim());
+check('Yurt içi hasar akışı listeleniyor', variants.some((v) => /Yurt İçi Hasar/.test(v)));
+check('Yurt dışı hasar akışı listeleniyor', variants.some((v) => /Yurt Dışı Hasar/.test(v)));
+
+// Akış başvurudan kapanışa okunuyor mu?
+const flowOrder = await topNames();
+step(`Akış: ${flowOrder.join(' → ')}`);
+check('Akış başvuruyla başlıyor', /Başvuru/.test(flowOrder[0] ?? ''), flowOrder[0] ?? '');
+check('Akış dosya kapanışıyla bitiyor',
+  /Kapanış/.test(flowOrder[flowOrder.length - 1] ?? ''), flowOrder[flowOrder.length - 1] ?? '');
+
 const topLevel = await boxCount();
 check('Akış kutuları çizildi', topLevel >= 2, `${topLevel} kutu`);
+
+// Sayaçlar: her kutu altındaki her şeyin toplamını taşır (eski kanvas işi).
+const firstChips = (await page.locator('.fe-box').first().locator('.fe-chip').allInnerTexts())
+  .map((t) => t.replace(/\s+/g, ' ').trim());
+check('Kutuda risk sayacı var', firstChips.some((c) => /^Risk/.test(c)), firstChips.join(' · '));
+check('Kutuda kontrol sayacı var', firstChips.some((c) => /^Kontrol/.test(c)));
+check('Kutuda prosedür sayacı var', firstChips.some((c) => /^Prosedür/.test(c)));
+check('Kutuda doküman sayacı var', firstChips.some((c) => /^Doküman/.test(c)));
+const nonZero = await page.locator('.fe-chip:not(.is-zero)').count();
+check('Sayaçlar dolu', nonZero >= 1, `${nonZero} dolu sayaç`);
 const arrows = await page.locator('.fe-arrow').count();
 check('Kutular okla bağlandı', arrows === topLevel - 1, `${arrows} ok / ${topLevel} kutu`);
 const firstName = (await topNames())[0];
@@ -141,9 +163,17 @@ await page.waitForTimeout(900);
 const toast = await page.locator('.toast').innerText().catch(() => '');
 check('Akıştan çıkarma onaya gönderildi', /onaya gönderildi/i.test(toast), toast.split('\n')[0] ?? '');
 
-// ---------- 8. Yetkisiz rol düzenleyemiyor ----------
+// ---------- 8. Başka bir sürece geçiş ----------
+await page.locator('.fe-variant', { hasText: 'Yurt Dışı Hasar' }).click();
+await page.waitForTimeout(900);
+const hsdFlow = await topNames();
+step(`Yurt dışı akışı: ${hsdFlow.join(' → ')}`);
+check('Yurt dışı akışına geçildi', hsdFlow.length >= 2 && !hsdFlow.includes('Başvuru ve İhbar'),
+  hsdFlow.join(' | '));
+
+// ---------- 9. Yetkisiz rol düzenleyemiyor ----------
 await setPersona('usr-04'); // Barış Öztürk — yalnızca 'employee'
-await page.goto(`${BASE}/#/is-akisi`, { waitUntil: 'domcontentloaded' });
+await page.goto(`${BASE}/#/akis`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(1200);
 check('Çalışan rolünde araya ekleme tutamağı yok',
   (await page.locator('.fe-insert-btn').count()) === 0);
